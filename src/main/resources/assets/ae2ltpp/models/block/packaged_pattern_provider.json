@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "ae2ltpp:block/overload_packaged_pattern_provider"
+  }
+}

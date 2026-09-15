@@ -1,0 +1,15 @@
+{
+  "type": "mekanism:pigment_mixing",
+  "left_input": {
+    "amount": 1,
+    "chemical": "mekanism:oxygen"
+  },
+  "right_input": {
+    "amount": 1,
+    "chemical": "mekanism:chlorine"
+  },
+  "output": {
+    "amount": 2,
+    "id": "mekanism:hydrofluoric_acid"
+  }
+}

@@ -1,0 +1,30 @@
+// Offline/native verification with user-supplied target-mod jars. Does not change release dependencies.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        def modsDir = providers.gradleProperty('ppBatchModsDir').orNull
+        if (modsDir != null) {
+            sourceSets.create('batchTest') {
+                java.srcDir 'src/mekRoutingTest/java'
+                resources.srcDir 'src/mekRoutingTest/resources'
+                compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+                runtimeClasspath += output + sourceSets.main.runtimeClasspath
+            }
+            dependencies.add('batchTestImplementation', 'mekanism:Mekanism:1.21.1-10.7.19.85')
+            dependencies.add('batchTestImplementation', 'curse.maven:applied-mekanistics-574300:7096962')
+            dependencies.add('batchTestRuntimeOnly', files(fileTree(modsDir) {
+                include 'mekmm-*.jar', 'ExtendedCrafting-*.jar', 'Cucumber-*.jar', 'Re-Avaritia-neoforge-*.jar'
+            }))
+            neoForge.mods.ae2ltpp.sourceSet(sourceSets.batchTest)
+            neoForge.runs.gameTestServer {
+                sourceSet = sourceSets.batchTest
+                gameDirectory = project.layout.buildDirectory.dir('batch-native').get().asFile
+            }
+        }
+    }
+}

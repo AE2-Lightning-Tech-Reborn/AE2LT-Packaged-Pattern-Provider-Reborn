@@ -1,0 +1,148 @@
+package com.moakiee.ae2lt.packaged.logic.multiblock.mekmm;
+
+import java.util.List;
+import appeng.api.crafting.IPatternDetails;
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
+import me.ramidzkh.mekae2.ae2.MekanismKey;
+import mekanism.api.chemical.ChemicalStack;
+import mekanism.common.registries.MekanismChemicals;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+
+@GameTestHolder("ae2ltpp")
+@PrefixGameTestTemplate(false)
+public final class MekRoutingGameTests {
+    @GameTest(template = "mek_routing_test", timeoutTicks = 120)
+    public static void sameInputsDifferentOutputs(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var infuserPos = helper.absolutePos(new BlockPos(2, 2, 2));
+        var mixerPos = helper.absolutePos(new BlockPos(8, 2, 2));
+        place(helper, infuserPos, "large_chemical_infuser");
+        place(helper, mixerPos, "large_pigment_mixer");
+        var oxygen = chemical(MekanismChemicals.OXYGEN.asStack(32));
+        var chlorine = chemical(MekanismChemicals.CHLORINE.asStack(32));
+        var acid = chemical(MekanismChemicals.SULFURIC_ACID.asStack(64));
+        var hydrofluoric = chemical(MekanismChemicals.HYDROFLUORIC_ACID.asStack(64));
+        var infusing = pattern(helper, new GenericStack[] { chlorine, oxygen }, new GenericStack[] { acid });
+        var mixing = pattern(helper, new GenericStack[] { chlorine, oxygen }, new GenericStack[] { hydrofluoric });
+        var adapter = new MekanismMoreMachinesAdapter();
+        var infuserBinding = adapter.bind(level, infuserPos, infusing);
+        var mixerBinding = adapter.bind(level, mixerPos, mixing);
+        helper.assertTrue(infuserBinding != null && mixerBinding != null, "each native recipe binds its matching machine");
+        helper.assertTrue(adapter.bind(level, mixerPos, infusing) == null, "infuser output cannot bind pigment mixer with identical inputs");
+        helper.assertTrue(adapter.bind(level, infuserPos, mixing) == null, "pigment output cannot bind chemical infuser with identical inputs");
+        var inputs = inputs(chlorine, oxygen);
+        var binding = (MekRecipeBinding) infuserBinding.handle();
+        var mode = binding.spec().activeMode(level.getBlockEntity(infuserPos));
+        var ordered = binding.arrange(level, mode, infusing, inputs);
+        helper.assertTrue(ordered != null && ordered.get(0).what().equals(oxygen.what())
+                && ordered.get(1).what().equals(chlorine.what()), "native ingredient matching fixes reversed chemical port order");
+        helper.assertTrue(binding.arrange(level, mode, infusing,
+                inputs(chemical(MekanismChemicals.HYDROGEN.asStack(32)), chlorine)) == null,
+                "unrelated runtime inputs are rejected before insertion");
+        helper.assertTrue(adapter.planWithBinding(level, infuserPos, infusing, inputs,
+                infuserBinding.handle(), null) != null, "matching machine produces a real dispatch plan");
+        helper.assertTrue(adapter.planWithBinding(level, mixerPos, infusing, inputs,
+                infuserBinding.handle(), null) == null, "cached binding cannot be reused for another machine");
+        var unknown = pattern(helper, new GenericStack[] { oxygen, chlorine },
+                new GenericStack[] {new GenericStack(AEItemKey.of(Items.DIAMOND), 1)});
+        helper.assertTrue(adapter.bind(level, infuserPos, unknown) == null, "unknown output is not blindly accepted");
+        helper.succeed();
+    }
+
+    @GameTest(template = "mek_routing_test", timeoutTicks = 100)
+    public static void rotaryModeAndElectrolysis(GameTestHelper helper) throws Exception {
+        var level = helper.getLevel();
+        var rotaryPos = helper.absolutePos(new BlockPos(2, 2, 2));
+        var separatorPos = helper.absolutePos(new BlockPos(8, 2, 2));
+        place(helper, rotaryPos, "large_rotary_condensentrator");
+        place(helper, separatorPos, "large_electrolytic_separator");
+        var water = new GenericStack(AEFluidKey.of(Fluids.WATER), 2);
+        var hydrogen = chemical(MekanismChemicals.HYDROGEN.asStack(2));
+        var oxygen = chemical(MekanismChemicals.OXYGEN.asStack(1));
+        var separating = pattern(helper, new GenericStack[] {water}, new GenericStack[] { hydrogen, oxygen });
+        var adapter = new MekanismMoreMachinesAdapter();
+        helper.assertTrue(adapter.bind(level, separatorPos, separating) != null, "both electrolysis outputs are recognized");
+        helper.assertTrue(adapter.bind(level, rotaryPos, separating) == null, "same water input does not route separating to rotary");
+        var vapor = chemical(MekanismChemicals.WATER_VAPOR.asStack(1));
+        var evaporating = pattern(helper, new GenericStack[] {new GenericStack(water.what(), 1)}, new GenericStack[] {vapor});
+        var rotary = level.getBlockEntity(rotaryPos);
+        var mode = rotary.getClass().getDeclaredField("mode"); mode.setAccessible(true);
+        mode.setBoolean(rotary, false);
+        var bound = adapter.bind(level, rotaryPos, evaporating);
+        helper.assertTrue(bound != null, "rotary keeps a recipe binding across direction changes");
+        helper.assertTrue(!adapter.canDispatch(level, rotaryPos, bound.handle()), "opposite rotary mode cannot dispatch");
+        mode.setBoolean(rotary, true);
+        helper.assertTrue(adapter.canDispatch(level, rotaryPos, bound.handle()), "switching to matching mode enables cached binding");
+        helper.assertTrue(adapter.planWithBinding(level, rotaryPos, evaporating, inputs(new GenericStack(water.what(), 1)),
+                bound.handle(), null) != null, "matching rotary direction builds a dispatch plan");
+        helper.succeed();
+    }
+
+    @GameTest(template = "mek_routing_test", timeoutTicks = 100)
+    public static void remainingRecipeFamilies(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var solarPos = helper.absolutePos(new BlockPos(2, 2, 2));
+        var nuclearPos = helper.absolutePos(new BlockPos(8, 2, 2));
+        place(helper, solarPos, "large_solar_neutron_activator");
+        place(helper, nuclearPos, "large_antiprotonic_nucleosynthesizer");
+        var solarRecipe = mekanism.common.recipe.MekanismRecipeType.ACTIVATING.getRecipes(level).getFirst().value();
+        var solarInput = solarRecipe.getInput().getRepresentations().getFirst();
+        var solar = pattern(helper, new GenericStack[] {chemical(solarInput)},
+                new GenericStack[] {chemical(solarRecipe.getOutput(solarInput))});
+        var adapter = new MekanismMoreMachinesAdapter();
+        var solarBinding = adapter.bind(level, solarPos, solar);
+        helper.assertTrue(solarBinding != null && adapter.planWithBinding(level, solarPos, solar,
+                inputs(chemical(solarInput)), solarBinding.handle(), null) != null,
+                "native solar chemical-to-chemical recipes still dispatch");
+
+        var nuclearRecipe = mekanism.common.recipe.MekanismRecipeType.NUCLEOSYNTHESIZING.getRecipes(level).getFirst().value();
+        var item = nuclearRecipe.getItemInput().getRepresentations().getFirst();
+        var gas = nuclearRecipe.getChemicalInput().getRepresentations().getFirst();
+        var output = nuclearRecipe.getOutput(item, gas);
+        var itemInput = new GenericStack(AEItemKey.of(item), item.getCount());
+        var nuclear = pattern(helper, new GenericStack[] {itemInput, chemical(gas)},
+                new GenericStack[] {new GenericStack(AEItemKey.of(output), output.getCount())});
+        var nuclearBinding = adapter.bind(level, nuclearPos, nuclear);
+        helper.assertTrue(nuclearBinding != null && adapter.planWithBinding(level, nuclearPos, nuclear,
+                inputs(itemInput, chemical(gas)), nuclearBinding.handle(), null) != null,
+                "native nucleosynthesizer item-and-chemical recipes still dispatch");
+        helper.succeed();
+    }
+
+    private static void place(GameTestHelper helper, BlockPos pos, String id) {
+        var block = BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("mekmm", id));
+        helper.assertTrue(block != net.minecraft.world.level.block.Blocks.AIR, "native MekMM block registered: " + id);
+        helper.getLevel().setBlockAndUpdate(pos, block.defaultBlockState());
+    }
+
+    private static IPatternDetails pattern(GameTestHelper helper, GenericStack[] inputs, GenericStack[] outputs) {
+        var item = PatternDetailsHelper.encodeProcessingPattern(List.of(inputs), List.of(outputs));
+        var pattern = PatternDetailsHelper.decodePattern(item, helper.getLevel());
+        helper.assertTrue(pattern != null, "native processing pattern decodes");
+        return pattern;
+    }
+
+    private static GenericStack chemical(ChemicalStack stack) {
+        return new GenericStack(MekanismKey.of(stack), stack.getAmount());
+    }
+
+    private static KeyCounter[] inputs(GenericStack... stacks) {
+        var result = new KeyCounter[stacks.length];
+        for (int i = 0; i < stacks.length; i++) {
+            result[i] = new KeyCounter(); result[i].add(stacks[i].what(), stacks[i].amount());
+        }
+        return result;
+    }
+}

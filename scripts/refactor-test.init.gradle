@@ -1,0 +1,19 @@
+// Use after batch-test.init.gradle for the broader optional-mod/runtime regression suite.
+// Target jars remain local test inputs and are never included in the product artifact.
+allprojects {
+    afterEvaluate {
+        def modsDir = providers.gradleProperty('ppRefactorModsDir').orNull
+        if (modsDir == null || !file(modsDir).isDirectory()) {
+            throw new GradleException('Set -PppRefactorModsDir to the curated runtime-test mod directory')
+        }
+        dependencies.add('runtimeOnly', files(fileTree(modsDir) { include '*.jar' }))
+        if (sourceSets.findByName('batchTest') != null) {
+            sourceSets.batchTest.java.srcDir 'src/refactorTest/java'
+            sourceSets.batchTest.resources.srcDir 'src/refactorTest/resources'
+        }
+        if (providers.gradleProperty('ownershipProbe').isPresent()) {
+            // The minimal batch profile strips optional file dependencies, including this test jar.
+            dependencies.add('runtimeOnly', files(tasks.named('ownershipProbeJar')))
+        }
+    }
+}

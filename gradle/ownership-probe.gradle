@@ -1,0 +1,48 @@
+// Isolated production-runtime regression tests. This source set is never shipped.
+sourceSets {
+    runtimeTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+}
+
+def probeJar = tasks.register('ownershipProbeJar', Jar) {
+    archiveClassifier = 'ownership-probe'
+    from sourceSets.runtimeTest.output
+}
+
+if (providers.gradleProperty('ownershipProbe').isPresent()) {
+    def probeDir = layout.buildDirectory.dir('ownership-test-server')
+    def reloading = providers.gradleProperty('ownershipProbeReload').getOrElse('false') == 'true'
+    dependencies.add('runtimeOnly', files(probeJar))
+    neoForge.runs.server.gameDirectory = probeDir
+    neoForge.runs.server.systemProperty 'ownershipProbeReload', reloading.toString()
+    def prepareProbe = tasks.register('prepareOwnershipProbe') {
+        doLast {
+            def dir = probeDir.get().asFile
+            if (!reloading) delete(dir)
+            dir.mkdirs()
+            delete(new File(dir, 'ownership-result.txt'))
+            new File(dir, 'eula.txt').text = 'eula=true\n'
+            new File(dir, 'server.properties').text = '''server-ip=127.0.0.1
+server-port=25587
+online-mode=false
+level-type=minecraft:flat
+generate-structures=false
+view-distance=2
+simulation-distance=2
+spawn-protection=0
+'''
+        }
+    }
+    tasks.named('runServer') {
+        dependsOn prepareProbe
+        doLast {
+            def result = new File(probeDir.get().asFile, 'ownership-result.txt')
+            def expected = reloading ? 'PASS restart and power restoration' : 'PASS prepare persistent restart case'
+            if (!result.isFile() || result.text != expected) {
+                throw new GradleException('Ownership runtime probe failed: ' + (result.isFile() ? result.text : 'no completion marker'))
+            }
+        }
+    }
+}

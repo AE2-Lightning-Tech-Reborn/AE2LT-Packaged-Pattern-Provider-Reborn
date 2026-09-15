@@ -1,0 +1,25 @@
+allprojects {
+    afterEvaluate {
+        def mekmmJar = providers.gradleProperty('mekmm_test_jar').orNull
+        if (mekmmJar == null || !file(mekmmJar).isFile()) {
+            throw new GradleException('Set -Pmekmm_test_jar to the MekMM 1.21.1 jar for native routing tests')
+        }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('mekRoutingTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        dependencies.add('mekRoutingTestImplementation', 'mekanism:Mekanism:1.21.1-10.7.19.85')
+        dependencies.add('mekRoutingTestImplementation', 'curse.maven:applied-mekanistics-574300:7096962')
+        dependencies.add('mekRoutingTestRuntimeOnly', files(mekmmJar))
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.mekRoutingTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.mekRoutingTest
+            gameDirectory = project.layout.buildDirectory.dir('mek-routing-native').get().asFile
+        }
+    }
+}
