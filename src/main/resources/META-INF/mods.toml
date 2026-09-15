@@ -1,7 +1,7 @@
 modLoader = "javafml"
 loaderVersion = "${loader_version_range}"
 license = "${mod_license}"
-issueTrackerURL = "https://github.com/MOAKIEE/AE2LT-Packaged-Pattern-Provider/issues"
+issueTrackerURL = "https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/issues"
 
 [[mods]]
 modId = "${mod_id}"

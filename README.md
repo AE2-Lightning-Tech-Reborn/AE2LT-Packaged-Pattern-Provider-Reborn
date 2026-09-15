@@ -1,8 +1,8 @@
-# AE2LT Packaged Pattern Provider
+# AE2LT Packaged Pattern Provider Reborn
 
 ## Overview
 
-AE2LT Packaged Pattern Provider is an AE2 Lightning Tech addon for Minecraft 1.20.1 on Forge. It adds `Packaged Pattern Provider` and `Wireless Packaged Pattern Provider` blocks and extends AE2 / AE2LT pattern dispatch into selected multiblock crafting integrations.
+AE2LT Packaged Pattern Provider Reborn is an AE2 Lightning Tech Reborn addon for Minecraft 1.20.1 on Forge. It adds `Packaged Pattern Provider` and `Wireless Packaged Pattern Provider` blocks and extends AE2 / AE2LT pattern dispatch into selected multiblock crafting integrations.
 
 ## Supported Versions
 
@@ -10,23 +10,23 @@ AE2LT Packaged Pattern Provider is an AE2 Lightning Tech addon for Minecraft 1.2
 - Java: 17
 - Forge: 47.1.x (development baseline: 47.1.47)
 - Applied Energistics 2: 15.4.10 (range `[15.4.10,16)`)
-- AE2 Lightning Tech: 2.1.0-beta.1 (`refactor/thunderbolt-three-layer-clean-1.20.1`)
-- Thunderbolt Core: 2.0.0-beta.1 (`refactor/thunderbolt-three-layer-clean-1.20.1`)
+- AE2 Lightning Tech Reborn: 2.1.0-beta.1 (`refactor/thunderbolt-three-layer-clean-1.20.1`)
+- Thunderbolt Core Reborn: 2.0.0-beta.1 (`refactor/thunderbolt-three-layer-clean-1.20.1`)
 - AE2WTLib: 15.3.3-forge
 - Curios: 5.14.1+1.20.1
 - Gradle Wrapper: 8.8
 
 This branch is the Forge 1.20.1 port of the addon. The `main` branch targets
 Minecraft 1.21.1 on NeoForge; both consume the same three-layer-clean refactor of
-AE2 Lightning Tech and Thunderbolt Core, so the overload-pattern contract
+AE2 Lightning Tech Reborn and Thunderbolt Core Reborn, so the overload-pattern contract
 (`OverloadedPatternDetails`) and the wireless support types are shared, while the
 platform layer (registries, capabilities, recipe and NBT APIs) differs.
 
 ## Required Dependencies
 
 - Applied Energistics 2
-- AE2 Lightning Tech
-- Thunderbolt Core
+- AE2 Lightning Tech Reborn
+- Thunderbolt Core Reborn
 - AE2WTLib
 - Curios
 - Forge
@@ -46,15 +46,15 @@ You need:
 - The included Gradle Wrapper
 - A Minecraft 1.20.1 Forge mod development environment
 
-Both AE2 Lightning Tech and Thunderbolt Core have to be present in Maven Local
+Both AE2 Lightning Tech Reborn and Thunderbolt Core Reborn have to be present in Maven Local
 before this branch will resolve. Build each from its
 `refactor/thunderbolt-three-layer-clean-1.20.1` branch:
 
 ```powershell
-# Thunderbolt Core publishes itself
+# Thunderbolt Core Reborn publishes itself
 .\gradlew.bat publishToMavenLocal
 
-# AE2 Lightning Tech has no publishing block; build the jar and install it as
+# AE2 Lightning Tech Reborn has no publishing block; build the jar and install it as
 # com.moakiee.ae2lt:ae2lt:2.1.0-beta.1
 .\gradlew.bat jarJar
 ```
@@ -79,8 +79,8 @@ javac -version
 
 For source-level debugging or cross-project integration work, clone:
 
-- [AE2 Lightning Tech](https://github.com/ae2lt/AE2-Lightning-Tech)
-- [Thunderbolt Core](https://github.com/ae2lt/Thunderbolt-Core)
+- [AE2 Lightning Tech Reborn](https://github.com/AE2-Lightning-Tech-Reborn/AE2-Lightning-Tech-Reborn)
+- [Thunderbolt Core Reborn](https://github.com/AE2-Lightning-Tech-Reborn/Thunderbolt-Core-Reborn)
 - [Applied Energistics 2](https://github.com/AppliedEnergistics/Applied-Energistics-2)
 
 ## Building Applied Energistics 2 Locally
@@ -93,7 +93,7 @@ git checkout 1.20.1
 This branch resolves AE2 `15.4.10` from `modmaven.dev`, so a local AE2 build is
 only needed for source-level debugging.
 
-## Building AE2 Lightning Tech and Thunderbolt Core Locally
+## Building AE2 Lightning Tech Reborn and Thunderbolt Core Reborn Locally
 
 ```powershell
 cd <path>\Thunderbolt-Core
@@ -107,7 +107,7 @@ git checkout refactor/thunderbolt-three-layer-clean-1.20.1
 
 Thunderbolt publishes itself as `com.moakiee.thunderbolt:thunderbolt:2.0.0-beta.1`.
 
-AE2 Lightning Tech has no `maven-publish` block on this line, so its reobfuscated
+AE2 Lightning Tech Reborn has no `maven-publish` block on this line, so its reobfuscated
 `jarJar` output has to be installed by hand as
 `com.moakiee.ae2lt:ae2lt:2.1.0-beta.1`:
 

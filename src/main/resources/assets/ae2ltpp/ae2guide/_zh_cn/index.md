@@ -1,13 +1,13 @@
 ---
 navigation:
-  title: 闪电科技：封包
+  title: 闪电科技：封包 Reborn
   position: 67
 item_ids:
 - ae2ltpp:packaged_pattern_provider
 - ae2ltpp:wireless_packaged_pattern_provider
 ---
 
-# 闪电科技：封包
+# 闪电科技：封包 Reborn
 
 `恭喜你走到了这一步！这将是你所掌握的闪电力量最巅峰之作！`
 
