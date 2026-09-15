@@ -1,7 +1,7 @@
 {
-  "fml.menu.mods.info.displayname.ae2ltpp": "闪电科技：封包 Reborn",
-  "itemGroup.ae2ltpp": "闪电科技：封包 Reborn",
-  "ae2ltpp.guide.title": "闪电科技：封包 Reborn",
+  "fml.menu.mods.info.displayname.ae2ltpp": "AE2 闪电科技封包：重生",
+  "itemGroup.ae2ltpp": "AE2 闪电科技封包：重生",
+  "ae2ltpp.guide.title": "AE2 闪电科技封包：重生",
   "block.ae2ltpp.packaged_pattern_provider": "封包样板供应器",
   "block.ae2ltpp.wireless_packaged_pattern_provider": "无线封包样板供应器",
   "ae2ltpp.gui.title.packaged_pattern_provider": "封包样板供应器",

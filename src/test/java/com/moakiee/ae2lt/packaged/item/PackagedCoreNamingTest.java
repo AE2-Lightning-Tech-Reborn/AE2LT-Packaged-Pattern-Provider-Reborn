@@ -88,7 +88,7 @@ class PackagedCoreNamingTest {
         var zh = read("src/main/resources/assets/ae2ltpp/lang/zh_cn.json");
 
         assertTrue(en.contains("\"ae2ltpp.guide.title\": \"AE2LT Packaged Pattern Provider Reborn\""));
-        assertTrue(zh.contains("\"ae2ltpp.guide.title\": \"闪电科技：封包 Reborn\""));
+        assertTrue(zh.contains("\"ae2ltpp.guide.title\": \"AE2 闪电科技封包：重生\""));
         assertTrue(en.contains("\"ae2ltpp.gui.adapter_slot\": \"Packaged Core\""));
         assertTrue(zh.contains("\"ae2ltpp.gui.adapter_slot\": \"封包核心\""));
         for (var id : EXPECTED_ITEM_IDS) {
