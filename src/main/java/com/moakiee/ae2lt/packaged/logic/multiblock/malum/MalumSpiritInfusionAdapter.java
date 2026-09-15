@@ -1,0 +1,743 @@
+package com.moakiee.ae2lt.packaged.logic.multiblock.malum;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import org.jetbrains.annotations.Nullable;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.items.IItemHandlerModifiable;
+
+import appeng.api.config.Actionable;
+import appeng.api.crafting.IPatternDetails;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
+
+import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.AcceptedInsertion;
+import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
+import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
+import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchCommitException;
+import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
+import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
+import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
+import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
+import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
+import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
+
+/**
+ * Runtime adapter for Malum's Spirit Altar infusion.
+ * Extra inputs are placed on Malum access point inventories so the pedestals
+ * render them; Malum then pulls those stacks into extrasInventory while the
+ * altar consumes the recipe.
+ */
+public final class MalumSpiritInfusionAdapter implements MultiblockAdapter {
+
+    private static final String MOD_ID = "malum";
+    private static final String OUTPUT_STATE =
+            "malum_spirit_infusion:output_entities";
+    private static final ResourceLocation ALTAR_BLOCK = malumId("spirit_altar");
+    private static final ResourceLocation RECIPE_TYPE_ID = malumId("spirit_infusion");
+    private static final int MAX_INPUT_AMOUNT = 512;
+
+    @Override
+    public int priority() {
+        return 100;
+    }
+
+    @Override
+    public boolean recognizesMain(ServerLevel level, BlockPos pos, BlockEntity be) {
+        return be != null
+                && isMalumLoaded()
+                && blockId(be.getBlockState()).equals(ALTAR_BLOCK)
+                && MalumReflection.isSpiritAltar(be);
+    }
+
+    @Override
+    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+        return com.moakiee.ae2lt.packaged.item.AdapterIds.MALUM_SPIRIT_INFUSION;
+    }
+
+    @Override
+    @Nullable
+    public BindingResult bind(ServerLevel level, BlockPos mainPos, IPatternDetails pattern) {
+        var be = level.getBlockEntity(mainPos);
+        if (be == null || !recognizesMain(level, mainPos, be)) {
+            return null;
+        }
+        if (!hasSingleItemOutput(pattern)) {
+            return null;
+        }
+        var recipes = findCandidateRecipes(level);
+        return recipes.isEmpty()
+                ? null
+                : new BindingResult(new InfusionBindHandle(recipes), BindingMode.REAL);
+    }
+
+    @Override
+    public boolean canDispatch(ServerLevel level, BlockPos mainPos, Object handle,
+                               AdapterPersistentScope scope) {
+        if (MalumDroppedItemOwnership.blocksDispatch(
+                level, mainPos, scope, OUTPUT_STATE)) {
+            var ownership = MalumDroppedItemOwnership.load(
+                    level, mainPos, scope, OUTPUT_STATE);
+            if (ownership != null) {
+                retryPendingActivation(level, mainPos, ownership);
+            }
+            return false;
+        }
+        return canDispatch(level, mainPos, handle);
+    }
+
+    @Override
+    public void tickPending(ServerLevel level, BlockPos mainPos,
+                            AdapterPersistentScope scope) {
+        var ownership = MalumDroppedItemOwnership.load(level, mainPos, scope, OUTPUT_STATE);
+        if (ownership == null) {
+            return;
+        }
+        if (MalumDroppedItemOwnership.expired(level, ownership)) {
+            MalumDroppedItemOwnership.logStale(level, mainPos, ownership, OUTPUT_STATE);
+        }
+        retryPendingActivation(level, mainPos, ownership);
+    }
+
+    private void retryPendingActivation(ServerLevel level, BlockPos mainPos,
+                                        MalumDroppedItemOwnership.HarvestState ownership) {
+        var be = level.getBlockEntity(mainPos);
+        if (be == null || !recognizesMain(level, mainPos, be)
+                || !MalumReflection.isAltarIdle(be)) {
+            return;
+        }
+        var mainInventory = MalumReflection.altarInventory(be);
+        var spiritInventory = MalumReflection.altarSpiritInventory(be);
+        var extrasInventory = MalumReflection.altarExtrasInventory(be);
+        if (mainInventory == null || spiritInventory == null || extrasInventory == null
+                || mainInventory.getSlots() < 1) {
+            return;
+        }
+        boolean hasCoreInput = !MalumAdapterSupport.inventoryEmpty(mainInventory)
+                || !MalumAdapterSupport.inventoryEmpty(spiritInventory)
+                || !MalumAdapterSupport.inventoryEmpty(extrasInventory);
+        boolean hasPedestalInput = loadedPedestals(level, mainPos).stream()
+                .anyMatch(pedestal -> !pedestalEmpty(pedestal));
+        if (!hasCoreInput && !hasPedestalInput) {
+            return;
+        }
+        MalumReflection.recalculateAltar(level, mainPos, ownership.recipeId());
+    }
+
+    @Override
+    public boolean canDispatch(ServerLevel level, BlockPos mainPos, Object handle) {
+        if (!(handle instanceof InfusionBindHandle bind) || bind.recipes().isEmpty()) {
+            return false;
+        }
+        var be = level.getBlockEntity(mainPos);
+        if (be == null || !recognizesMain(level, mainPos, be)) {
+            return false;
+        }
+        if (!MalumReflection.isAltarIdle(be)) {
+            return false;
+        }
+        var mainInventory = MalumReflection.altarInventory(be);
+        var spiritInventory = MalumReflection.altarSpiritInventory(be);
+        var extrasInventory = MalumReflection.altarExtrasInventory(be);
+        if (mainInventory == null || spiritInventory == null || extrasInventory == null) {
+            return false;
+        }
+        if (mainInventory.getSlots() < 1) {
+            return false;
+        }
+        if (!MalumAdapterSupport.inventoryEmpty(mainInventory)
+                || !MalumAdapterSupport.inventoryEmpty(spiritInventory)
+                || !MalumAdapterSupport.inventoryEmpty(extrasInventory)) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    @Nullable
+    public DispatchPlan planWithBinding(ServerLevel level, BlockPos mainPos,
+                                        IPatternDetails pattern, KeyCounter[] inputs,
+                                        Object handle, IActionSource source) {
+        return planWithBinding(level, mainPos, pattern, inputs, handle, source,
+                AdapterPersistentScope.NOOP);
+    }
+
+    @Override
+    @Nullable
+    public DispatchPlan planWithBinding(ServerLevel level, BlockPos mainPos,
+                                        IPatternDetails pattern, KeyCounter[] inputs,
+                                        Object handle, IActionSource source,
+                                        AdapterPersistentScope scope) {
+        if (!(handle instanceof InfusionBindHandle bind)
+                || MalumDroppedItemOwnership.blocksDispatch(
+                        level, mainPos, scope, OUTPUT_STATE)) {
+            return null;
+        }
+        var be = level.getBlockEntity(mainPos);
+        if (be == null || !recognizesMain(level, mainPos, be)) {
+            return null;
+        }
+        if (!MalumReflection.isAltarIdle(be)) {
+            return null;
+        }
+
+        var mainInventory = MalumReflection.altarInventory(be);
+        var spiritInventory = MalumReflection.altarSpiritInventory(be);
+        var extrasInventory = MalumReflection.altarExtrasInventory(be);
+        if (mainInventory == null || spiritInventory == null || extrasInventory == null) {
+            return null;
+        }
+        if (mainInventory.getSlots() < 1) {
+            return null;
+        }
+        if (!MalumAdapterSupport.inventoryEmpty(mainInventory)
+                || !MalumAdapterSupport.inventoryEmpty(spiritInventory)
+                || !MalumAdapterSupport.inventoryEmpty(extrasInventory)) {
+            return null;
+        }
+
+        var aggregatedInputs = MalumAdapterSupport.aggregateInputs(inputs, MAX_INPUT_AMOUNT);
+        if (aggregatedInputs == null) {
+            return null;
+        }
+
+        var match = findRecipeMatch(bind.recipes(), level, pattern, aggregatedInputs);
+        if (match == null) {
+            return null;
+        }
+        if (match.spirits().size() > spiritInventory.getSlots()) {
+            return null;
+        }
+        var pedestals = loadedPedestals(level, mainPos);
+        if (!match.extras().isEmpty() && !pedestals.stream().allMatch(MalumSpiritInfusionAdapter::pedestalEmpty)) {
+            return null;
+        }
+        var extraPlacements = assignExtrasToPedestals(
+                match.extras(),
+                pedestals,
+                MalumAdapterSupport::toItemStack);
+        if (extraPlacements == null) {
+            return null;
+        }
+
+        var mainTarget = new TargetSlot(
+                level,
+                mainPos,
+                null,
+                List.of(MalumAdapterSupport.toGenericStack(match.main())),
+                InsertionStrategy.CUSTOM,
+                altarInserter(level, mainPos, false, 0, match.main()));
+
+        var spiritTargets = new ArrayList<TargetSlot>(match.spirits().size());
+        for (int i = 0; i < match.spirits().size(); i++) {
+            var assignment = match.spirits().get(i);
+            spiritTargets.add(new TargetSlot(
+                    level,
+                    mainPos,
+                    null,
+                    List.of(MalumAdapterSupport.toGenericStack(assignment)),
+                    InsertionStrategy.CUSTOM,
+                    altarInserter(level, mainPos, true, i, assignment)));
+        }
+
+        var extraTargets = new ArrayList<TargetSlot>(extraPlacements.size());
+        for (var placement : extraPlacements) {
+            extraTargets.add(new TargetSlot(
+                    level,
+                    placement.pos(),
+                    null,
+                    List.of(MalumAdapterSupport.toGenericStack(placement.assignment())),
+                    InsertionStrategy.CUSTOM,
+                    pedestalInserter(level, mainPos, placement)));
+        }
+        var targets = orderTargetsForAltarTrigger(extraTargets, spiritTargets, mainTarget);
+        var preexistingEntities = MalumDroppedItemOwnership.capture(
+                level, altarOutputAabb(mainPos), match.output());
+
+        return new DispatchPlan(
+                List.copyOf(targets),
+                () -> {
+                    MalumDroppedItemOwnership.store(
+                            level, mainPos, scope, OUTPUT_STATE, preexistingEntities,
+                            match.output(), match.recipeId());
+                    if (!MalumReflection.recalculateAltar(level, mainPos, match.recipeId())) {
+                        throw new DispatchCommitException(
+                                "Malum Spirit Altar did not activate the expected recipe "
+                                        + match.recipeId());
+                    }
+                },
+                (accepted, recovered) -> recoverPartialDispatch(
+                        level, mainPos, scope, match, extraPlacements, targets,
+                        accepted, recovered));
+    }
+
+    @Override
+    public List<GenericStack> extractOutputs(ServerLevel level, BlockPos mainPos,
+                                             AllowedOutputFilter filter,
+                                             IActionSource source) {
+        return extractOutputs(level, mainPos, filter, source,
+                AdapterPersistentScope.NOOP);
+    }
+
+    @Override
+    public List<GenericStack> extractOutputs(ServerLevel level, BlockPos mainPos,
+                                             AllowedOutputFilter filter,
+                                             IActionSource source,
+                                             AdapterPersistentScope scope) {
+        var be = level.getBlockEntity(mainPos);
+        if (be == null || !recognizesMain(level, mainPos, be)
+                || !MalumReflection.isAltarIdle(be)) {
+            return List.of();
+        }
+
+        var ownership = MalumDroppedItemOwnership.load(
+                level, mainPos, scope, OUTPUT_STATE);
+        if (ownership == null) {
+            return List.of();
+        }
+        if (MalumDroppedItemOwnership.expired(level, ownership)) {
+            MalumDroppedItemOwnership.logStale(level, mainPos, ownership, OUTPUT_STATE);
+        }
+
+        var outputs = MalumDroppedItemOwnership.collectNewOutputs(
+                level, altarOutputAabb(mainPos), ownership);
+        if (!outputs.isEmpty()) {
+            MalumDroppedItemOwnership.clear(level, mainPos, scope, OUTPUT_STATE);
+        }
+        return outputs;
+    }
+
+    private static void recoverPartialDispatch(
+            ServerLevel level,
+            BlockPos mainPos,
+            AdapterPersistentScope scope,
+            RecipeMatch match,
+            List<ExtraPlacement<AEItemKey>> extraPlacements,
+            List<TargetSlot> targets,
+            List<AcceptedInsertion> acceptedInsertions,
+            Consumer<GenericStack> recovered) {
+        var be = level.getBlockEntity(mainPos);
+        if (be == null || !MalumReflection.isAltarIdle(be)) {
+            return;
+        }
+        int extraCount = extraPlacements.size();
+        int spiritCount = match.spirits().size();
+        int recoveredCount = 0;
+        for (var accepted : acceptedInsertions) {
+            int targetIndex = targets.indexOf(accepted.target());
+            if (targetIndex < 0) {
+                continue;
+            }
+            GenericStack stack = null;
+            if (targetIndex < extraCount) {
+                var pedestal = pedestalAt(
+                        level, mainPos, extraPlacements.get(targetIndex).pos());
+                if (pedestal != null) {
+                    stack = MalumAdapterSupport.recoverExactInsertion(
+                            pedestal.inventory(), 0, accepted.stack());
+                }
+            } else if (targetIndex < extraCount + spiritCount) {
+                var inventory = MalumReflection.altarSpiritInventory(be);
+                if (inventory != null) {
+                    stack = MalumAdapterSupport.recoverExactInsertion(
+                            inventory, targetIndex - extraCount, accepted.stack());
+                }
+            } else if (targetIndex == extraCount + spiritCount) {
+                var inventory = MalumReflection.altarInventory(be);
+                if (inventory != null) {
+                    stack = MalumAdapterSupport.recoverExactInsertion(
+                            inventory, 0, accepted.stack());
+                }
+            }
+            if (stack != null) {
+                recovered.accept(stack);
+                recoveredCount++;
+            }
+        }
+        if (recoveredCount == acceptedInsertions.size()) {
+            MalumDroppedItemOwnership.clear(level, mainPos, scope, OUTPUT_STATE);
+        }
+    }
+
+    @Nullable
+    private static RecipeMatch findRecipeMatch(
+            List<Object> recipes,
+            ServerLevel level,
+            IPatternDetails pattern,
+            List<MalumRecipeInputMatcher.Input<AEItemKey>> inputs) {
+        for (var recipe : recipes) {
+            var mainInput = MalumReflection.infusionInput(recipe);
+            var spiritStacks = MalumReflection.infusionSpirits(recipe);
+            var extraInputs = MalumReflection.infusionExtras(recipe);
+            if (mainInput == null || spiritStacks == null || extraInputs == null) {
+                continue;
+            }
+
+            var spiritRequirements = MalumAdapterSupport.requirementsFromStacks(spiritStacks);
+            if (spiritRequirements == null) {
+                continue;
+            }
+
+            var extraRequirements = extraInputs.stream()
+                    .map(MalumAdapterSupport::requirement)
+                    .toList();
+
+            var match = MalumRecipeInputMatcher.match(
+                    inputs,
+                    MalumAdapterSupport.requirement(mainInput),
+                    spiritRequirements,
+                    extraRequirements);
+            if (match == null) {
+                continue;
+            }
+
+            var output = MalumReflection.infusionOutput(
+                    recipe,
+                    level,
+                    MalumAdapterSupport.toItemStack(match.main()));
+            var recipeId = MalumReflection.recipeId(recipe);
+            if (output != null
+                    && !output.isEmpty()
+                    && recipeId != null
+                    && MalumAdapterSupport.outputMatches(pattern, output)) {
+                return new RecipeMatch(
+                        recipeId, match.main(), match.spirits(), match.extras(), output);
+            }
+        }
+        return null;
+    }
+
+    private static List<Object> findCandidateRecipes(ServerLevel level) {
+        var matches = new ArrayList<Object>();
+        for (var recipe : recipes(level)) {
+            var mainInput = MalumReflection.infusionInput(recipe);
+            var spiritStacks = MalumReflection.infusionSpirits(recipe);
+            var extraInputs = MalumReflection.infusionExtras(recipe);
+            if (mainInput == null || spiritStacks == null || extraInputs == null) {
+                continue;
+            }
+            var spiritRequirements = MalumAdapterSupport.requirementsFromStacks(spiritStacks);
+            if (spiritRequirements == null) {
+                continue;
+            }
+            matches.add(recipe);
+        }
+        return List.copyOf(matches);
+    }
+
+    private static BiFunction<GenericStack, Actionable, Long> altarInserter(
+            ServerLevel level,
+            BlockPos mainPos,
+            boolean spirit,
+            int slot,
+            MalumRecipeInputMatcher.Assignment<AEItemKey> assignment) {
+        return (stack, mode) -> {
+            if (!MalumAdapterSupport.matchesPlannedStack(stack, assignment)) {
+                return 0L;
+            }
+
+            var be = level.getBlockEntity(mainPos);
+            if (be == null
+                    || !blockId(be.getBlockState()).equals(ALTAR_BLOCK)
+                    || !MalumReflection.isSpiritAltar(be)
+                    || !MalumReflection.isAltarInactive(be)) {
+                return 0L;
+            }
+
+            var inventory = spirit
+                    ? MalumReflection.altarSpiritInventory(be)
+                    : MalumReflection.altarInventory(be);
+            if (inventory == null) {
+                return 0L;
+            }
+
+            var planned = MalumAdapterSupport.toItemStack(assignment);
+            if (!MalumAdapterSupport.canPlace(inventory, slot, planned)) {
+                return 0L;
+            }
+
+            if (mode == Actionable.MODULATE) {
+                long inserted = insertAssignmentOneItemAtATime(
+                        level, inventory, slot, assignment, key -> key.toStack(1));
+                if (inserted < assignment.amount()) {
+                    return inserted;
+                }
+            }
+            return assignment.amount();
+        };
+    }
+
+    private static BiFunction<GenericStack, Actionable, Long> pedestalInserter(
+            ServerLevel level,
+            BlockPos altarPos,
+            ExtraPlacement<AEItemKey> placement) {
+        return (stack, mode) -> {
+            if (!MalumAdapterSupport.matchesPlannedStack(stack, placement.assignment())) {
+                return 0L;
+            }
+
+            var altar = level.getBlockEntity(altarPos);
+            if (altar == null
+                    || !blockId(altar.getBlockState()).equals(ALTAR_BLOCK)
+                    || !MalumReflection.isSpiritAltar(altar)
+                    || !MalumReflection.isAltarInactive(altar)) {
+                return 0L;
+            }
+
+            var pedestal = pedestalAt(level, altarPos, placement.pos());
+            if (pedestal == null || !placementFits(pedestal, placement.assignment(), MalumAdapterSupport::toItemStack)) {
+                return 0L;
+            }
+
+            if (mode == Actionable.MODULATE) {
+                var planned = MalumAdapterSupport.toItemStack(placement.assignment());
+                if (!MalumReflection.placeItemInSlot(pedestal.inventory(), 0, planned)) {
+                    return 0L;
+                }
+            }
+            return placement.assignment().amount();
+        };
+    }
+
+    private static List<MalumReflection.Pedestal> loadedPedestals(ServerLevel level, BlockPos altarPos) {
+        return MalumReflection.capturePedestals(level, altarPos).stream()
+                .filter(pedestal -> level.isLoaded(pedestal.pos()))
+                .toList();
+    }
+
+    @Nullable
+    private static MalumReflection.Pedestal pedestalAt(ServerLevel level, BlockPos altarPos, BlockPos pedestalPos) {
+        for (var pedestal : loadedPedestals(level, altarPos)) {
+            if (pedestal.pos().equals(pedestalPos)) {
+                return pedestal;
+            }
+        }
+        return null;
+    }
+
+    private static boolean pedestalEmpty(MalumReflection.Pedestal pedestal) {
+        return pedestal.inventory().getSlots() >= 1 && pedestal.inventory().getStackInSlot(0).isEmpty();
+    }
+
+    static <T> List<T> orderTargetsForAltarTrigger(
+            List<T> extraTargets,
+            List<T> spiritTargets,
+            T mainTarget) {
+        var ordered = new ArrayList<T>(extraTargets.size() + spiritTargets.size() + 1);
+        ordered.addAll(extraTargets);
+        ordered.addAll(spiritTargets);
+        ordered.add(mainTarget);
+        return List.copyOf(ordered);
+    }
+
+    static <T> long insertAssignmentOneItemAtATime(
+            ServerLevel level,
+            IItemHandlerModifiable inventory,
+            int fallbackSlot,
+            MalumRecipeInputMatcher.Assignment<T> assignment,
+            Function<T, ItemStack> unitStackFactory) {
+        long inserted = 0L;
+        for (long i = 0; i < assignment.amount(); i++) {
+            var unit = unitStackFactory.apply(assignment.value());
+            if (unit.isEmpty() || unit.getCount() != 1) {
+                return inserted;
+            }
+            if (!MalumReflection.insertItem(level, inventory, fallbackSlot, unit)) {
+                return inserted;
+            }
+            inserted++;
+        }
+        return inserted;
+    }
+
+    @Nullable
+    static <T> List<ExtraPlacement<T>> assignExtrasToPedestals(
+            List<MalumRecipeInputMatcher.Assignment<T>> extras,
+            List<MalumReflection.Pedestal> pedestals,
+            Function<MalumRecipeInputMatcher.Assignment<T>, ItemStack> stackFactory) {
+        var placements = new ArrayList<ExtraPlacement<T>>();
+        var usedPedestals = new java.util.HashSet<BlockPos>();
+
+        for (var extra : extras) {
+            ExtraPlacement<T> placement = null;
+            for (var pedestal : pedestals) {
+                if (usedPedestals.contains(pedestal.pos())) {
+                    continue;
+                }
+                long placeable = maxPlaceableIntoSlot(
+                        pedestal.inventory(),
+                        ItemStack.EMPTY,
+                        0,
+                        extra.value(),
+                        extra.amount(),
+                        stackFactory);
+                if (placeable != extra.amount()) {
+                    continue;
+                }
+
+                usedPedestals.add(pedestal.pos());
+                placement = new ExtraPlacement<>(extra, pedestal.pos());
+                break;
+            }
+            if (placement == null) {
+                return null;
+            }
+            placements.add(placement);
+        }
+
+        return List.copyOf(placements);
+    }
+
+    private static <T> boolean placementFits(
+            MalumReflection.Pedestal pedestal,
+            MalumRecipeInputMatcher.Assignment<T> assignment,
+            Function<MalumRecipeInputMatcher.Assignment<T>, ItemStack> stackFactory) {
+        var inventory = pedestal.inventory();
+        var existing = inventory.getSlots() < 1 ? ItemStack.EMPTY : inventory.getStackInSlot(0);
+        return maxPlaceableIntoSlot(
+                inventory,
+                existing,
+                0,
+                assignment.value(),
+                assignment.amount(),
+                stackFactory) == assignment.amount();
+    }
+
+    private static List<ItemStack> copyPedestalStacks(List<MalumReflection.Pedestal> pedestals) {
+        var copy = new ArrayList<ItemStack>(pedestals.size());
+        for (var pedestal : pedestals) {
+            var inventory = pedestal.inventory();
+            copy.add(inventory.getSlots() < 1 ? ItemStack.EMPTY : inventory.getStackInSlot(0).copy());
+        }
+        return copy;
+    }
+
+    private static <T> long maxPlaceableIntoSlot(
+            IItemHandlerModifiable inventory,
+            ItemStack existing,
+            int slot,
+            T value,
+            long remaining,
+            Function<MalumRecipeInputMatcher.Assignment<T>, ItemStack> stackFactory) {
+        if (slot < 0 || slot >= inventory.getSlots()) {
+            return 0L;
+        }
+        long free = (long) inventory.getSlotLimit(slot) - existing.getCount();
+        if (free <= 0) {
+            return 0L;
+        }
+
+        long max = Math.min(remaining, free);
+        for (long count = max; count > 0; count--) {
+            var assignment = new MalumRecipeInputMatcher.Assignment<>(value, count);
+            var stack = stackFactory.apply(assignment);
+            if (stack.isEmpty() || stack.getCount() != count || !inventory.isItemValid(slot, stack)) {
+                continue;
+            }
+            if (existing.isEmpty() || ItemStack.isSameItemSameTags(existing, stack)) {
+                return count;
+            }
+        }
+        return 0L;
+    }
+
+    private static void applyToSimulatedSlot(List<ItemStack> simulated, int slot, ItemStack stack) {
+        var existing = simulated.get(slot);
+        if (existing.isEmpty()) {
+            simulated.set(slot, stack.copy());
+            return;
+        }
+        var merged = existing.copy();
+        merged.grow(stack.getCount());
+        simulated.set(slot, merged);
+    }
+
+    private static AABB altarOutputAabb(BlockPos pos) {
+        return new AABB(
+                pos.getX() - 1.0,
+                pos.getY(),
+                pos.getZ() - 1.0,
+                pos.getX() + 2.0,
+                pos.getY() + 2.5,
+                pos.getZ() + 2.0);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static List<Recipe<?>> recipes(ServerLevel level) {
+        var type = AdapterRecipeTypes.find(RECIPE_TYPE_ID);
+        if (type == null) {
+            return List.of();
+        }
+        return (List<Recipe<?>>) (List<?>) level.getRecipeManager()
+                .getAllRecipesFor((RecipeType) type);
+    }
+
+    private static boolean isMalumLoaded() {
+        try {
+            return ModList.get().isLoaded(MOD_ID);
+        } catch (RuntimeException | LinkageError ignored) {
+            return false;
+        }
+    }
+
+    private static ResourceLocation blockId(BlockState state) { return AdapterBlocks.idOf(state); }
+
+    private static ResourceLocation malumId(String path) {
+        return new ResourceLocation(MOD_ID, path);
+    }
+
+    private static boolean hasSingleItemOutput(IPatternDetails pattern) {
+        var outputs = pattern.getOutputs();
+        return outputs.length == 1 && outputs[0].what() instanceof AEItemKey;
+    }
+
+    record ExtraPlacement<T>(
+            MalumRecipeInputMatcher.Assignment<T> assignment,
+            BlockPos pos) {
+        ExtraPlacement {
+            Objects.requireNonNull(assignment, "assignment");
+            Objects.requireNonNull(pos, "pos");
+        }
+    }
+
+    private record RecipeMatch(
+            ResourceLocation recipeId,
+            MalumRecipeInputMatcher.Assignment<AEItemKey> main,
+            List<MalumRecipeInputMatcher.Assignment<AEItemKey>> spirits,
+            List<MalumRecipeInputMatcher.Assignment<AEItemKey>> extras,
+            ItemStack output) {
+        RecipeMatch {
+            Objects.requireNonNull(recipeId, "recipeId");
+            Objects.requireNonNull(main, "main");
+            spirits = List.copyOf(spirits);
+            extras = List.copyOf(extras);
+            output = output.copy();
+        }
+    }
+
+    /** Opaque binding handle returned from {@link #bind}. */
+    private record InfusionBindHandle(List<Object> recipes) {
+        InfusionBindHandle {
+            recipes = List.copyOf(recipes);
+        }
+    }
+}

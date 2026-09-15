@@ -1,0 +1,31 @@
+{
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "extendedcrafting"
+    }
+  ],
+  "type": "extendedcrafting:shaped_flux_crafter",
+  "pattern": [
+    "RFR",
+    "FCF",
+    "RFR"
+  ],
+  "key": {
+    "R": {
+      "item": "extendedcrafting:enhanced_redstone_ingot"
+    },
+    "F": {
+      "item": "extendedcrafting:flux_star"
+    },
+    "C": {
+      "item": "ae2ltpp:basic_packaged_core"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "ae2ltpp:ec_flux_crafter_packaged_core"
+  },
+  "powerRequired": 500000,
+  "powerRate": 1000
+}

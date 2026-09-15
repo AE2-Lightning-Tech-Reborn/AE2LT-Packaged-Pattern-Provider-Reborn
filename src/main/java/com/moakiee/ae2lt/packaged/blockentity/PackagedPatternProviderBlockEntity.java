@@ -1,0 +1,544 @@
+package com.moakiee.ae2lt.packaged.blockentity;
+
+import java.util.EnumSet;
+
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+
+import appeng.api.stacks.AEItemKey;
+import appeng.api.networking.IGridNodeListener;
+import appeng.blockentity.grid.AENetworkBlockEntity;
+import appeng.helpers.patternprovider.PatternProviderLogic;
+import appeng.menu.ISubMenu;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocator;
+import appeng.util.SettingsFrom;
+import appeng.api.inventories.InternalInventory;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+
+import com.moakiee.ae2lt.api.frequency.FrequencyApi;
+import com.moakiee.ae2lt.api.frequency.FrequencyBindingAccess;
+import com.moakiee.ae2lt.api.frequency.FrequencyBindingHost;
+import com.moakiee.ae2lt.api.pattern.PatternProviderUiProfile;
+import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
+import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
+import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
+import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
+import com.moakiee.ae2lt.packaged.registry.PPBlockEntities;
+import com.moakiee.ae2lt.packaged.registry.PPBlocks;
+import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity;
+
+public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlockEntity
+        implements FrequencyBindingHost, PatternProviderUiProfile, AdapterPersistentScope {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PackagedPatternProviderBlockEntity.class);
+    private static final String TAG_ADAPTER_INV = "ae2ltpp_adapter_inv";
+    private static final String TAG_ADAPTER_FLAGS = "ae2ltpp_adapter_flags";
+    private static final String TAG_ADAPTER_STATES = "ae2ltpp_adapter_states";
+
+    /**
+     * Per-(key, target-position) boolean flag store backing
+     * {@link AdapterPersistentScope}. We keep it as a flat {@code key -> set of
+     * packed BlockPos longs} map so the on-disk shape is the cheapest possible
+     * (one {@code long[]} per key, mostly empty in practice), and so the same
+     * provider can host flags from several adapters concurrently without
+     * clashing &mdash; namespacing is the adapter's responsibility, which is
+     * spelled out in {@link AdapterPersistentScope}.
+     */
+    /**
+     * Per-adapter persistent flags, keyed by adapter-namespaced String.
+     *
+     * <p><b>Namespacing contract:</b> the key string MUST be prefixed with the
+     * calling adapter's mod id (e.g. {@code "mysticalagriculture:altar_used"}).
+     * A bare key like {@code "altar"} will collide across adapters and the
+     * {@code adapterFlags} map will grow without bound as different adapters
+     * pick their own keys. See {@link AdapterPersistentScope} for the public API.
+     */
+    private final java.util.HashMap<String, java.util.HashSet<Long>> adapterFlags = new java.util.HashMap<>();
+    private final java.util.HashMap<String, java.util.HashMap<Long, String>> adapterStates =
+            new java.util.HashMap<>();
+
+    private final ProviderMode fixedProviderMode;
+    private final FrequencyBindingAccess frequencyBinding = FrequencyApi.createBinding(this);
+
+    /**
+     * Single-slot inventory holding the {@link MultiblockAdapterItem} packaged core
+     * that unlocks this provider's machine family. Empty slot = no adapter
+     * installed = nothing matches in {@link PackagedPatternProviderLogic}'s
+     * binding stage.
+     *
+     * <p>Mirrors AE2LT's {@code OverloadedInterface.filterInv} pattern: a
+     * dedicated {@link AppEngInternalInventory} with a per-slot type filter
+     * and an inventory listener that re-runs the binding pipeline on change.
+     */
+    private final InternalInventoryHost adapterInvHost = new InternalInventoryHost() {
+        @Override
+        public void saveChanges() {
+            PackagedPatternProviderBlockEntity.this.saveChanges();
+            markForUpdate();
+        }
+
+        @Override
+        public void onChangeInventory(InternalInventory inv, int slot) {
+            onAdapterInventoryChanged();
+        }
+
+        @Override
+        public boolean isClientSide() {
+            return level != null && level.isClientSide();
+        }
+    };
+
+    private final AppEngInternalInventory adapterInv = new AppEngInternalInventory(adapterInvHost, 1) {
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return !stack.isEmpty() && stack.getItem() instanceof MultiblockAdapterItem;
+        }
+    };
+
+    public PackagedPatternProviderBlockEntity(BlockPos pos, BlockState blockState) {
+        this(PPBlockEntities.PACKAGED_PATTERN_PROVIDER.get(), pos, blockState, ProviderMode.NORMAL);
+    }
+
+    protected PackagedPatternProviderBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState,
+                                                ProviderMode fixedProviderMode) {
+        super(type, pos, blockState);
+        this.fixedProviderMode = fixedProviderMode;
+        sanitizePackagedModes();
+    }
+
+    public AppEngInternalInventory getAdapterInv() {
+        return adapterInv;
+    }
+
+    /**
+     * Convenience: the single packaged core currently installed, or
+     * {@link ItemStack#EMPTY} when the slot is empty.
+     */
+    public ItemStack getInstalledAdapterStack() {
+        return adapterInv.getStackInSlot(0);
+    }
+
+    /**
+     * Notify the dispatch logic that bindings must be re-evaluated because
+     * the player swapped the packaged core. Safely called from the inventory host
+     * before logic is fully ready (early load phase).
+     */
+    private void onAdapterInventoryChanged() {
+        var logic = getLogic();
+        if (logic instanceof PackagedPatternProviderLogic packaged) {
+            packaged.onAdapterSlotChanged();
+        }
+    }
+
+    @Override
+    protected PatternProviderLogic createLogic() {
+        return new PackagedPatternProviderLogic(this.getMainNode(), this);
+    }
+
+    @Override
+    protected void serverTickAdditional(ServerLevel level) {
+        frequencyBinding.serverTick();
+        var logic = getLogic();
+        if (logic instanceof PackagedPatternProviderLogic packaged) {
+            packaged.tickPendingAdapters(level);
+        }
+    }
+
+    @Override
+    public FrequencyBindingAccess getFrequencyBindingAccess() {
+        return frequencyBinding;
+    }
+
+    @Override
+    public AENetworkBlockEntity getFrequencyBindingBlockEntity() {
+        return this;
+    }
+
+    @Override
+    public void saveFrequencyBindingChanges() {
+        saveChanges();
+    }
+
+    @Override
+    public void markFrequencyBindingForUpdate() {
+        markForUpdate();
+    }
+
+    @Override
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        frequencyBinding.onMainNodeStateChanged(reason);
+    }
+
+    @Override
+    public void onReady() {
+        super.onReady();
+        frequencyBinding.onReady();
+    }
+
+    @Override
+    public ProviderMode getProviderMode() {
+        return fixedProviderMode();
+    }
+
+    @Override
+    public void setProviderMode(ProviderMode providerMode) {
+        super.setProviderMode(fixedProviderMode());
+    }
+
+    @Override
+    public void setReturnMode(ReturnMode mode) {
+        super.setReturnMode(mode == ReturnMode.EJECT ? ReturnMode.OFF : mode);
+    }
+
+    @Override
+    public ReturnMode getReturnMode() {
+        var mode = super.getReturnMode();
+        return mode == ReturnMode.EJECT ? ReturnMode.OFF : mode;
+    }
+
+    @Override
+    public EnumSet<Direction> getTargets() {
+        if (fixedProviderMode() == ProviderMode.WIRELESS) {
+            return EnumSet.noneOf(Direction.class);
+        }
+        return EnumSet.allOf(Direction.class);
+    }
+
+    @Override
+    public void setWirelessSpeedMode(WirelessSpeedMode wirelessSpeedMode) {
+        super.setWirelessSpeedMode(WirelessSpeedMode.NORMAL);
+    }
+
+    @Override
+    public WirelessSpeedMode getWirelessSpeedMode() {
+        return WirelessSpeedMode.NORMAL;
+    }
+
+    @Override
+    public void setFilteredImport(boolean filteredImport) {
+        super.setFilteredImport(false);
+    }
+
+    @Override
+    public boolean isFilteredImport() {
+        return false;
+    }
+
+    @Override
+    public boolean ae2lt$isPackagedProviderUi() {
+        return true;
+    }
+
+    @Override
+    public boolean ae2lt$isModeSwitchVisible() {
+        return false;
+    }
+
+    @Override
+    public boolean ae2lt$isFilteredImportVisible() {
+        return false;
+    }
+
+    @Override
+    public boolean ae2lt$isWirelessTuningVisible() {
+        return false;
+    }
+
+    @Override
+    public boolean ae2lt$isBlockingModeVisible() {
+        return false;
+    }
+
+    @Override
+    public String ae2lt$titleTranslationKey() {
+        return "ae2ltpp.gui.title.packaged_pattern_provider";
+    }
+
+    @Override
+    public void loadTag(CompoundTag data) {
+        super.loadTag(data);
+        frequencyBinding.load(data);
+        sanitizePackagedModes();
+        if (data.contains(TAG_ADAPTER_INV)) {
+            adapterInv.readFromNBT(data, TAG_ADAPTER_INV);
+        }
+        adapterFlags.clear();
+        if (data.contains(TAG_ADAPTER_FLAGS, Tag.TAG_COMPOUND)) {
+            var flagsTag = data.getCompound(TAG_ADAPTER_FLAGS);
+            for (var key : flagsTag.getAllKeys()) {
+                long[] arr = flagsTag.getLongArray(key);
+                if (arr.length == 0) {
+                    continue;
+                }
+                var set = new java.util.HashSet<Long>(arr.length);
+                for (long packed : arr) {
+                    set.add(packed);
+                }
+                adapterFlags.put(key, set);
+            }
+        }
+        adapterStates.clear();
+        if (data.contains(TAG_ADAPTER_STATES, Tag.TAG_COMPOUND)) {
+            var statesTag = data.getCompound(TAG_ADAPTER_STATES);
+            for (var key : statesTag.getAllKeys()) {
+                if (!statesTag.contains(key, Tag.TAG_COMPOUND)) {
+                    continue;
+                }
+                var valuesTag = statesTag.getCompound(key);
+                var values = new java.util.HashMap<Long, String>();
+                for (var packedText : valuesTag.getAllKeys()) {
+                    if (!valuesTag.contains(packedText, Tag.TAG_STRING)) {
+                        continue;
+                    }
+                    try {
+                        values.put(Long.parseLong(packedText), valuesTag.getString(packedText));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                if (!values.isEmpty()) {
+                    adapterStates.put(key, values);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void saveAdditional(CompoundTag data) {
+        super.saveAdditional(data);
+        frequencyBinding.save(data);
+        adapterInv.writeToNBT(data, TAG_ADAPTER_INV);
+        if (!adapterFlags.isEmpty()) {
+            var flagsTag = new CompoundTag();
+            for (var entry : adapterFlags.entrySet()) {
+                var set = entry.getValue();
+                if (set.isEmpty()) {
+                    continue;
+                }
+                long[] arr = new long[set.size()];
+                int i = 0;
+                for (long packed : set) {
+                    arr[i++] = packed;
+                }
+                flagsTag.putLongArray(entry.getKey(), arr);
+            }
+            if (!flagsTag.isEmpty()) {
+                data.put(TAG_ADAPTER_FLAGS, flagsTag);
+            }
+        }
+        if (!adapterStates.isEmpty()) {
+            var statesTag = new CompoundTag();
+            for (var entry : adapterStates.entrySet()) {
+                if (entry.getValue().isEmpty()) {
+                    continue;
+                }
+                var valuesTag = new CompoundTag();
+                for (var value : entry.getValue().entrySet()) {
+                    valuesTag.putString(Long.toString(value.getKey()), value.getValue());
+                }
+                if (!valuesTag.isEmpty()) {
+                    statesTag.put(entry.getKey(), valuesTag);
+                }
+            }
+            if (!statesTag.isEmpty()) {
+                data.put(TAG_ADAPTER_STATES, statesTag);
+            }
+        }
+    }
+
+    @Override
+    public void setFlag(BlockPos targetPos, String key) {
+        var set = adapterFlags.computeIfAbsent(key, k -> new java.util.HashSet<>());
+        if (set.add(targetPos.asLong())) {
+            saveChanges();
+        }
+    }
+
+    @Override
+    public boolean hasFlag(BlockPos targetPos, String key) {
+        var set = adapterFlags.get(key);
+        return set != null && set.contains(targetPos.asLong());
+    }
+
+    @Override
+    public void clearFlagsForTarget(BlockPos targetPos) {
+        long packed = targetPos.asLong();
+        boolean changed = false;
+        for (var set : adapterFlags.values()) {
+            changed |= set.remove(packed);
+        }
+        changed |= adapterFlags.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        for (var values : adapterStates.values()) {
+            changed |= values.remove(packed) != null;
+        }
+        changed |= adapterStates.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        if (changed) {
+            saveChanges();
+        }
+    }
+
+    @Override
+    public void clearFlag(BlockPos targetPos, String key) {
+        var set = adapterFlags.get(key);
+        if (set == null) {
+            return;
+        }
+        if (set.remove(targetPos.asLong())) {
+            if (set.isEmpty()) {
+                adapterFlags.remove(key);
+            }
+            saveChanges();
+        }
+    }
+
+    @Override
+    public void setState(BlockPos targetPos, String key, String value) {
+        java.util.Objects.requireNonNull(value, "value");
+        var values = adapterStates.computeIfAbsent(key, k -> new java.util.HashMap<>());
+        var previous = values.put(targetPos.asLong(), value);
+        if (!value.equals(previous)) {
+            saveChanges();
+        }
+    }
+
+    @Override
+    @Nullable
+    public String getState(BlockPos targetPos, String key) {
+        var values = adapterStates.get(key);
+        return values == null ? null : values.get(targetPos.asLong());
+    }
+
+    @Override
+    public void clearState(BlockPos targetPos, String key) {
+        var values = adapterStates.get(key);
+        if (values == null) {
+            return;
+        }
+        if (values.remove(targetPos.asLong()) != null) {
+            if (values.isEmpty()) {
+                adapterStates.remove(key);
+            }
+            saveChanges();
+        }
+    }
+
+    @Override
+    public void addAdditionalDrops(net.minecraft.world.level.Level level,
+                                    BlockPos pos,
+                                    java.util.List<ItemStack> drops) {
+        super.addAdditionalDrops(level, pos, drops);
+        var logic = getLogic();
+        if (logic instanceof PackagedPatternProviderLogic packaged) {
+            for (var stack : packaged.drainVirtualBatch()) {
+                if (stack.what() instanceof appeng.api.stacks.AEItemKey itemKey) {
+                    itemKey.addDrops(stack.amount(), drops, level, pos);
+                } else {
+                    LOG.warn("Dropping packaged provider at {} discarded non-item virtual output {} x{}",
+                            pos, stack.what(), stack.amount());
+                }
+            }
+        }
+        var card = adapterInv.getStackInSlot(0);
+        if (!card.isEmpty()) {
+            drops.add(card.copy());
+            adapterInv.setItemDirect(0, ItemStack.EMPTY);
+        }
+    }
+
+    @Override
+    public void clearContent() {
+        // clearContent is also used for inventory resets and chunk lifecycle
+        // transitions. Do not drain the virtual output buffer here: destruction
+        // routes pending outputs through addAdditionalDrops(), while a reset or
+        // unload must keep them persisted for the next flush.
+        super.clearContent();
+    }
+
+    @Override
+    public void exportSettings(
+            SettingsFrom mode,
+            CompoundTag output,
+            @Nullable Player player) {
+        super.exportSettings(mode, output, player);
+        frequencyBinding.exportMemorySettings(
+                mode, output, this::writeStableMemoryCardSettings);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, CompoundTag input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+        frequencyBinding.importMemorySettings(
+                mode, input, this::readStableMemoryCardSettings);
+        sanitizePackagedModes();
+    }
+
+    @Override
+    public void setRemoved() {
+        // setRemoved is also invoked when a chunk unloads. Keep provider-owned
+        // adapter state intact so pending crafts survive unload/reload; explicit
+        // connection removal and confirmed target replacement clear it instead.
+        frequencyBinding.setRemoved();
+        super.setRemoved();
+    }
+
+    @Override
+    public void clearRemoved() {
+        super.clearRemoved();
+        frequencyBinding.clearRemoved();
+    }
+
+    @Override
+    public ItemStack getMainMenuIcon() {
+        return new ItemStack(PPBlocks.PACKAGED_PATTERN_PROVIDER.get());
+    }
+
+    @Override
+    public AEItemKey getTerminalIcon() {
+        return AEItemKey.of(PPBlocks.PACKAGED_PATTERN_PROVIDER.get());
+    }
+
+    @Override
+    public void openMenu(Player player, MenuLocator locator) {
+        if (level instanceof ServerLevel) {
+            clearInvalidConnections();
+        }
+        MenuOpener.open(PackagedPatternProviderMenu.TYPE, player, locator);
+    }
+
+    @Override
+    public void returnToMainMenu(Player player, ISubMenu subMenu) {
+        MenuOpener.returnTo(PackagedPatternProviderMenu.TYPE, player, subMenu.getLocator());
+    }
+
+    @Override
+    protected Item getItemFromBlockEntity() {
+        return PPBlocks.PACKAGED_PATTERN_PROVIDER.get().asItem();
+    }
+
+    protected ProviderMode fixedProviderMode() {
+        return fixedProviderMode == null ? ProviderMode.NORMAL : fixedProviderMode;
+    }
+
+    private void sanitizePackagedModes() {
+        super.setProviderMode(fixedProviderMode());
+        if (super.getReturnMode() == ReturnMode.EJECT) {
+            super.setReturnMode(ReturnMode.OFF);
+        }
+        super.setWirelessSpeedMode(WirelessSpeedMode.NORMAL);
+        super.setFilteredImport(false);
+    }
+}

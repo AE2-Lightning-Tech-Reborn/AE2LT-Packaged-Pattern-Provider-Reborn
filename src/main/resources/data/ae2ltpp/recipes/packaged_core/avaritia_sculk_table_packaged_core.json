@@ -1,0 +1,35 @@
+{
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "avaritia"
+    }
+,
+    {
+      "type": "forge:item_exists",
+      "item": "avaritia:sculk_crafting_table"
+    }
+  ],
+  "type": "avaritia:shaped_table",
+  "tier": 1,
+  "pattern": [
+    "NPN",
+    "PCP",
+    "NPN"
+  ],
+  "key": {
+    "N": {
+      "item": "avaritia:neutron_nugget"
+    },
+    "P": {
+      "item": "avaritia:neutron_pile"
+    },
+    "C": {
+      "item": "ae2ltpp:basic_packaged_core"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "ae2ltpp:avaritia_sculk_table_packaged_core"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "extendedcrafting"
+    }
+  ],
+  "type": "extendedcrafting:shaped_ender_crafter",
+  "pattern": [
+    "ESE",
+    "SCS",
+    "ESE"
+  ],
+  "key": {
+    "E": {
+      "item": "extendedcrafting:enhanced_ender_ingot"
+    },
+    "S": {
+      "item": "extendedcrafting:ender_star"
+    },
+    "C": {
+      "item": "ae2ltpp:basic_packaged_core"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "ae2ltpp:ec_ender_crafter_packaged_core"
+  },
+  "craftingTime": 200
+}
