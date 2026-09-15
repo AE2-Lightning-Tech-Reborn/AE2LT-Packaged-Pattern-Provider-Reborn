@@ -1,16 +1,16 @@
-# AE2LT Packaged Pattern Provider
+# AE2LT Packaged Pattern Provider Reborn
 
 ## Overview
 
-AE2LT Packaged Pattern Provider is an AE2 Lightning Tech addon for Minecraft 1.21.1 on NeoForge. It adds `Packaged Pattern Provider` and `Wireless Packaged Pattern Provider` blocks and extends AE2 / AE2LT pattern dispatch into selected multiblock crafting integrations.
+AE2LT Packaged Pattern Provider Reborn is an AE2 Lightning Tech Reborn addon for Minecraft 1.21.1 on NeoForge. It adds `Packaged Pattern Provider` and `Wireless Packaged Pattern Provider` blocks and extends AE2 / AE2LT pattern dispatch into selected multiblock crafting integrations.
 
 ## Supported Versions
 
 - Minecraft: 1.21.1
 - Java: 21
 - NeoForge: 21.1.x
-- AE2 Lightning Tech: 2.1.0-beta.1 (`refactor/thunderbolt-three-layer-clean`)
-- Thunderbolt Core: 2.0.0-beta.1 (`refactor/thunderbolt-three-layer-clean`)
+- AE2 Lightning Tech Reborn: 2.1.0-beta.1 (`refactor/thunderbolt-three-layer-clean`)
+- Thunderbolt Core Reborn: 2.0.0-beta.1 (`refactor/thunderbolt-three-layer-clean`)
 - Current addon / AE2LT tested NeoForge: 21.1.230
 - AE2 official 1.21.1 branch observed NeoForge: 21.1.169
 - Gradle Wrapper: 8.8
@@ -20,8 +20,8 @@ Current local verification observed a NeoForge patch-version difference: this ad
 ## Required Dependencies
 
 - Applied Energistics 2
-- AE2 Lightning Tech
-- Thunderbolt Core
+- AE2 Lightning Tech Reborn
+- Thunderbolt Core Reborn
 - AE2WTLib
 - Curios
 - NeoForge
@@ -52,8 +52,8 @@ javac -version
 
 For source-level debugging or cross-project integration work, clone:
 
-- [AE2 Lightning Tech](https://github.com/MOAKIEE/AE2-Lightning-Tech)
-- [Thunderbolt Core](https://github.com/ae2lt/Thunderbolt-Core)
+- [AE2 Lightning Tech Reborn](https://github.com/AE2-Lightning-Tech-Reborn/AE2-Lightning-Tech-Reborn)
+- [Thunderbolt Core Reborn](https://github.com/AE2-Lightning-Tech-Reborn/Thunderbolt-Core-Reborn)
 - [Applied Energistics 2](https://github.com/AppliedEnergistics/Applied-Energistics-2)
 
 ## Building Applied Energistics 2 Locally
@@ -67,7 +67,7 @@ Local phase-1 verification observed an output jar similar to:
 
 `appliedenergistics2-19.2.18-alpha.3+1.21.1.jar`
 
-## Building AE2 Lightning Tech Locally
+## Building AE2 Lightning Tech Reborn Locally
 
 ```powershell
 cd C:\Users\Administrator\IdeaProjects\Thunderbolt-Core
@@ -86,7 +86,7 @@ The matching refactor builds produce jars similar to:
 
 ## Configuring AE2LT Dependency
 
-This branch uses the sibling AE2 Lightning Tech refactor build by default:
+This branch uses the sibling AE2 Lightning Tech Reborn refactor build by default:
 
 ```properties
 ae2lt_maven_notation=
@@ -170,7 +170,7 @@ These entries reflect source code present in the repository, not a blanket state
 
 - `java -version` shows 8 but `javac -version` shows 21: check `PATH` ordering and `JAVA_HOME`.
 - `JAVA_HOME` points to a non-21 JDK: switch the shell to JDK 21 before running Gradle.
-- `Could not find com.moakiee.ae2lt:AE2-Lightning-Tech`: run `publishToMavenLocal` in the AE2 Lightning Tech project and confirm that its version matches `ae2lt_maven_notation`.
+- `Could not find com.moakiee.ae2lt:AE2-Lightning-Tech`: run `publishToMavenLocal` in the AE2 Lightning Tech Reborn project and confirm that its version matches `ae2lt_maven_notation`.
 - Gradle is using the wrong JVM: run `.\gradlew.bat --version` and check the JVM line.
 - NeoForge version conflicts: compare the three projects' `gradle.properties`, generated mod metadata, and dependency resolution results.
 
@@ -179,8 +179,8 @@ These entries reflect source code present in the repository, not a blanket state
 Local phase-1 verification produced the following baseline:
 
 - Applied Energistics 2: `1.21.1` branch built successfully, observed NeoForge `21.1.169`
-- AE2 Lightning Tech: `main` branch built successfully
-- AE2LT Packaged Pattern Provider: built successfully, observed NeoForge `21.1.230`
+- AE2 Lightning Tech Reborn: `main` branch built successfully
+- AE2LT Packaged Pattern Provider Reborn: built successfully, observed NeoForge `21.1.230`
 
 That version difference did not block local compilation or tests, but runtime compatibility should still be verified. If runtime issues appear later, prioritize:
 

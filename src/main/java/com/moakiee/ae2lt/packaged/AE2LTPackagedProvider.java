@@ -110,7 +110,7 @@ public class AE2LTPackagedProvider {
                     wirelessPackagedBeType,
                     wirelessPackagedBlock.asItem());
 
-            LOGGER.info("AE2LT Packaged Pattern Provider initialized");
+            LOGGER.info("AE2LT Packaged Pattern Provider Reborn initialized");
         });
     }
 
