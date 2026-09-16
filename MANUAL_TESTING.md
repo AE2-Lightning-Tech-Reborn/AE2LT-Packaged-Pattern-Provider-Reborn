@@ -99,16 +99,18 @@
 已内置自动化连接压测，覆盖"适配器 ↔ 目标 mod 连接点"：放真实机器方块 →
 `MultiblockAdapterRegistry.find` 循环 300 次识别断言 → 生产同款
 `AdapterRecipeTypes.find` 解析配方类型 → 支撑方块反向不识别 → 全部机器
-同场共存（29 台）重复路由。运行方式：
+同场共存重复路由 → 空闲 `extractOutputs`/`bind`/`planWithBinding` 失败关闭
+（无归属不得收货，未匹配 dummy pattern 不得绑上或改世界；虚拟 plan 不
+`commit()`）。这不是 MANUAL_TESTING 1–16 的整张 ME 网正向派发。运行方式：
 
 ```
 /ae2ltdiag connections      # OP 权限 ≥ 2；在主世界执行
 ```
 
-方块在世界出生点附近放置并在同一刻移除（火焰类方块临时垫圆石并还原），
-不改动存档。日志标记 `[ae2ltpp-conn]`，结尾输出
-`SUMMARY pass=N fail=M`。39 项全部通过（2026-09-10，隔离服
-25 个兼容 mod，TPS 20.0，无 ERROR）。
+	方块在世界出生点附近放置并还原原始方块/方块实体（火焰类方块临时垫圆石并还原），
+	conn38 额外等待 40 tick 再复扫。命令在 settling 期间返回 0（未完成），最终结果
+	在 40 tick 后的 `ae2ltdiag finished` 消息里。日志标记 `[ae2ltpp-conn]`，结尾输出
+	`SUMMARY pass=N fail=M`。不要把 Gradle 单测或旧的 39/39 日志当成这次已实机跑过。
 
 已验证的固定结论（也编码在测试预期里）：
 - **Avaritia 双 fork 分流**：AvaritiaNeo (byAqua3) 注册了同名方块

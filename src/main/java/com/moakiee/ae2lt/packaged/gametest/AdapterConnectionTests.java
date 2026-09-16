@@ -15,7 +15,9 @@ import net.minecraftforge.gametest.GameTestHolder;
  * <p>Forge only enables gametests in development environments (see
  * {@code ForgeGameTestHooks.isGametestEnabled}); on production dedicated
  * servers use {@code /ae2ltdiag connections} instead, which runs the same
- * engine via {@link ConnectionDiagnosticCommand}.
+ * engine via {@link ConnectionDiagnosticCommand}. Each case also covers idle
+ * dispatch/harvest fail-closed checks; conn38 additionally runs the
+ * co-located harvest pass before succeeding.
  */
 @GameTestHolder("ae2ltpp")
 public final class AdapterConnectionTests {
@@ -280,12 +282,18 @@ public final class AdapterConnectionTests {
         AdapterConnectionCheck.runInventory(level(helper), sink(helper));
     }
 
+    @GameTest(template = "ae2ltpp:adapter_conn")
+    public static void conn40_avaritia_extreme_smithing(GameTestHelper helper) {
+        AdapterConnectionCheck.runCase(level(helper), pos(helper),
+                caseOf("conn40_avaritia_extreme_smithing"), sink(helper));
+    }
+
     /**
      * Co-location stress: every main block from every compatible mod is placed
      * simultaneously, routed under repetition, then re-verified after the
      * placed block entities have had a settling window to tick.
      */
-    @GameTest(template = "ae2ltpp:adapter_conn")
+    @GameTest(template = "ae2ltpp:adapter_conn", timeoutTicks = 200)
     public static void conn38_all_adapters_colocated(GameTestHelper helper) {
         var s = sink(helper);
         var state = AdapterConnectionCheck.placeColocated(level(helper),
@@ -298,13 +306,16 @@ public final class AdapterConnectionTests {
             AdapterConnectionCheck.removeColocated(level(helper), state);
             return;
         }
-        helper.runAfterDelay(40, () -> {
-            var ok = AdapterConnectionCheck.scanColocated(level(helper), state, s);
-            AdapterConnectionCheck.removeColocated(level(helper), state);
-            if (ok) {
-                s.pass("conn38_all_adapters_colocated",
-                        state.positions().size() + " machines co-located and routed correctly"
-                                + " (100 rounds + post-tick)");
+        helper.runAfterDelay(AdapterConnectionCheck.COLOCATED_SETTLE_TICKS, () -> {
+            try {
+                var ok = AdapterConnectionCheck.scanColocated(level(helper), state, s);
+                if (ok && AdapterConnectionCheck.runDispatchHarvestColocated(level(helper), state, s)) {
+                    s.pass("conn38_all_adapters_colocated",
+                            state.positions().size() + " machines co-located and routed correctly"
+                                    + " (100 rounds + post-tick); idle dispatch/harvest fail-closed");
+                }
+            } finally {
+                AdapterConnectionCheck.removeColocated(level(helper), state);
             }
         });
     }
