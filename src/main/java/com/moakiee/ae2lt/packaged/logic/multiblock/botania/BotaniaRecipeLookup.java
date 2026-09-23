@@ -42,8 +42,7 @@ public final class BotaniaRecipeLookup {
             return List.of();
         }
         try {
-            return (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                    .getAllRecipesFor((RecipeType) type);
+            return (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type);
         } catch (RuntimeException | LinkageError ignored) {
             return List.of();
         }
@@ -52,7 +51,7 @@ public final class BotaniaRecipeLookup {
     @Nullable
     private static ItemStack safeResult(Recipe<?> recipe, ServerLevel level) {
         try {
-            return recipe.getResultItem(level.registryAccess());
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(recipe, level);
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }

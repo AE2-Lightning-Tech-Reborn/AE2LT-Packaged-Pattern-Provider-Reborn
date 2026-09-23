@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 class PackagedCoreNamingTest {
     private static final List<String> MACHINE_CORE_ITEM_IDS = List.of(
@@ -72,11 +72,11 @@ class PackagedCoreNamingTest {
     @Test
     void adapterContractIdsUsePackagedCoreSuffix() throws IllegalAccessException {
         for (var field : AdapterIds.class.getDeclaredFields()) {
-            if (!Modifier.isStatic(field.getModifiers()) || field.getType() != ResourceLocation.class) {
+            if (!Modifier.isStatic(field.getModifiers()) || field.getType() != Identifier.class) {
                 continue;
             }
 
-            var id = (ResourceLocation) field.get(null);
+            var id = (Identifier) field.get(null);
             assertTrue(id.getPath().endsWith("_packaged_core"), id.toString());
             assertFalse(id.getPath().endsWith("_adapter"), id.toString());
         }

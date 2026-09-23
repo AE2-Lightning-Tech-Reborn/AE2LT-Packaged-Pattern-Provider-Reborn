@@ -7,6 +7,7 @@ import appeng.api.config.Actionable;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 
 /**
  * Capability view that accepts returns but never exposes stored contents.
@@ -117,5 +118,10 @@ public final class InsertOnlyPatternProviderReturnInventory
     @Override
     public void onChange() {
         delegate.onChange();
+    }
+
+    @Override
+    public void updateSnapshots(TransactionContext transaction) {
+        delegate.updateSnapshots(transaction);
     }
 }

@@ -28,7 +28,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -217,7 +217,7 @@ public final class RefactorIntegrationGameTests {
             return (PendingOutputBuffer)field.get(logic);
         } catch (ReflectiveOperationException failure) { throw new RuntimeException(failure); }
     }
-    private static ResourceLocation id(String name) { return ResourceLocation.parse(name); }
+    private static Identifier id(String name) { return Identifier.parse(name); }
     private static GenericStack item(String name, long amount) {
         var item = BuiltInRegistries.ITEM.get(id(name));
         if (item == Items.AIR) throw new AssertionError("missing test item: " + name);

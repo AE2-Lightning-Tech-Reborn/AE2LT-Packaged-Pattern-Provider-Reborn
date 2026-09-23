@@ -2,13 +2,15 @@ package com.moakiee.ae2lt.packaged.client;
 
 import java.util.List;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
-import appeng.client.gui.Icon;
+import appeng.util.Icon;
+import com.moakiee.ae2lt.packaged.client.LegacyAe2IconBlitter;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.widgets.ITooltip;
 
@@ -18,20 +20,20 @@ import appeng.client.gui.widgets.ITooltip;
  * AE2LT implementation class to render them.
  */
 final class PackagedProviderTextureButton extends Button implements ITooltip {
-    private static final ResourceLocation AUTO_RETURN_OFF = texture("auto_input_off");
-    private static final ResourceLocation AUTO_RETURN_ON = texture("auto_input_on");
-    private static final ResourceLocation FREQUENCY_BIND = texture("frequency_select");
+    private static final Identifier AUTO_RETURN_OFF = texture("auto_input_off");
+    private static final Identifier AUTO_RETURN_ON = texture("auto_input_on");
+    private static final Identifier FREQUENCY_BIND = texture("frequency_select");
 
-    private final ResourceLocation offTexture;
-    private final ResourceLocation onTexture;
+    private final Identifier offTexture;
+    private final Identifier onTexture;
     private final Runnable listener;
     private boolean state;
     private List<Component> tooltipOff = List.of();
     private List<Component> tooltipOn = List.of();
 
     private PackagedProviderTextureButton(
-            ResourceLocation offTexture,
-            ResourceLocation onTexture,
+            Identifier offTexture,
+            Identifier onTexture,
             Runnable listener) {
         super(0, 0, 16, 16, Component.empty(), ignored -> listener.run(), DEFAULT_NARRATION);
         this.offTexture = offTexture;
@@ -62,22 +64,21 @@ final class PackagedProviderTextureButton extends Button implements ITooltip {
     }
 
     @Override
-    public void onPress() {
+    public void onPress(InputWithModifiers input) {
         listener.run();
     }
 
     @Override
-    protected void renderWidget(
-            GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(
+            GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         var yOffset = isHovered() ? 1 : 0;
         var background = isHovered()
                 ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
                 : isFocused()
                         ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS
                         : Icon.TOOLBAR_BUTTON_BACKGROUND;
-        background.getBlitter()
+        LegacyAe2IconBlitter.of(background)
                 .dest(getX() - 1, getY() + yOffset, 18, 20)
-                .zOffset(2)
                 .blit(guiGraphics);
 
         var texture = state ? onTexture : offTexture;
@@ -86,7 +87,6 @@ final class PackagedProviderTextureButton extends Button implements ITooltip {
             blitter.opacity(0.5f);
         }
         blitter.dest(getX(), getY() + 1 + yOffset)
-                .zOffset(3)
                 .blit(guiGraphics);
     }
 
@@ -105,8 +105,8 @@ final class PackagedProviderTextureButton extends Button implements ITooltip {
         return visible && !getTooltipMessage().isEmpty();
     }
 
-    private static ResourceLocation texture(String name) {
-        return ResourceLocation.fromNamespaceAndPath(
+    private static Identifier texture(String name) {
+        return Identifier.fromNamespaceAndPath(
                 "ae2lt", "textures/gui/buttons/" + name + ".png");
     }
 }

@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -32,6 +32,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.common.crafting.SizedIngredient;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import org.jetbrains.annotations.Nullable;
 
@@ -47,10 +48,10 @@ import org.jetbrains.annotations.Nullable;
 public final class AwakeningAltarAdapter implements MultiblockAdapter {
 
     private static final String MOD_ID = "mysticalagriculture";
-    private static final ResourceLocation ALTAR_BLOCK = maId("awakening_altar");
-    private static final ResourceLocation PEDESTAL_BLOCK = maId("awakening_pedestal");
-    private static final ResourceLocation VESSEL_BLOCK = maId("essence_vessel");
-    private static final ResourceLocation RECIPE_TYPE_ID = maId("awakening");
+    private static final Identifier ALTAR_BLOCK = maId("awakening_altar");
+    private static final Identifier PEDESTAL_BLOCK = maId("awakening_pedestal");
+    private static final Identifier VESSEL_BLOCK = maId("essence_vessel");
+    private static final Identifier RECIPE_TYPE_ID = maId("awakening");
     private static final int VESSEL_CAPACITY = 40;
     private static final int MAX_INPUT_UNITS = 256;
 
@@ -79,7 +80,7 @@ public final class AwakeningAltarAdapter implements MultiblockAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.MA_AWAKENING;
     }
 
@@ -230,7 +231,7 @@ public final class AwakeningAltarAdapter implements MultiblockAdapter {
             if (altarIngredient == null || essenceStacks == null || ingredients == null) {
                 continue;
             }
-            if (essenceStacks.size() != 4 || ingredients.size() != 8) {
+            if (essenceStacks.size() != 4 || ingredients.size() != 4) {
                 continue;
             }
             if (pedestalIngredients(ingredients) == null) {
@@ -290,17 +291,21 @@ public final class AwakeningAltarAdapter implements MultiblockAdapter {
 
     @Nullable
     private static List<EssenceAssignment> consumeEssences(Map<AEItemKey, Long> working,
-                                                           List<ItemStack> essenceStacks) {
+                                                           List<SizedIngredient> essenceStacks) {
         var assignments = new ArrayList<EssenceAssignment>(essenceStacks.size());
         for (var essence : essenceStacks) {
-            if (essence.isEmpty()) {
+            int count = essence.count();
+            if (count <= 0 || count > VESSEL_CAPACITY) {
                 return null;
             }
-            var key = AEItemKey.of(essence);
-            int count = essence.getCount();
-            if (count <= 0 || count > VESSEL_CAPACITY || !consume(working, key, count)) {
-                return null;
+            AEItemKey key = null;
+            for (var entry : working.entrySet()) {
+                if (entry.getValue() >= count && essence.ingredient().test(entry.getKey().toStack())) {
+                    key = entry.getKey();
+                    break;
+                }
             }
+            if (key == null || !consume(working, key, count)) return null;
             assignments.add(new EssenceAssignment(key, count));
         }
         return List.copyOf(assignments);
@@ -330,18 +335,9 @@ public final class AwakeningAltarAdapter implements MultiblockAdapter {
     }
 
     @Nullable
-    private static List<Ingredient> pedestalIngredients(List<Ingredient> alternating) {
-        // AwakeningRecipe.inputs is built as [essence, ingredient, essence, ingredient, ...]
-        // The odd indexes (1,3,5,7) are the pedestal ingredients (originally recipe.inputs in JSON).
-        var result = new ArrayList<Ingredient>(4);
-        for (int i = 1; i < alternating.size(); i += 2) {
-            var ing = alternating.get(i);
-            if (ing == null) {
-                return null;
-            }
-            result.add(ing);
-        }
-        return result.size() == 4 ? result : null;
+    private static List<Ingredient> pedestalIngredients(List<Ingredient> ingredients) {
+        return ingredients.size() == 4 && ingredients.stream().noneMatch(Objects::isNull)
+                ? ingredients : null;
     }
 
     private static boolean consume(Map<AEItemKey, Long> working, AEItemKey key, int count) {
@@ -531,7 +527,7 @@ public final class AwakeningAltarAdapter implements MultiblockAdapter {
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(r, level);
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }
@@ -540,8 +536,7 @@ public final class AwakeningAltarAdapter implements MultiblockAdapter {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(RECIPE_TYPE_ID)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -549,12 +544,12 @@ public final class AwakeningAltarAdapter implements MultiblockAdapter {
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation maId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier maId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private record EssenceAssignment(AEItemKey key, int count) {

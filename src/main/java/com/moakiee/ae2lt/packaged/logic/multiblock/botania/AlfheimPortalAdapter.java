@@ -8,7 +8,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -78,7 +78,7 @@ public final class AlfheimPortalAdapter implements VirtualCraftingAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return AdapterIds.BOTANIA_ALFHEIM_PORTAL;
     }
 
@@ -126,7 +126,7 @@ public final class AlfheimPortalAdapter implements VirtualCraftingAdapter {
         }
 
         var recipe = bind.holder().value();
-        var ingredients = recipe.getIngredients();
+        var ingredients = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.ingredients(recipe);
         if (!consumeIngredientsStrict(ingredients, inputs)) {
             return null;
         }

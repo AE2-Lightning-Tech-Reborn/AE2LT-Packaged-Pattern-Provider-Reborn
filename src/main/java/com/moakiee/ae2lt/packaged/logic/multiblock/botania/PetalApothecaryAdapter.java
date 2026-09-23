@@ -8,7 +8,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -106,7 +106,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
     // overlap the same tick and produce audible dissonance.
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return AdapterIds.BOTANIA_PETAL_APOTHECARY;
     }
 
@@ -147,7 +147,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
         if (patternInputs == null || patternInputs.length == 0) {
             return false;
         }
-        var allIngredients = new ArrayList<Ingredient>(recipe.getIngredients());
+        var allIngredients = new ArrayList<Ingredient>(com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.ingredients(recipe));
         var reagent = BotaniaReflection.recipeReagent(recipe);
         if (reagent != null && !reagent.isEmpty()) {
             allIngredients.add(reagent);
@@ -217,7 +217,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
             return null;
         }
         var recipe = bind.holder().value();
-        var result = recipe.getResultItem(level.registryAccess());
+        var result = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(recipe, level);
         if (result == null || result.isEmpty()) {
             return null;
         }
@@ -271,7 +271,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
         }
 
         // Consume recipe ingredients + reagent strictly from itemAvailable.
-        var ingredients = new ArrayList<Ingredient>(recipe.getIngredients());
+        var ingredients = new ArrayList<Ingredient>(com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.ingredients(recipe));
         var reagent = BotaniaReflection.recipeReagent(recipe);
         if (reagent != null && !reagent.isEmpty()) {
             ingredients.add(reagent);

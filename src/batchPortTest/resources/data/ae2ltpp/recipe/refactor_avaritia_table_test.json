@@ -1,0 +1,7 @@
+{
+  "type": "avaritia:shaped_table",
+  "tier": 4,
+  "pattern": ["M I"],
+  "key": {"M": "minecraft:milk_bucket", "I": "minecraft:iron_ingot"},
+  "result": {"id": "minecraft:emerald", "count": 1}
+}

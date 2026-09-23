@@ -14,7 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -122,7 +122,7 @@ public final class MekRoutingGameTests {
     }
 
     private static void place(GameTestHelper helper, BlockPos pos, String id) {
-        var block = BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("mekmm", id));
+        var block = BuiltInRegistries.BLOCK.get(Identifier.fromNamespaceAndPath("mekmm", id));
         helper.assertTrue(block != net.minecraft.world.level.block.Blocks.AIR, "native MekMM block registered: " + id);
         helper.getLevel().setBlockAndUpdate(pos, block.defaultBlockState());
     }

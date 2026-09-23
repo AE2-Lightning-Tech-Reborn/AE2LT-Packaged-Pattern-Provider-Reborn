@@ -22,6 +22,7 @@ final class ExtendedCraftingCombinationAccess {
     private static volatile boolean lookupDone;
     private static volatile @Nullable Method getProgressMethod;
     private static volatile @Nullable Method getInputMethod;
+    private static volatile @Nullable Method getPedestalIngredientsMethod;
 
     static int getProgress(BlockEntity be) {
         ensureLookup();
@@ -39,7 +40,7 @@ final class ExtendedCraftingCombinationAccess {
     static ItemStack getResultItem(Object recipe, ServerLevel level) {
         if (!(recipe instanceof Recipe<?> r)) return null;
         try {
-            return r.getResultItem(level.registryAccess());
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(r, level);
         } catch (RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(ExtendedCraftingCombinationAccess.class, "getResultItem", ignored);
             return null;
@@ -61,10 +62,18 @@ final class ExtendedCraftingCombinationAccess {
 
     @Nullable
     static List<Ingredient> getRecipeIngredients(Object recipe) {
-        if (!(recipe instanceof Recipe<?> r)) return null;
+        ensureLookup();
+        if (getPedestalIngredientsMethod == null) return null;
         try {
-            return new ArrayList<>(r.getIngredients());
-        } catch (RuntimeException | LinkageError ignored) {
+            var value = getPedestalIngredientsMethod.invoke(recipe);
+            if (!(value instanceof List<?> ingredients)) return null;
+            var result = new ArrayList<Ingredient>(ingredients.size());
+            for (var ingredient : ingredients) {
+                if (!(ingredient instanceof Ingredient i)) return null;
+                result.add(i);
+            }
+            return result;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(ExtendedCraftingCombinationAccess.class, "getRecipeIngredients", ignored);
             return null;
         }
@@ -84,9 +93,10 @@ final class ExtendedCraftingCombinationAccess {
             }
             try {
                 var recipeClass = Class.forName(COMBINATION_RECIPE_CLASS);
-                getInputMethod = recipeClass.getMethod("getInput");
+                getInputMethod = recipeClass.getMethod("getCenterIngredient");
+                getPedestalIngredientsMethod = recipeClass.getMethod("getPedestalIngredients");
             } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("Combination reflection: CombinationRecipe#getInput lookup failed: {}",
+                LOG.warn("Combination reflection: CombinationRecipe ingredient lookup failed: {}",
                         e.toString());
             }
             lookupDone = true;

@@ -14,15 +14,9 @@
     "RFR"
   ],
   "key": {
-    "R": {
-      "item": "extendedcrafting:enhanced_redstone_ingot"
-    },
-    "F": {
-      "item": "extendedcrafting:flux_star"
-    },
-    "C": {
-      "item": "ae2ltpp:basic_packaged_core"
-    }
+    "R": "extendedcrafting:enhanced_redstone_ingot",
+    "F": "extendedcrafting:flux_star",
+    "C": "ae2ltpp:basic_packaged_core"
   },
   "result": {
     "id": "ae2ltpp:ec_flux_crafter_packaged_core",

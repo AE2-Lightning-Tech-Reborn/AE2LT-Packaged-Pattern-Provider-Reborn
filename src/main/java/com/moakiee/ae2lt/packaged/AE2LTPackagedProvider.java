@@ -17,10 +17,6 @@ import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity
 import com.moakiee.ae2lt.packaged.blockentity.WirelessPackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
-import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsAtomicReconstructorAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsEmpowererAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsNouveauEnchantingApparatusAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsNouveauImbuementChamberAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.avaritia.AvaritiaExtremeSmithingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.avaritia.AvaritiaTableAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.botania.AlfheimPortalAdapter;
@@ -39,7 +35,6 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.malum.MalumSpiritFocusingAdap
 import com.moakiee.ae2lt.packaged.logic.multiblock.malum.MalumSpiritInfusionAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.occultism.OccultismRitualAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.occultism.OccultismSpiritFireAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekanismMoreMachinesAdapter;
 import com.moakiee.ae2lt.packaged.registry.PPBlockEntities;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
 import com.moakiee.ae2lt.packaged.registry.PPCreativeTabs;
@@ -66,10 +61,6 @@ public class AE2LTPackagedProvider {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            MultiblockAdapterRegistry.register(new ActuallyAdditionsAtomicReconstructorAdapter());
-            MultiblockAdapterRegistry.register(new ActuallyAdditionsEmpowererAdapter());
-            MultiblockAdapterRegistry.register(new ArsNouveauEnchantingApparatusAdapter());
-            MultiblockAdapterRegistry.register(new ArsNouveauImbuementChamberAdapter());
             MultiblockAdapterRegistry.register(new DraconicFusionCraftingAdapter());
             MultiblockAdapterRegistry.register(new ExtendedCraftingTableAdapter());
             MultiblockAdapterRegistry.register(new ExtendedCraftingEnderCrafterAdapter());
@@ -81,7 +72,6 @@ public class AE2LTPackagedProvider {
             MultiblockAdapterRegistry.register(new OccultismSpiritFireAdapter());
             MultiblockAdapterRegistry.register(new InfusionAltarAdapter());
             MultiblockAdapterRegistry.register(new AwakeningAltarAdapter());
-            MultiblockAdapterRegistry.register(new MekanismMoreMachinesAdapter());
             MultiblockAdapterRegistry.register(new MalumSpiritFocusingAdapter());
             MultiblockAdapterRegistry.register(new MalumSpiritInfusionAdapter());
             MultiblockAdapterRegistry.register(new PetalApothecaryAdapter());

@@ -22,7 +22,7 @@ final class ExtendedCraftingFluxCrafterAccess {
     static ItemStack getResultItem(Object recipe, ServerLevel level) {
         if (!(recipe instanceof Recipe<?> r)) return null;
         try {
-            return r.getResultItem(level.registryAccess());
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(r, level);
         } catch (RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(ExtendedCraftingFluxCrafterAccess.class, "getResultItem", ignored);
             return null;

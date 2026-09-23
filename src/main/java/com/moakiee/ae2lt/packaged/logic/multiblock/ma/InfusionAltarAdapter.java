@@ -22,7 +22,7 @@ import java.util.function.BiFunction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -47,9 +47,9 @@ import org.jetbrains.annotations.Nullable;
 public final class InfusionAltarAdapter implements MultiblockAdapter {
 
     private static final String MOD_ID = "mysticalagriculture";
-    private static final ResourceLocation ALTAR_BLOCK = maId("infusion_altar");
-    private static final ResourceLocation PEDESTAL_BLOCK = maId("infusion_pedestal");
-    private static final ResourceLocation RECIPE_TYPE_ID = maId("infusion");
+    private static final Identifier ALTAR_BLOCK = maId("infusion_altar");
+    private static final Identifier PEDESTAL_BLOCK = maId("infusion_pedestal");
+    private static final Identifier RECIPE_TYPE_ID = maId("infusion");
     private static final int MAX_INPUT_UNITS = 128;
 
     private static final BlockPos[] PEDESTAL_OFFSETS = {
@@ -77,7 +77,7 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.MA_INFUSION;
     }
 
@@ -273,7 +273,7 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(r, level);
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }
@@ -405,8 +405,7 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(RECIPE_TYPE_ID)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -414,12 +413,12 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation maId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier maId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private record PlannedUnit(AEItemKey key) {

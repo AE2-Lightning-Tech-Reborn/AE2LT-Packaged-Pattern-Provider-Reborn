@@ -35,7 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -68,11 +68,11 @@ import org.jetbrains.annotations.Nullable;
 public final class ExtendedCraftingTableAdapter implements LinearVirtualCraftingAdapter {
 
     private static final String MOD_ID = "extendedcrafting";
-    private static final ResourceLocation BASIC_TABLE_BLOCK = ecId("basic_table");
-    private static final ResourceLocation ADVANCED_TABLE_BLOCK = ecId("advanced_table");
-    private static final ResourceLocation ELITE_TABLE_BLOCK = ecId("elite_table");
-    private static final ResourceLocation ULTIMATE_TABLE_BLOCK = ecId("ultimate_table");
-    private static final ResourceLocation RECIPE_TYPE_ID = ecId("table");
+    private static final Identifier BASIC_TABLE_BLOCK = ecId("basic_table");
+    private static final Identifier ADVANCED_TABLE_BLOCK = ecId("advanced_table");
+    private static final Identifier ELITE_TABLE_BLOCK = ecId("elite_table");
+    private static final Identifier ULTIMATE_TABLE_BLOCK = ecId("ultimate_table");
+    private static final Identifier RECIPE_TYPE_ID = ecId("table");
 
     @Override
     public int priority() {
@@ -89,7 +89,7 @@ public final class ExtendedCraftingTableAdapter implements LinearVirtualCrafting
 
     @Override
     @org.jetbrains.annotations.Nullable
-    public net.minecraft.resources.ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public net.minecraft.resources.Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         // Tier id matches the live block at the queried position. Higher-tier
         // packaged cores cover all lower tiers via MultiblockAdapterItem.covers,
         // so a single ec_ultimate core unlocks every EC table.
@@ -431,8 +431,7 @@ public final class ExtendedCraftingTableAdapter implements LinearVirtualCrafting
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(RECIPE_TYPE_ID)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -458,15 +457,15 @@ public final class ExtendedCraftingTableAdapter implements LinearVirtualCrafting
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation ecId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier ecId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
-    private record TableSpec(ResourceLocation blockId, int gridSize, int tier) {
+    private record TableSpec(Identifier blockId, int gridSize, int tier) {
         int slots() {
             return gridSize * gridSize;
         }

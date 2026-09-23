@@ -4,7 +4,7 @@ import com.moakiee.ae2lt.packaged.blockentity.WirelessPackagedPatternProviderBlo
 
 public class WirelessPackagedPatternProviderBlock
         extends FixedPushDirectionProviderBlock<WirelessPackagedPatternProviderBlockEntity> {
-    public WirelessPackagedPatternProviderBlock() {
-        super();
+    public WirelessPackagedPatternProviderBlock(net.minecraft.world.level.block.state.BlockBehaviour.Properties properties) {
+        super(properties);
     }
 }

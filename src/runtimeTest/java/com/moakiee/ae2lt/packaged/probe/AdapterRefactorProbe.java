@@ -17,7 +17,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -79,7 +79,7 @@ final class AdapterRefactorProbe {
                 "mysticalagriculture:awakening_altar", "mysticalagriculture:awakening_pedestal", "mysticalagriculture:essence_vessel",
                 "extendedcrafting:basic_table", "extendedcrafting:advanced_table", "extendedcrafting:elite_table", "extendedcrafting:ultimate_table",
                 "extendedcrafting:crafting_core", "extendedcrafting:pedestal", "extendedcrafting:ender_crafter", "extendedcrafting:flux_crafter")) {
-            var block = BuiltInRegistries.BLOCK.get(ResourceLocation.parse(id));
+            var block = BuiltInRegistries.BLOCK.get(Identifier.parse(id));
             check(block != Blocks.AIR, "registered block " + id);
             level.setBlockAndUpdate(pos, block.defaultBlockState());
             var be = level.getBlockEntity(pos);
@@ -127,7 +127,7 @@ final class AdapterRefactorProbe {
         var pos = new BlockPos(5, 80, 5);
         var type = access("aa.ActuallyAdditionsEmpowererAccess");
         for (String id : List.of("actuallyadditions:empowerer", "actuallyadditions:display_stand")) {
-            level.setBlockAndUpdate(pos, BuiltInRegistries.BLOCK.get(ResourceLocation.parse(id)).defaultBlockState());
+            level.setBlockAndUpdate(pos, BuiltInRegistries.BLOCK.get(Identifier.parse(id)).defaultBlockState());
             var be = level.getBlockEntity(pos);
             check(be != null, "AA block " + id);
             var inventory = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, null);
@@ -160,10 +160,10 @@ final class AdapterRefactorProbe {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void checkTableAdapter(ServerLevel level, String blockId, String typeId, VirtualCraftingAdapter adapter) throws Exception {
         var pos = new BlockPos(6, 80, 5);
-        level.setBlockAndUpdate(pos, BuiltInRegistries.BLOCK.get(ResourceLocation.parse(blockId)).defaultBlockState());
+        level.setBlockAndUpdate(pos, BuiltInRegistries.BLOCK.get(Identifier.parse(blockId)).defaultBlockState());
         var be = level.getBlockEntity(pos);
         check(adapter.recognizesMain(level, pos, be), "table recognition " + blockId);
-        var type = (RecipeType) BuiltInRegistries.RECIPE_TYPE.get(ResourceLocation.parse(typeId));
+        var type = (RecipeType) BuiltInRegistries.RECIPE_TYPE.get(Identifier.parse(typeId));
         int passed = 0;
         for (Object raw : level.getRecipeManager().getAllRecipesFor(type)) {
             var holder = (net.minecraft.world.item.crafting.RecipeHolder<?>) raw;

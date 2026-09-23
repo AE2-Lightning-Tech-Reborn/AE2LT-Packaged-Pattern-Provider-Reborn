@@ -22,7 +22,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -224,7 +224,7 @@ public final class BatchProviderGameTests {
         });
     }
 
-    private static ResourceLocation id(String id) { return ResourceLocation.parse(id); }
+    private static Identifier id(String id) { return Identifier.parse(id); }
     private static GenericStack stack(net.minecraft.world.item.Item item, long amount) { return new GenericStack(AEItemKey.of(item),amount); }
     private static KeyCounter[] counters(List<GenericStack> stacks) {
         var result = new KeyCounter[stacks.size()];

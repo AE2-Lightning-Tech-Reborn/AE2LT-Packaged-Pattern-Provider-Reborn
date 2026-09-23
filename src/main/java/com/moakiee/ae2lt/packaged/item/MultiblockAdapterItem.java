@@ -7,10 +7,12 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
+import java.util.function.Consumer;
 
 /**
  * Packaged core item for the packaged pattern provider.
@@ -30,8 +32,8 @@ import net.minecraft.world.item.TooltipFlag;
  */
 public class MultiblockAdapterItem extends Item {
 
-    private final ResourceLocation primaryId;
-    private final Set<ResourceLocation> coveredIds;
+    private final Identifier primaryId;
+    private final Set<Identifier> coveredIds;
 
     /**
      * @param props      vanilla Item properties (use {@code stacksTo(1)} since
@@ -43,8 +45,8 @@ public class MultiblockAdapterItem extends Item {
      *                   pass {@code Set.of(primaryId)}.
      */
     public MultiblockAdapterItem(Properties props,
-                                 ResourceLocation primaryId,
-                                 Set<ResourceLocation> coveredIds) {
+                                 Identifier primaryId,
+                                 Set<Identifier> coveredIds) {
         super(props);
         this.primaryId = primaryId;
         this.coveredIds = Set.copyOf(coveredIds);
@@ -54,30 +56,31 @@ public class MultiblockAdapterItem extends Item {
         }
     }
 
-    public ResourceLocation primaryAdapterId() {
+    public Identifier primaryAdapterId() {
         return primaryId;
     }
 
-    public Set<ResourceLocation> coveredAdapterIds() {
+    public Set<Identifier> coveredAdapterIds() {
         return coveredIds;
     }
 
     /** @return true if this item unlocks the given required adapter id. */
-    public boolean covers(@Nullable ResourceLocation requiredId) {
+    public boolean covers(@Nullable Identifier requiredId) {
         return requiredId != null && coveredIds.contains(requiredId);
     }
 
     /** Static helper: check an ItemStack against a required id. */
-    public static boolean stackCovers(ItemStack stack, @Nullable ResourceLocation requiredId) {
+    public static boolean stackCovers(ItemStack stack, @Nullable Identifier requiredId) {
         return requiredId != null
                 && stack.getItem() instanceof MultiblockAdapterItem item
                 && item.covers(requiredId);
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
+                                Consumer<Component> tooltip, TooltipFlag flag) {
         if (coveredIds.size() > 1) {
-            tooltip.add(Component.translatable("tooltip.ae2ltpp.packaged_core.covers",
+            tooltip.accept(Component.translatable("tooltip.ae2ltpp.packaged_core.covers",
                     Component.literal(String.valueOf(coveredIds.size())).withStyle(ChatFormatting.GOLD))
                     .withStyle(ChatFormatting.DARK_GRAY));
         }

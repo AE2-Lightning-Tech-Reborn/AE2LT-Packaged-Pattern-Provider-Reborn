@@ -3,7 +3,7 @@ package com.moakiee.ae2lt.packaged.item;
 import java.util.List;
 import java.util.function.Predicate;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.registries.DeferredItem;
 
 import com.moakiee.ae2lt.packaged.registry.PPItems;
@@ -15,7 +15,7 @@ import com.moakiee.ae2lt.packaged.registry.PPItems;
 public record PackagedCoreDefinition(
         String itemId,
         String targetModId,
-        ResourceLocation targetItemId) {
+        Identifier targetItemId) {
 
     private static final String ACTUALLY_ADDITIONS = "actuallyadditions";
     private static final String ARS_NOUVEAU = "ars_nouveau";
@@ -111,6 +111,6 @@ public record PackagedCoreDefinition(
         return new PackagedCoreDefinition(
                 itemId,
                 targetModId,
-                ResourceLocation.fromNamespaceAndPath(targetModId, targetItemPath));
+                Identifier.fromNamespaceAndPath(targetModId, targetItemPath));
     }
 }

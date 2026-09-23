@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
@@ -53,8 +53,8 @@ import org.jetbrains.annotations.Nullable;
 public final class ActuallyAdditionsAtomicReconstructorAdapter implements VirtualCraftingAdapter {
 
     private static final String MOD_ID = "actuallyadditions";
-    private static final ResourceLocation ATOMIC_RECONSTRUCTOR_BLOCK = aaId("atomic_reconstructor");
-    private static final ResourceLocation LASER_RECIPE_TYPE = aaId("laser");
+    private static final Identifier ATOMIC_RECONSTRUCTOR_BLOCK = aaId("atomic_reconstructor");
+    private static final Identifier LASER_RECIPE_TYPE = aaId("laser");
     /**
      * Per-craft baseline RF charged by the reconstructor regardless of recipe
      * (matches AA's headroom over {@code recipe.getEnergy()} in 1.21 builds).
@@ -76,12 +76,12 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.AA_RECONSTRUCTOR;
     }
 
     @Override
-    public ResourceLocation flushSoundId() {
+    public Identifier flushSoundId() {
         return null;
     }
 
@@ -326,7 +326,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
             return ItemStack.EMPTY;
         }
         try {
-            return typedRecipe.getResultItem(level.registryAccess()).copy();
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(typedRecipe, level).copy();
         } catch (RuntimeException | LinkageError ignored) {
             return ItemStack.EMPTY;
         }
@@ -335,8 +335,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(LASER_RECIPE_TYPE)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -344,12 +343,12 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation aaId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier aaId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private record PlannedInput(AEItemKey key, long amount) {

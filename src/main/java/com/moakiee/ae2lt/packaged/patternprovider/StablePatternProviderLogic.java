@@ -11,6 +11,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 import appeng.api.config.LockCraftingMode;
 import appeng.api.crafting.IPatternDetails;
@@ -34,6 +36,8 @@ import appeng.util.inv.filter.IAEItemFilter;
 import com.moakiee.ae2lt.api.patternprovider.WirelessPatternProviderPolicy;
 import com.moakiee.ae2lt.api.patternprovider.EncodedPatternPayloadValidator;
 import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionRange;
+import com.moakiee.ae2lt.packaged.compat.LegacyItemStackNbt;
+import com.moakiee.ae2lt.api.compat.ValueIO;
 import com.moakiee.ae2lt.packaged.mixin.PatternProviderLogicAccessor;
 import com.moakiee.thunderbolt.core.crafting.overload.OverloadedPatternDetails;
 
@@ -383,34 +387,39 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
     }
 
     @Override
-    public void writeToNBT(CompoundTag tag, HolderLookup.Provider registries) {
-        super.writeToNBT(tag, registries);
+    public void writeToNBT(ValueOutput output) {
+        super.writeToNBT(output);
+        CompoundTag tag = ValueIO.writableTag(output);
+        HolderLookup.Provider registries = providerHost.getLevel() != null
+                ? providerHost.getLevel().registryAccess() : net.minecraft.core.RegistryAccess.EMPTY;
         if (pendingUnlockIdOnly != null) {
             tag.putString(TAG_UNLOCK_MATCH_MODE,
                     pendingUnlockIdOnly ? "ID_ONLY" : "STRICT");
         }
         if (pendingUnlockTemplate != null && !pendingUnlockTemplate.isEmpty()) {
             tag.put(TAG_UNLOCK_TEMPLATE,
-                    pendingUnlockTemplate.saveOptional(registries));
+                    LegacyItemStackNbt.save(pendingUnlockTemplate, registries));
         }
     }
 
     @Override
-    public void readFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
-        super.readFromNBT(tag, registries);
+    public void readFromNBT(ValueInput input) {
+        super.readFromNBT(input);
+        CompoundTag tag = ValueIO.readableTag(input);
+        HolderLookup.Provider registries = input.lookup();
         pendingUnlockIdOnly = null;
         pendingUnlockTemplate = null;
-        if (tag.contains(TAG_UNLOCK_MATCH_MODE, Tag.TAG_STRING)) {
-            var savedMode = tag.getString(TAG_UNLOCK_MATCH_MODE);
+        if (tag.contains(TAG_UNLOCK_MATCH_MODE)) {
+            var savedMode = tag.getStringOr(TAG_UNLOCK_MATCH_MODE, "");
             if ("ID_ONLY".equals(savedMode)) {
                 pendingUnlockIdOnly = true;
             } else if ("STRICT".equals(savedMode)) {
                 pendingUnlockIdOnly = false;
             }
         }
-        if (tag.contains(TAG_UNLOCK_TEMPLATE, Tag.TAG_COMPOUND)) {
-            var template = ItemStack.parseOptional(
-                    registries, tag.getCompound(TAG_UNLOCK_TEMPLATE));
+        if (tag.contains(TAG_UNLOCK_TEMPLATE)) {
+            var template = LegacyItemStackNbt.parseOptional(
+                    registries, tag.getCompoundOrEmpty(TAG_UNLOCK_TEMPLATE));
             pendingUnlockTemplate = template.isEmpty() ? null : template;
         }
         cachedOutputFilter = null;

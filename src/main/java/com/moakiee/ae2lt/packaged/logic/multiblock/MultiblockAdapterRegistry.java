@@ -13,7 +13,7 @@ import java.util.function.BooleanSupplier;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -21,7 +21,7 @@ import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 
 public final class MultiblockAdapterRegistry {
 
-    private static final Map<ResourceLocation, AdapterRegistration> REGISTRATIONS = new LinkedHashMap<>();
+    private static final Map<Identifier, AdapterRegistration> REGISTRATIONS = new LinkedHashMap<>();
     private static final BooleanSupplier ALWAYS_ENABLED = () -> true;
     private static List<AdapterRegistration> sortedRegistrations = List.of();
     private static List<MultiblockAdapter> activeAdapters = List.of();
@@ -125,8 +125,8 @@ public final class MultiblockAdapterRegistry {
         cacheDirty = false;
     }
 
-    private static ResourceLocation defaultId(MultiblockAdapter adapter) {
-        return ResourceLocation.fromNamespaceAndPath(
+    private static Identifier defaultId(MultiblockAdapter adapter) {
+        return Identifier.fromNamespaceAndPath(
                 AE2LTPackagedProvider.MODID,
                 toSnakeCase(adapter.getClass().getSimpleName()));
     }

@@ -20,7 +20,7 @@ import java.util.function.BiFunction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SpawnEggItem;
@@ -50,7 +50,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             org.slf4j.LoggerFactory.getLogger("ae2ltpp/occultism-ritual");
 
     private static final String MOD_ID = "occultism";
-    private static final ResourceLocation RITUAL_RECIPE_TYPE = occultismId("ritual");
+    private static final Identifier RITUAL_RECIPE_TYPE = occultismId("ritual");
     private static final int MAX_INPUT_UNITS = 128;
 
     @Override
@@ -64,7 +64,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.OCCULTISM_RITUAL;
     }
 
@@ -313,7 +313,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             return "<null>";
         }
         try {
-            var items = ingredient.getItems();
+            var items = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.items(ingredient);
             if (items.length == 0) {
                 return "<empty>";
             }
@@ -616,16 +616,15 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipesForType(ServerLevel level, RecipeType<?> type) {
-        return (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                .getAllRecipesFor((RecipeType) type);
+        return (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type);
     }
 
     private static boolean isOccultismLoaded() {
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation occultismId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier occultismId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private record PlannedUnit(AEItemKey key) {

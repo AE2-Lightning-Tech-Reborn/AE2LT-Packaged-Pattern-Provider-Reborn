@@ -3,57 +3,39 @@
   "priority": 0,
   "inputs": [
     {
-      "ingredient": {
-        "item": "ae2lt:ultimate_overload_core"
-      },
+      "ingredient": "ae2lt:ultimate_overload_core",
       "count": 2
     },
     {
-      "ingredient": {
-        "item": "ae2lt:wireless_receiver"
-      },
+      "ingredient": "ae2lt:wireless_receiver",
       "count": 1
     },
     {
-      "ingredient": {
-        "item": "ae2:storage_bus"
-      },
+      "ingredient": "ae2:storage_bus",
       "count": 64
     },
     {
-      "ingredient": {
-        "item": "ae2:formation_plane"
-      },
+      "ingredient": "ae2:formation_plane",
       "count": 64
     },
     {
-      "ingredient": {
-        "item": "ae2:annihilation_plane"
-      },
+      "ingredient": "ae2:annihilation_plane",
       "count": 64
     },
     {
-      "ingredient": {
-        "item": "ae2:level_emitter"
-      },
+      "ingredient": "ae2:level_emitter",
       "count": 64
     },
     {
-      "ingredient": {
-        "item": "ae2:import_bus"
-      },
+      "ingredient": "ae2:import_bus",
       "count": 64
     },
     {
-      "ingredient": {
-        "item": "ae2:export_bus"
-      },
+      "ingredient": "ae2:export_bus",
       "count": 64
     },
     {
-      "ingredient": {
-        "item": "ae2:toggle_bus"
-      },
+      "ingredient": "ae2:toggle_bus",
       "count": 64
     }
   ],

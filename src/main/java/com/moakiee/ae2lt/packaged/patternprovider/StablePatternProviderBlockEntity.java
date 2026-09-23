@@ -15,12 +15,14 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.stacks.AEItemKey;
@@ -32,6 +34,7 @@ import com.moakiee.ae2lt.api.patternprovider.WirelessPatternProviderPolicy;
 import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionLists;
 import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionRef;
 import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionValidator;
+import com.moakiee.ae2lt.api.compat.ValueIO;
 
 /**
  * PP-owned block-entity foundation for the packaged provider.
@@ -94,7 +97,7 @@ public abstract class StablePatternProviderBlockEntity
         @Override
         public CompoundTag toTag() {
             var tag = new CompoundTag();
-            tag.putString(TAG_DIMENSION, dimension.location().toString());
+            tag.putString(TAG_DIMENSION, dimension.identifier().toString());
             tag.putLong(TAG_POSITION, pos.asLong());
             tag.putInt(TAG_FACE, boundFace.get3DDataValue());
             return tag;
@@ -103,11 +106,11 @@ public abstract class StablePatternProviderBlockEntity
         public static WirelessConnection fromTag(CompoundTag tag) {
             var dimension = ResourceKey.create(
                     Registries.DIMENSION,
-                    ResourceLocation.parse(tag.getString(TAG_DIMENSION)));
+                    Identifier.parse(tag.getStringOr(TAG_DIMENSION, "minecraft:overworld")));
             return new WirelessConnection(
                     dimension,
-                    BlockPos.of(tag.getLong(TAG_POSITION)),
-                    Direction.from3DDataValue(tag.getInt(TAG_FACE)));
+                    BlockPos.of(tag.getLongOr(TAG_POSITION, 0L)),
+                    Direction.from3DDataValue(tag.getIntOr(TAG_FACE, 0)));
         }
     }
 
@@ -386,7 +389,7 @@ public abstract class StablePatternProviderBlockEntity
         data.writeBoolean(filteredImport);
         data.writeVarInt(connections.size());
         for (var connection : connections) {
-            data.writeResourceLocation(connection.dimension().location());
+            data.writeIdentifier(connection.dimension().identifier());
             data.writeBlockPos(connection.pos());
             data.writeByte(connection.boundFace().get3DDataValue());
         }
@@ -413,7 +416,7 @@ public abstract class StablePatternProviderBlockEntity
                 Math.min(count, MAX_WIRELESS_CONNECTIONS));
         for (int i = 0; i < count; i++) {
             var dimension = ResourceKey.create(
-                    Registries.DIMENSION, data.readResourceLocation());
+                    Registries.DIMENSION, data.readIdentifier());
             var connection = new WirelessConnection(
                     dimension,
                     data.readBlockPos(),
@@ -447,9 +450,9 @@ public abstract class StablePatternProviderBlockEntity
     }
 
     @Override
-    public void saveAdditional(
-            CompoundTag data, HolderLookup.Provider registries) {
-        super.saveAdditional(data, registries);
+    public void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        CompoundTag data = ValueIO.writableTag(output);
         data.putString(TAG_PROVIDER_MODE, providerMode.name());
         data.putString(TAG_RETURN_MODE, returnMode.name());
         data.putString(TAG_WIRELESS_DISPATCH_MODE, wirelessDispatchMode.name());
@@ -459,8 +462,9 @@ public abstract class StablePatternProviderBlockEntity
     }
 
     @Override
-    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
-        super.loadTag(data, registries);
+    public void loadTag(ValueInput input) {
+        super.loadTag(input);
+        CompoundTag data = ValueIO.readableTag(input);
         var state = decodePersistentState(data);
         providerMode = state.providerMode();
         returnMode = state.returnMode();
@@ -482,7 +486,7 @@ public abstract class StablePatternProviderBlockEntity
             returnMode = readEnum(
                     data, TAG_RETURN_MODE, ReturnMode.class, ReturnMode.OFF);
         } else if (data.contains(TAG_LEGACY_AUTO_RETURN)) {
-            returnMode = data.getBoolean(TAG_LEGACY_AUTO_RETURN)
+            returnMode = data.getBooleanOr(TAG_LEGACY_AUTO_RETURN, false)
                     ? ReturnMode.AUTO
                     : ReturnMode.OFF;
         } else {
@@ -510,7 +514,7 @@ public abstract class StablePatternProviderBlockEntity
                 returnMode,
                 dispatchMode,
                 speedMode,
-                data.getBoolean(TAG_FILTERED_IMPORT),
+                data.getBooleanOr(TAG_FILTERED_IMPORT, false),
                 List.copyOf(connections));
     }
 
@@ -520,7 +524,7 @@ public abstract class StablePatternProviderBlockEntity
             return fallback;
         }
         try {
-            return Enum.valueOf(type, tag.getString(key));
+            return Enum.valueOf(type, tag.getStringOr(key, ""));
         } catch (IllegalArgumentException ignored) {
             return fallback;
         }
@@ -573,7 +577,7 @@ public abstract class StablePatternProviderBlockEntity
                     ReturnMode.class,
                     getReturnMode()));
         } else if (tag.contains(TAG_LEGACY_AUTO_RETURN)) {
-            setReturnMode(tag.getBoolean(TAG_LEGACY_AUTO_RETURN)
+            setReturnMode(tag.getBooleanOr(TAG_LEGACY_AUTO_RETURN, false)
                     ? ReturnMode.AUTO
                     : ReturnMode.OFF);
         }
@@ -592,7 +596,7 @@ public abstract class StablePatternProviderBlockEntity
                     getWirelessSpeedMode()));
         }
         if (tag.contains(TAG_FILTERED_IMPORT)) {
-            setFilteredImport(tag.getBoolean(TAG_FILTERED_IMPORT));
+            setFilteredImport(tag.getBooleanOr(TAG_FILTERED_IMPORT, false));
         }
     }
 

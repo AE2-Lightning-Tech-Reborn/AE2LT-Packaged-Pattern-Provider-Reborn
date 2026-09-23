@@ -17,24 +17,12 @@
     "ERERERE"
   ],
   "key": {
-    "E": {
-      "item": "extendedcrafting:ender_ingot"
-    },
-    "R": {
-      "item": "extendedcrafting:enhanced_redstone_ingot"
-    },
-    "L": {
-      "item": "extendedcrafting:luminessence"
-    },
-    "T": {
-      "item": "extendedcrafting:elite_catalyst"
-    },
-    "X": {
-      "item": "extendedcrafting:crystaltine_catalyst"
-    },
-    "C": {
-      "item": "ae2ltpp:basic_packaged_core"
-    }
+    "E": "extendedcrafting:ender_ingot",
+    "R": "extendedcrafting:enhanced_redstone_ingot",
+    "L": "extendedcrafting:luminessence",
+    "T": "extendedcrafting:elite_catalyst",
+    "X": "extendedcrafting:crystaltine_catalyst",
+    "C": "ae2ltpp:basic_packaged_core"
   },
   "result": {
     "id": "ae2ltpp:ec_elite_table_packaged_core",

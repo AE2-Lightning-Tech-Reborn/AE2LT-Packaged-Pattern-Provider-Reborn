@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -111,7 +111,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
      * never spuriously replays a stale cue.
      */
     @Nullable
-    private ResourceLocation pendingFlushSoundId;
+    private Identifier pendingFlushSoundId;
 
     @Nullable
     private PendingVirtualFlushEffect pendingFlushEffect;
@@ -320,8 +320,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     }
 
     @Override
-    public void writeToNBT(CompoundTag tag, HolderLookup.Provider registries) {
-        super.writeToNBT(tag, registries);
+    public void writeToNBT(net.minecraft.world.level.storage.ValueOutput output) {
+        super.writeToNBT(output);
+        CompoundTag tag = com.moakiee.ae2lt.api.compat.ValueIO.writableTag(output);
+        HolderLookup.Provider registries = getProviderHost().getLevel() != null
+                ? getProviderHost().getLevel().registryAccess() : net.minecraft.core.RegistryAccess.EMPTY;
         tag.put(TAG_BATCH_INPUTS, pendingBatchInputs.writeToNBT(registries));
         tag.put(TAG_PENDING_OUTPUTS, pendingOutputs.writeToNBT(registries));
         // A reused tag must not retain an older copy of the same output queue.
@@ -329,12 +332,14 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     }
 
     @Override
-    public void readFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
-        super.readFromNBT(tag, registries);
-        pendingBatchInputs.readFromNBT(tag.getList(TAG_BATCH_INPUTS, Tag.TAG_COMPOUND), registries);
-        String outputsTag = tag.contains(TAG_PENDING_OUTPUTS, Tag.TAG_LIST)
+    public void readFromNBT(net.minecraft.world.level.storage.ValueInput input) {
+        super.readFromNBT(input);
+        CompoundTag tag = com.moakiee.ae2lt.api.compat.ValueIO.readableTag(input);
+        HolderLookup.Provider registries = input.lookup();
+        pendingBatchInputs.readFromNBT(tag.getListOrEmpty(TAG_BATCH_INPUTS), registries);
+        String outputsTag = tag.contains(TAG_PENDING_OUTPUTS)
                 ? TAG_PENDING_OUTPUTS : TAG_LEGACY_VIRTUAL_OUTPUTS;
-        pendingOutputs.readFromNBT(tag.getList(outputsTag, Tag.TAG_COMPOUND), registries);
+        pendingOutputs.readFromNBT(tag.getListOrEmpty(outputsTag), registries);
         virtualPushLimiter.clear();
         inputBatchLimiter.clear();
         pendingFlushEffect = null;
@@ -828,7 +833,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         if (id == null) {
             return null;
         }
-        return BuiltInRegistries.SOUND_EVENT.get(id);
+        return BuiltInRegistries.SOUND_EVENT.getValue(id);
     }
 
     private void runPendingFlushEffect() {

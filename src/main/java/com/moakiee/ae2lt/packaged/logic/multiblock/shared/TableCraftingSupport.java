@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -118,8 +119,8 @@ public final class TableCraftingSupport {
 
     private static boolean ingredientAcceptsItemId(Ingredient ing, Item item) {
         try {
-            for (var candidate : ing.getItems()) {
-                if (candidate.getItem() == item) {
+            for (var candidate : ing.items().toList()) {
+                if (candidate.value() == item) {
                     return true;
                 }
             }
@@ -176,7 +177,7 @@ public final class TableCraftingSupport {
     public static ItemStack assemble(Object recipe, CraftingInput input, ServerLevel level) {
         try {
             return recipe instanceof Recipe<?> r
-                    ? ((Recipe) r).assemble(input, level.registryAccess())
+                    ? ((Recipe) r).assemble(input)
                     : null;
         } catch (RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(TableCraftingSupport.class, "assemble", ignored);
@@ -188,10 +189,27 @@ public final class TableCraftingSupport {
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static NonNullList<ItemStack> remainingItems(Object recipe, CraftingInput input) {
         try {
-            return recipe instanceof Recipe<?> r
-                    ? ((Recipe) r).getRemainingItems(input)
-                    : null;
-        } catch (RuntimeException | LinkageError ignored) {
+            if (recipe instanceof CraftingRecipe r) return r.getRemainingItems(input);
+            java.lang.reflect.Method selected = null;
+            for (var method : recipe.getClass().getMethods()) {
+                if (!method.getName().equals("getRemainingItems")
+                        || method.getParameterCount() != 1
+                        || !method.getParameterTypes()[0].isInstance(input)) continue;
+                if (selected == null || selected.getParameterTypes()[0]
+                        .isAssignableFrom(method.getParameterTypes()[0])) selected = method;
+            }
+            if (selected == null) return null;
+            // EC and Avaritia expose typed input overloads alongside Recipe's
+            // generic default. Use the typed method so catalyst remainders survive.
+            var value = selected.invoke(recipe, input);
+            if (!(value instanceof NonNullList<?> items)) return null;
+            var result = NonNullList.withSize(items.size(), ItemStack.EMPTY);
+            for (int i = 0; i < items.size(); i++) {
+                if (!(items.get(i) instanceof ItemStack stack)) return null;
+                result.set(i, stack);
+            }
+            return result;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(TableCraftingSupport.class, "remainingItems", ignored);
             return null;
         }
@@ -203,7 +221,8 @@ public final class TableCraftingSupport {
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            var result = RecipeCompat26.resultItem(r, level);
+            return result.isEmpty() ? null : result;
         } catch (RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(TableCraftingSupport.class, "resultItem", ignored);
             return null;
@@ -216,7 +235,8 @@ public final class TableCraftingSupport {
             return null;
         }
         try {
-            return r.getIngredients();
+            var result = RecipeCompat26.ingredients(r);
+            return result.isEmpty() ? null : result;
         } catch (RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(TableCraftingSupport.class, "ingredients", ignored);
             return null;

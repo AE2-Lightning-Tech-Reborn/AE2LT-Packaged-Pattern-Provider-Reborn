@@ -45,7 +45,7 @@ final class AvaritiaTableAccess {
         }
         try {
             var value = getInventoryMethod.invoke(be);
-            return value instanceof IItemHandler handler ? handler : null;
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.CucumberInventoryAccess.wrap(value);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(AvaritiaTableAccess.class, "getHandler", ignored);
             return null;

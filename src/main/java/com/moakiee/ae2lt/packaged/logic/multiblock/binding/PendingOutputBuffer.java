@@ -2,6 +2,7 @@ package com.moakiee.ae2lt.packaged.logic.multiblock.binding;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import com.moakiee.ae2lt.packaged.compat.LegacyAeStackTags;
 import com.moakiee.ae2lt.packaged.logic.PendingAmounts;
 import java.util.List;
 import java.util.function.ToLongFunction;
@@ -42,7 +43,7 @@ public final class PendingOutputBuffer {
 
     public ListTag writeToNBT(HolderLookup.Provider registries) {
         var tag = new ListTag();
-        for (var stack : snapshot()) tag.add(GenericStack.writeTag(registries, stack));
+        for (var stack : snapshot()) tag.add(LegacyAeStackTags.writeGeneric(registries, stack));
         return tag;
     }
 
@@ -50,7 +51,7 @@ public final class PendingOutputBuffer {
         clear();
         for (var entry : tag) {
             if (entry instanceof CompoundTag stackTag) {
-                var stack = GenericStack.readTag(registries, stackTag);
+                var stack = LegacyAeStackTags.readGeneric(registries, stackTag);
                 if (stack != null) pending.add(stack.what(), stack.amount());
             }
         }

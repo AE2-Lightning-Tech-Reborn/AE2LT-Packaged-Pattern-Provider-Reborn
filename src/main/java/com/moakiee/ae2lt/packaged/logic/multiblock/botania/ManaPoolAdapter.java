@@ -5,7 +5,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -85,7 +85,7 @@ public final class ManaPoolAdapter implements VirtualCraftingAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return AdapterIds.BOTANIA_MANA_POOL;
     }
 
@@ -164,7 +164,7 @@ public final class ManaPoolAdapter implements VirtualCraftingAdapter {
             return null;
         }
         var recipe = liveHolder.value();
-        var result = recipe.getResultItem(level.registryAccess());
+        var result = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(recipe, level);
         if (result == null || result.isEmpty()) {
             return null;
         }

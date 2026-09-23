@@ -21,7 +21,7 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
@@ -43,9 +43,9 @@ import org.jetbrains.annotations.Nullable;
 public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapter {
 
     private static final String MOD_ID = "actuallyadditions";
-    private static final ResourceLocation EMPOWERER_BLOCK = aaId("empowerer");
-    private static final ResourceLocation DISPLAY_STAND_BLOCK = aaId("display_stand");
-    private static final ResourceLocation RECIPE_TYPE_ID = aaId("empower");
+    private static final Identifier EMPOWERER_BLOCK = aaId("empowerer");
+    private static final Identifier DISPLAY_STAND_BLOCK = aaId("display_stand");
+    private static final Identifier RECIPE_TYPE_ID = aaId("empower");
     private static final int MAX_INPUT_UNITS = 64;
 
     private static final BlockPos[] DISPLAY_STAND_OFFSETS = {
@@ -69,7 +69,7 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.AA_EMPOWERER;
     }
 
@@ -395,7 +395,7 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(r, level);
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }
@@ -408,8 +408,7 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(RECIPE_TYPE_ID)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -417,12 +416,12 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation aaId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier aaId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private record PlannedUnit(AEItemKey key) {

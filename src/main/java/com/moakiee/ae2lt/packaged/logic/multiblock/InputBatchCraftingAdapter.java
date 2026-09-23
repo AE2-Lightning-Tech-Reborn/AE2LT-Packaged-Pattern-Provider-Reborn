@@ -5,7 +5,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 
 /**
@@ -14,7 +14,7 @@ import net.minecraft.server.level.ServerLevel;
  * owned by PP and can be replayed after reload through this stable insertion contract.
  */
 public interface InputBatchCraftingAdapter extends MultiblockAdapter {
-    ResourceLocation batchAdapterId();
+    Identifier batchAdapterId();
 
     long insertBatchInput(ServerLevel level, BlockPos pos, Direction side,
                           GenericStack stack, Actionable mode, IActionSource source);

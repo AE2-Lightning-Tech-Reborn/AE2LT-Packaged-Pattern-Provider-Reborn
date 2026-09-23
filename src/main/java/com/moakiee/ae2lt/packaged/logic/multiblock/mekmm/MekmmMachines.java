@@ -12,7 +12,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.function.ToIntFunction;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionSupport;
@@ -157,7 +157,7 @@ final class MekmmMachines {
         );
     }
 
-    private static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath("mekmm", path);
+    private static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath("mekmm", path);
     }
 }

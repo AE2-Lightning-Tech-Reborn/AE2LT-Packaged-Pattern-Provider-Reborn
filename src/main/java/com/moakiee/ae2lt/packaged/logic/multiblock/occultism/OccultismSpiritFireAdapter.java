@@ -6,7 +6,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -49,8 +49,8 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAdapter {
 
     private static final String MOD_ID = "occultism";
-    private static final ResourceLocation SPIRIT_FIRE_BLOCK = occultismId("spirit_fire");
-    private static final ResourceLocation SPIRIT_FIRE_RECIPE_TYPE = occultismId("spirit_fire");
+    private static final Identifier SPIRIT_FIRE_BLOCK = occultismId("spirit_fire");
+    private static final Identifier SPIRIT_FIRE_RECIPE_TYPE = occultismId("spirit_fire");
 
     /**
      * Audio cue played when a virtual batch flushes. Matches what
@@ -58,7 +58,7 @@ public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAd
      * (see Occultism's source). Looked up at flush time, so if Occultism is
      * absent the provider falls back to the generic pickup chime.
      */
-    private static final ResourceLocation FLUSH_SOUND_ID = occultismId("start_ritual");
+    private static final Identifier FLUSH_SOUND_ID = occultismId("start_ritual");
 
     @Override
     public int priority() {
@@ -78,12 +78,12 @@ public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAd
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.OCCULTISM_SPIRIT_FIRE;
     }
 
     @Override
-    public ResourceLocation flushSoundId() {
+    public Identifier flushSoundId() {
         return FLUSH_SOUND_ID;
     }
 
@@ -220,7 +220,7 @@ public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAd
             var recipe = holder.value();
             ItemStack result;
             try {
-                result = recipe.getResultItem(level.registryAccess());
+                result = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(recipe, level);
             } catch (RuntimeException | LinkageError ignored) {
                 continue;
             }
@@ -248,7 +248,7 @@ public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAd
                                           SingleRecipeInput input, ServerLevel level) {
         try {
             return ((net.minecraft.world.item.crafting.Recipe) recipe)
-                    .assemble(input, level.registryAccess())
+                    .assemble(input)
                     .copy();
         } catch (RuntimeException | LinkageError ignored) {
             return null;
@@ -258,8 +258,7 @@ public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAd
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(SPIRIT_FIRE_RECIPE_TYPE)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -360,12 +359,12 @@ public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAd
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation occultismId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier occultismId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     /** Opaque binding handle returned from {@link #bind}; carries the matched recipe. */

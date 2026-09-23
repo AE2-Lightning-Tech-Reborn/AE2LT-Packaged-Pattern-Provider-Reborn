@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -53,7 +53,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekmmMachineSpec.PortTy
 public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdapter {
 
     @Override
-    public ResourceLocation batchAdapterId() { return AdapterIds.MEKMM; }
+    public Identifier batchAdapterId() { return AdapterIds.MEKMM; }
 
     @Override
     public long insertBatchInput(ServerLevel level, BlockPos pos, Direction side,
@@ -74,7 +74,7 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
 
     @Override
     @Nullable
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return AdapterIds.MEKMM;
     }
 
@@ -100,7 +100,7 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
             mainBe = level.getBlockEntity(mainPos);
             if (mainBe == null) return null;
         }
-        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(mainBe.getBlockState().getBlock());
+        Identifier blockId = BuiltInRegistries.BLOCK.getKey(mainBe.getBlockState().getBlock());
         for (MekmmMachineSpec spec : MekmmMachines.ALL) {
             if (spec.block().equals(blockId)
                     && MekReflection.isTileEntityClass(mainBe, spec.tileClass())) {

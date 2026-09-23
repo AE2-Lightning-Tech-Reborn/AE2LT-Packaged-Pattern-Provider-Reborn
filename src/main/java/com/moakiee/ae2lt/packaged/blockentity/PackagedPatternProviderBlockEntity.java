@@ -16,6 +16,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.networking.IGridNodeListener;
@@ -32,6 +34,7 @@ import com.moakiee.ae2lt.api.frequency.FrequencyApi;
 import com.moakiee.ae2lt.api.frequency.FrequencyBindingAccess;
 import com.moakiee.ae2lt.api.frequency.FrequencyBindingHost;
 import com.moakiee.ae2lt.api.pattern.PatternProviderUiProfile;
+import com.moakiee.ae2lt.api.compat.ValueIO;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
@@ -252,18 +255,19 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     }
 
     @Override
-    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
-        super.loadTag(data, registries);
+    public void loadTag(ValueInput input) {
+        super.loadTag(input);
+        CompoundTag data = ValueIO.readableTag(input);
         frequencyBinding.load(data);
         sanitizePackagedModes();
         if (data.contains(TAG_ADAPTER_INV)) {
-            adapterInv.readFromNBT(data, TAG_ADAPTER_INV, registries);
+            adapterInv.readFromNBT(input, TAG_ADAPTER_INV);
         }
         adapterFlags.clear();
-        if (data.contains(TAG_ADAPTER_FLAGS, Tag.TAG_COMPOUND)) {
-            var flagsTag = data.getCompound(TAG_ADAPTER_FLAGS);
-            for (var key : flagsTag.getAllKeys()) {
-                long[] arr = flagsTag.getLongArray(key);
+        if (data.contains(TAG_ADAPTER_FLAGS)) {
+            var flagsTag = data.getCompoundOrEmpty(TAG_ADAPTER_FLAGS);
+            for (var key : flagsTag.keySet()) {
+                long[] arr = flagsTag.getLongArray(key).orElseGet(() -> new long[0]);
                 if (arr.length == 0) {
                     continue;
                 }
@@ -277,10 +281,11 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     }
 
     @Override
-    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
-        super.saveAdditional(data, registries);
+    public void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        CompoundTag data = ValueIO.writableTag(output);
         frequencyBinding.save(data);
-        adapterInv.writeToNBT(data, TAG_ADAPTER_INV, registries);
+        adapterInv.writeToNBT(output, TAG_ADAPTER_INV);
         if (!adapterFlags.isEmpty()) {
             var flagsTag = new CompoundTag();
             for (var entry : adapterFlags.entrySet()) {

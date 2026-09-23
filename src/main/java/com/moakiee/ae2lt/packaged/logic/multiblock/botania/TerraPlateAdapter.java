@@ -8,7 +8,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
@@ -97,7 +97,7 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return AdapterIds.BOTANIA_TERRA_PLATE;
     }
 
@@ -114,7 +114,7 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
         }
         // Enforce K=1 at bind time: pattern.amount must equal the recipe's
         // own result count (one terra plate cycle = one craft).
-        var result = holder.value().getResultItem(level.registryAccess());
+        var result = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(holder.value(), level);
         if (result == null || result.isEmpty()) {
             return null;
         }
@@ -167,7 +167,7 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
         }
 
         var recipe = bind.holder().value();
-        var ingredients = recipe.getIngredients();
+        var ingredients = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.ingredients(recipe);
         var assignment = pickKeyCounterStacks(ingredients, inputs);
         if (assignment == null || assignment.isEmpty()) {
             return null;
@@ -217,7 +217,7 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
                 continue;
             }
             // Skip the items we spawned as inputs — only outputs lack the marker.
-            if (entity.getPersistentData().getBoolean(INPUT_MARKER)) {
+            if (entity.getPersistentData().getBooleanOr(INPUT_MARKER, false)) {
                 continue;
             }
             var stack = entity.getItem();

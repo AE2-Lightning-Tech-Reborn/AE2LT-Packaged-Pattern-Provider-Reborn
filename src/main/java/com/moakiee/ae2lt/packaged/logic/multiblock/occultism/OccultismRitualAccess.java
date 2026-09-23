@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -142,7 +142,7 @@ final class OccultismRitualAccess {
         }
         try {
             var value = itemStackHandlerField.get(bowl);
-            return value instanceof IItemHandler handler ? handler : null;
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.CucumberInventoryAccess.wrap(value);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(OccultismRitualAccess.class, "itemHandler", ignored);
             return null;
@@ -170,7 +170,7 @@ final class OccultismRitualAccess {
             return null;
         }
         try {
-            Object value = typed.getIngredients();
+            Object value = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.ingredients(typed);
             if (!(value instanceof List<?> list)) {
                 return null;
             }
@@ -190,14 +190,14 @@ final class OccultismRitualAccess {
     }
 
     @Nullable
-    static ResourceLocation getRitualType(Object recipe) {
+    static Identifier getRitualType(Object recipe) {
         ensureLookup();
         if (getRitualTypeMethod == null) {
             return null;
         }
         try {
             var value = getRitualTypeMethod.invoke(recipe);
-            return value instanceof ResourceLocation id ? id : null;
+            return value instanceof Identifier id ? id : null;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(OccultismRitualAccess.class, "getRitualType", ignored);
             return null;

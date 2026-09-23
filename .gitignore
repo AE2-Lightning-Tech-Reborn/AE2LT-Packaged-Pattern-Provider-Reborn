@@ -1,5 +1,7 @@
 # MacOS DS_Store files
 .DS_Store
+/.cache/
+/config/
 
 # Gradle cache folder
 .gradle

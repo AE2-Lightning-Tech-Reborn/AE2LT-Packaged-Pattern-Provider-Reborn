@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -45,9 +45,9 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 public final class MalumSpiritFocusingAdapter implements MultiblockAdapter {
 
     private static final String MOD_ID = "malum";
-    private static final ResourceLocation CRUCIBLE_BLOCK = malumId("spirit_crucible");
-    private static final ResourceLocation CRUCIBLE_COMPONENT_BLOCK = malumId("spirit_crucible_component");
-    private static final ResourceLocation RECIPE_TYPE_ID = malumId("spirit_focusing");
+    private static final Identifier CRUCIBLE_BLOCK = malumId("spirit_crucible");
+    private static final Identifier CRUCIBLE_COMPONENT_BLOCK = malumId("spirit_crucible_component");
+    private static final Identifier RECIPE_TYPE_ID = malumId("spirit_focusing");
     private static final int MAX_INPUT_AMOUNT = 128;
 
     @Override
@@ -64,7 +64,7 @@ public final class MalumSpiritFocusingAdapter implements MultiblockAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.MALUM_SPIRIT_FOCUSING;
     }
 
@@ -359,8 +359,7 @@ public final class MalumSpiritFocusingAdapter implements MultiblockAdapter {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(RECIPE_TYPE_ID)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -372,12 +371,12 @@ public final class MalumSpiritFocusingAdapter implements MultiblockAdapter {
         }
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation malumId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier malumId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private static boolean hasSingleItemOutput(IPatternDetails pattern) {

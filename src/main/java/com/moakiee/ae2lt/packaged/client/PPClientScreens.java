@@ -1,19 +1,13 @@
 package com.moakiee.ae2lt.packaged.client;
 
-import java.util.stream.Stream;
-
-import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.Item;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
-import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
 import appeng.client.gui.style.StyleManager;
 
@@ -21,7 +15,6 @@ import com.moakiee.ae2lt.api.client.PatternProviderToolbarButtonHider;
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.item.PackagedCoreDefinition;
 import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
-import com.moakiee.ae2lt.packaged.registry.PPItems;
 
 @EventBusSubscriber(modid = AE2LTPackagedProvider.MODID, value = Dist.CLIENT)
 public final class PPClientScreens {
@@ -40,27 +33,12 @@ public final class PPClientScreens {
     }
 
     @SubscribeEvent
-    public static void registerItemExtensions(RegisterClientExtensionsEvent event) {
-        var renderer = new PackagedCoreItemRenderer();
-        event.registerItem(new IClientItemExtensions() {
-            @Override
-            public PackagedCoreItemRenderer getCustomRenderer() {
-                return renderer;
-            }
-        }, Stream.concat(
-                Stream.of((Item) PPItems.BASIC_PACKAGED_CORE.get()),
-                PackagedCoreDefinition.all().stream()
-                .map(definition -> (Item) definition.runtimeItem().get())
-        ).toArray(Item[]::new));
-    }
-
-    @SubscribeEvent
     public static void wrapPackagedCoreItemModels(ModelEvent.ModifyBakingResult event) {
-        var models = event.getModels();
+        var models = event.getBakingResult().itemStackModels();
         for (var definition : PackagedCoreDefinition.all()) {
-            var key = ModelResourceLocation.inventory(ResourceLocation.fromNamespaceAndPath(
+            var key = Identifier.fromNamespaceAndPath(
                     AE2LTPackagedProvider.MODID,
-                    definition.itemId()));
+                    definition.itemId());
             var model = models.get(key);
             if (model != null) {
                 models.put(key, new PackagedCoreBakedModel(model));

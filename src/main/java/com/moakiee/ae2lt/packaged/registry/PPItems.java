@@ -3,7 +3,7 @@ package com.moakiee.ae2lt.packaged.registry;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -174,25 +174,25 @@ public final class PPItems {
 
     /** Generic crafting base for the per-machine packaged cores. */
     public static final DeferredItem<Item> BASIC_PACKAGED_CORE =
-            ITEMS.registerSimpleItem("basic_packaged_core", new Item.Properties());
+            ITEMS.registerSimpleItem("basic_packaged_core", Item.Properties::new);
 
     private PPItems() {
     }
 
     private static DeferredItem<MultiblockAdapterItem> registerPackagedCore(
             String name,
-            ResourceLocation primaryId,
-            Set<ResourceLocation> coveredIds) {
-        return ITEMS.register(name,
-                () -> new MultiblockAdapterItem(
-                        new Item.Properties().stacksTo(1),
+            Identifier primaryId,
+            Set<Identifier> coveredIds) {
+        return ITEMS.registerItem(name,
+                properties -> new MultiblockAdapterItem(
+                        properties.stacksTo(1),
                         primaryId,
                         coveredIds));
     }
 
     /** Build an insertion-ordered set (deterministic NBT-stable ordering). */
-    private static Set<ResourceLocation> chain(ResourceLocation... ids) {
-        var set = new LinkedHashSet<ResourceLocation>(ids.length);
+    private static Set<Identifier> chain(Identifier... ids) {
+        var set = new LinkedHashSet<Identifier>(ids.length);
         for (var id : ids) {
             set.add(id);
         }

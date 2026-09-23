@@ -6,34 +6,16 @@
     }
   ],
   "type": "mysticalagriculture:infusion",
-  "input": {
-    "item": "ae2ltpp:basic_packaged_core"
-  },
+  "input": "ae2ltpp:basic_packaged_core",
   "ingredients": [
-    {
-      "item": "mysticalagriculture:supremium_ingot"
-    },
-    {
-      "item": "mysticalagriculture:supremium_ingot"
-    },
-    {
-      "item": "mysticalagriculture:supremium_ingot"
-    },
-    {
-      "item": "mysticalagriculture:supremium_ingot"
-    },
-    {
-      "item": "mysticalagriculture:supremium_gemstone"
-    },
-    {
-      "item": "mysticalagriculture:supremium_gemstone"
-    },
-    {
-      "item": "mysticalagriculture:supremium_gemstone"
-    },
-    {
-      "item": "mysticalagriculture:supremium_gemstone"
-    }
+    "mysticalagriculture:supremium_ingot",
+    "mysticalagriculture:supremium_ingot",
+    "mysticalagriculture:supremium_ingot",
+    "mysticalagriculture:supremium_ingot",
+    "mysticalagriculture:supremium_gemstone",
+    "mysticalagriculture:supremium_gemstone",
+    "mysticalagriculture:supremium_gemstone",
+    "mysticalagriculture:supremium_gemstone"
   ],
   "result": {
     "count": 1,

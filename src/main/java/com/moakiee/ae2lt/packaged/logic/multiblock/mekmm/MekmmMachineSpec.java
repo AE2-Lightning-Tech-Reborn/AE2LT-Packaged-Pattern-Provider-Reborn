@@ -5,7 +5,7 @@ import java.util.function.ToIntFunction;
 
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 /**
@@ -24,7 +24,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
  * lists.
  */
 public record MekmmMachineSpec(
-        ResourceLocation block,
+        Identifier block,
         String tileClass,
         boolean idleGated,
         List<PortGroup> modes,

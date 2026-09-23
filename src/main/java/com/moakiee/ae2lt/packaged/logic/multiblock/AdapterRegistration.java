@@ -3,10 +3,10 @@ package com.moakiee.ae2lt.packaged.logic.multiblock;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public record AdapterRegistration(
-        ResourceLocation id,
+        Identifier id,
         int priority,
         BooleanSupplier enabled,
         MultiblockAdapter adapter) {
@@ -21,12 +21,12 @@ public record AdapterRegistration(
         return enabled.getAsBoolean();
     }
 
-    public static AdapterRegistration of(ResourceLocation id, MultiblockAdapter adapter) {
+    public static AdapterRegistration of(Identifier id, MultiblockAdapter adapter) {
         return new AdapterRegistration(id, 0, () -> true, adapter);
     }
 
     public static AdapterRegistration of(
-            ResourceLocation id,
+            Identifier id,
             int priority,
             BooleanSupplier enabled,
             MultiblockAdapter adapter) {

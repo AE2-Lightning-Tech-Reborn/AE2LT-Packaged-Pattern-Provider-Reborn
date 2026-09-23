@@ -7,9 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.neoforged.neoforge.common.crafting.SizedIngredient;
 import org.jetbrains.annotations.Nullable;
 
 /** Lazy optional-mod API access, separate from recipe planning and dispatch. */
@@ -34,6 +34,7 @@ final class AwakeningAltarAccess {
     private static volatile @Nullable Method activateMethod;
     private static volatile @Nullable Method getAltarIngredientMethod;
     private static volatile @Nullable Method getEssencesMethod;
+    private static volatile @Nullable Method getPedestalIngredientsMethod;
     private static volatile @Nullable Field progressField;
 
     static boolean isAwakeningAltar(Object o) {
@@ -98,7 +99,7 @@ final class AwakeningAltarAccess {
 
     @Nullable
     @SuppressWarnings("unchecked")
-    static List<ItemStack> getEssences(Object recipe) {
+    static List<SizedIngredient> getEssences(Object recipe) {
         ensureLookup();
         if (getEssencesMethod == null || recipeApiClass == null
                 || !recipeApiClass.isInstance(recipe)) {
@@ -109,12 +110,12 @@ final class AwakeningAltarAccess {
             if (!(value instanceof List<?> list)) {
                 return null;
             }
-            var result = new ArrayList<ItemStack>(list.size());
+            var result = new ArrayList<SizedIngredient>(list.size());
             for (var item : list) {
-                if (!(item instanceof ItemStack stack)) {
+                if (!(item instanceof SizedIngredient ingredient)) {
                     return null;
                 }
-                result.add(stack);
+                result.add(ingredient);
             }
             return result;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
@@ -126,11 +127,13 @@ final class AwakeningAltarAccess {
     @Nullable
     @SuppressWarnings("unchecked")
     static List<Ingredient> getIngredients(Object recipe) {
-        if (!(recipe instanceof net.minecraft.world.item.crafting.Recipe<?> typed)) {
+        ensureLookup();
+        if (getPedestalIngredientsMethod == null || recipeApiClass == null
+                || !recipeApiClass.isInstance(recipe)) {
             return null;
         }
         try {
-            Object value = typed.getIngredients();
+            Object value = getPedestalIngredientsMethod.invoke(recipe);
             if (!(value instanceof List<?> list)) {
                 return null;
             }
@@ -142,7 +145,7 @@ final class AwakeningAltarAccess {
                 result.add(ingredient);
             }
             return result;
-        } catch (RuntimeException | LinkageError ignored) {
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(AwakeningAltarAccess.class, "getIngredients", ignored);
             return null;
         }
@@ -177,7 +180,8 @@ final class AwakeningAltarAccess {
 
         activateMethod = activatableClass.getMethod("activate");
         getAltarIngredientMethod = recipeApiClass.getMethod("getAltarIngredient");
-        getEssencesMethod = recipeApiClass.getMethod("getEssences");
+        getEssencesMethod = recipeApiClass.getMethod("getEssenceIngredients");
+        getPedestalIngredientsMethod = recipeApiClass.getMethod("getPedestalIngredients");
 
         progressField = altarClass.getDeclaredField("progress");
         progressField.setAccessible(true);

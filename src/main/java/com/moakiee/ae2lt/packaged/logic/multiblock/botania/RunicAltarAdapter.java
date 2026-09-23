@@ -8,7 +8,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
@@ -150,7 +150,7 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return AdapterIds.BOTANIA_RUNIC_ALTAR;
     }
 
@@ -192,7 +192,7 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
         if (patternInputs == null || patternInputs.length == 0) {
             return false;
         }
-        var allIngredients = new ArrayList<Ingredient>(recipe.getIngredients());
+        var allIngredients = new ArrayList<Ingredient>(com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.ingredients(recipe));
         allIngredients.addAll(BotaniaReflection.recipeCatalysts(recipe));
         var reagent = BotaniaReflection.recipeReagent(recipe);
         if (reagent != null && !reagent.isEmpty()) {
@@ -294,7 +294,7 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
         //       inventory slot.
         // All three halves share the same KeyCounter pool so the strict
         // "no swallowing" invariant in pickKeyCounterStacks still holds.
-        var ingredientsList = new ArrayList<Ingredient>(recipe.getIngredients());
+        var ingredientsList = new ArrayList<Ingredient>(com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.ingredients(recipe));
         var catalystsList = BotaniaReflection.recipeCatalysts(recipe);
         var reagent = BotaniaReflection.recipeReagent(recipe);
         boolean hasReagent = reagent != null && !reagent.isEmpty();
@@ -408,7 +408,7 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
 
         ItemStack result;
         try {
-            result = currentRecipe.value().getResultItem(level.registryAccess());
+            result = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(currentRecipe.value(), level);
         } catch (RuntimeException | LinkageError ignored) {
             return List.of();
         }

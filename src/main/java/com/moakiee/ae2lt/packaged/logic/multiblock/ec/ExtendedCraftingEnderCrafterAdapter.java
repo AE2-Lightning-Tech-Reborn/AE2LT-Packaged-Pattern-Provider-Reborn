@@ -22,7 +22,7 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -51,8 +51,8 @@ import org.jetbrains.annotations.Nullable;
 public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdapter {
 
     private static final String MOD_ID = "extendedcrafting";
-    private static final ResourceLocation CRAFTER_BLOCK = ecId("ender_crafter");
-    private static final ResourceLocation RECIPE_TYPE_ID = ecId("ender_crafter");
+    private static final Identifier CRAFTER_BLOCK = ecId("ender_crafter");
+    private static final Identifier RECIPE_TYPE_ID = ecId("ender_crafter");
     private static final int GRID_SIZE = 9;
     private static final int OUTPUT_SLOT = 9;
 
@@ -67,7 +67,7 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return AdapterIds.EC_ENDER;
     }
 
@@ -258,7 +258,7 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
     private static List<Ingredient> recipeIngredients(Object recipe) {
         if (!(recipe instanceof Recipe<?> r)) return null;
         try {
-            return new ArrayList<>(r.getIngredients());
+            return new ArrayList<>(com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.ingredients(r));
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }
@@ -326,8 +326,7 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(RECIPE_TYPE_ID)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -335,12 +334,12 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation ecId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier ecId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     // ===== Records =====

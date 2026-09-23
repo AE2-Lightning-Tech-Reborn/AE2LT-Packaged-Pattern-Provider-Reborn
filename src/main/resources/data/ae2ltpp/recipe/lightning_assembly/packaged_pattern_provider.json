@@ -3,21 +3,15 @@
   "priority": 0,
   "inputs": [
     {
-      "ingredient": {
-        "item": "ae2lt:overloaded_pattern_provider"
-      },
+      "ingredient": "ae2lt:overloaded_pattern_provider",
       "count": 1
     },
     {
-      "ingredient": {
-        "item": "ae2lt:overloaded_interface"
-      },
+      "ingredient": "ae2lt:overloaded_interface",
       "count": 1
     },
     {
-      "ingredient": {
-        "item": "ae2:controller"
-      },
+      "ingredient": "ae2:controller",
       "count": 1
     }
   ],

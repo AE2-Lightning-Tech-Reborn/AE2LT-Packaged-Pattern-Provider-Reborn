@@ -5,7 +5,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -42,7 +42,7 @@ public interface MultiblockAdapter {
      * {@code MultiblockAdapterItem.covers(...)}.
      */
     @Nullable
-    default ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    default Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return null;
     }
 

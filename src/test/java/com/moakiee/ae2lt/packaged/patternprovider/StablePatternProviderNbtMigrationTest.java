@@ -10,7 +10,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ProviderMode;
@@ -24,7 +24,7 @@ class StablePatternProviderNbtMigrationTest {
     void decodesTheMainBranchProviderSchemaWithoutRenamingFields() {
         var dimension = ResourceKey.create(
                 Registries.DIMENSION,
-                ResourceLocation.fromNamespaceAndPath("migration", "factory"));
+                Identifier.fromNamespaceAndPath("migration", "factory"));
         var connection = new WirelessConnection(
                 dimension, new BlockPos(12, 34, -56), Direction.WEST);
 
@@ -49,7 +49,7 @@ class StablePatternProviderNbtMigrationTest {
         assertEquals(java.util.List.of(connection), state.connections());
         // FrequencyId intentionally remains in the same root tag for the
         // AE2LT public FrequencyBindingAccess to restore independently.
-        assertEquals(42, tag.getInt("FrequencyId"));
+        assertEquals(42, tag.getInt("FrequencyId").orElseThrow());
     }
 
     @Test
@@ -82,11 +82,11 @@ class StablePatternProviderNbtMigrationTest {
                 WirelessSpeedMode.FAST,
                 true);
 
-        assertEquals("WIRELESS", tag.getString("OverloadMode"));
-        assertEquals("AUTO", tag.getString("ReturnMode"));
-        assertEquals("SINGLE_TARGET", tag.getString("WirelessDispatchMode"));
-        assertEquals("FAST", tag.getString("WirelessSpeedMode"));
-        assertEquals(true, tag.getBoolean("FilteredImport"));
+        assertEquals("WIRELESS", tag.getString("OverloadMode").orElseThrow());
+        assertEquals("AUTO", tag.getString("ReturnMode").orElseThrow());
+        assertEquals("SINGLE_TARGET", tag.getString("WirelessDispatchMode").orElseThrow());
+        assertEquals("FAST", tag.getString("WirelessSpeedMode").orElseThrow());
+        assertEquals(true, tag.getBoolean("FilteredImport").orElseThrow());
 
         var decoded = StablePatternProviderBlockEntity.decodePersistentState(tag);
         assertEquals(ProviderMode.WIRELESS, decoded.providerMode());

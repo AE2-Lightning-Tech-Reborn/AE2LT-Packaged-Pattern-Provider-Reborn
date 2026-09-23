@@ -1,6 +1,6 @@
 package com.moakiee.ae2lt.packaged.item;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 
@@ -32,41 +32,41 @@ public final class AdapterIds {
     private AdapterIds() {
     }
 
-    public static final ResourceLocation AA_RECONSTRUCTOR =
+    public static final Identifier AA_RECONSTRUCTOR =
             id("actuallyadditions/laser_packaged_core");
-    public static final ResourceLocation AA_EMPOWERER =
+    public static final Identifier AA_EMPOWERER =
             id("actuallyadditions/empower_packaged_core");
-    public static final ResourceLocation ARS_APPARATUS =
+    public static final Identifier ARS_APPARATUS =
             id("ars_nouveau/enchanting_apparatus_packaged_core");
-    public static final ResourceLocation ARS_IMBUEMENT =
+    public static final Identifier ARS_IMBUEMENT =
             id("ars_nouveau/imbuement_packaged_core");
-    public static final ResourceLocation DE_FUSION =
+    public static final Identifier DE_FUSION =
             id("draconicevolution/fusion_crafting_packaged_core");
-    public static final ResourceLocation EC_BASIC =
+    public static final Identifier EC_BASIC =
             id("extendedcrafting/table_tier1_packaged_core");
-    public static final ResourceLocation EC_ADVANCED =
+    public static final Identifier EC_ADVANCED =
             id("extendedcrafting/table_tier2_packaged_core");
-    public static final ResourceLocation EC_ELITE =
+    public static final Identifier EC_ELITE =
             id("extendedcrafting/table_tier3_packaged_core");
-    public static final ResourceLocation EC_ULTIMATE =
+    public static final Identifier EC_ULTIMATE =
             id("extendedcrafting/table_tier4_packaged_core");
-    public static final ResourceLocation EC_ENDER =
+    public static final Identifier EC_ENDER =
             id("extendedcrafting/ender_crafter_packaged_core");
-    public static final ResourceLocation EC_FLUX =
+    public static final Identifier EC_FLUX =
             id("extendedcrafting/flux_crafter_packaged_core");
-    public static final ResourceLocation EC_COMBINATION =
+    public static final Identifier EC_COMBINATION =
             id("extendedcrafting/combination_packaged_core");
-    public static final ResourceLocation MA_AWAKENING =
+    public static final Identifier MA_AWAKENING =
             id("mysticalagriculture/awakening_packaged_core");
-    public static final ResourceLocation MA_INFUSION =
+    public static final Identifier MA_INFUSION =
             id("mysticalagriculture/infusion_packaged_core");
-    public static final ResourceLocation MALUM_SPIRIT_FOCUSING =
+    public static final Identifier MALUM_SPIRIT_FOCUSING =
             id("malum/spirit_focusing_packaged_core");
-    public static final ResourceLocation MALUM_SPIRIT_INFUSION =
+    public static final Identifier MALUM_SPIRIT_INFUSION =
             id("malum/spirit_infusion_packaged_core");
-    public static final ResourceLocation OCCULTISM_RITUAL =
+    public static final Identifier OCCULTISM_RITUAL =
             id("occultism/ritual_packaged_core");
-    public static final ResourceLocation OCCULTISM_SPIRIT_FIRE =
+    public static final Identifier OCCULTISM_SPIRIT_FIRE =
             id("occultism/spirit_fire_packaged_core");
     /**
      * Single packaged core covering every Mekanism: More Machines large multiblock
@@ -75,30 +75,30 @@ public final class AdapterIds {
      * generic {@code MekanismMoreMachinesAdapter} dispatches between them at
      * runtime via {@code MekmmMachines}.
      */
-    public static final ResourceLocation MEKMM =
+    public static final Identifier MEKMM =
             id("mekmm/large_machine_packaged_core");
-    public static final ResourceLocation BOTANIA_PETAL_APOTHECARY =
+    public static final Identifier BOTANIA_PETAL_APOTHECARY =
             id("botania/petal_apothecary_packaged_core");
-    public static final ResourceLocation BOTANIA_MANA_POOL =
+    public static final Identifier BOTANIA_MANA_POOL =
             id("botania/mana_pool_packaged_core");
-    public static final ResourceLocation BOTANIA_ALFHEIM_PORTAL =
+    public static final Identifier BOTANIA_ALFHEIM_PORTAL =
             id("botania/alfheim_portal_packaged_core");
-    public static final ResourceLocation BOTANIA_TERRA_PLATE =
+    public static final Identifier BOTANIA_TERRA_PLATE =
             id("botania/terra_plate_packaged_core");
-    public static final ResourceLocation BOTANIA_RUNIC_ALTAR =
+    public static final Identifier BOTANIA_RUNIC_ALTAR =
             id("botania/runic_altar_packaged_core");
-    public static final ResourceLocation AVARITIA_SCULK_TABLE =
+    public static final Identifier AVARITIA_SCULK_TABLE =
             id("avaritia/crafting_table_tier1_packaged_core");
-    public static final ResourceLocation AVARITIA_NETHER_TABLE =
+    public static final Identifier AVARITIA_NETHER_TABLE =
             id("avaritia/crafting_table_tier2_packaged_core");
-    public static final ResourceLocation AVARITIA_END_TABLE =
+    public static final Identifier AVARITIA_END_TABLE =
             id("avaritia/crafting_table_tier3_packaged_core");
-    public static final ResourceLocation AVARITIA_EXTREME_TABLE =
+    public static final Identifier AVARITIA_EXTREME_TABLE =
             id("avaritia/crafting_table_tier4_packaged_core");
-    public static final ResourceLocation AVARITIA_EXTREME_SMITHING =
+    public static final Identifier AVARITIA_EXTREME_SMITHING =
             id("avaritia/extreme_smithing_packaged_core");
 
-    private static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(AE2LTPackagedProvider.MODID, path);
+    private static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(AE2LTPackagedProvider.MODID, path);
     }
 }

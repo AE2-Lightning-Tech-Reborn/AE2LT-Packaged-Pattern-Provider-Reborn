@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.ToLongFunction;
 import appeng.api.stacks.GenericStack;
+import com.moakiee.ae2lt.packaged.compat.LegacyAeStackTags;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
 import net.minecraft.core.BlockPos;
@@ -13,12 +14,12 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /** One accepted physical batch. Every undelivered port input remains owned by PP until inserted. */
 public final class PendingBatchInputs {
-    public record Delivery(ResourceLocation adapter, ResourceLocation dimension, BlockPos pos,
-                           Direction face, ResourceLocation block, GenericStack stack) {
+    public record Delivery(Identifier adapter, Identifier dimension, BlockPos pos,
+                           Direction face, Identifier block, GenericStack stack) {
         public Delivery {
             pos = pos.immutable();
         }
@@ -38,7 +39,7 @@ public final class PendingBatchInputs {
         for (var target : plan.targets()) {
             if (target.stacks().size() != 1 || target.face() == null
                     || target.stacks().getFirst().amount() <= 0) return List.of();
-            var dimension = target.level().dimension().location();
+            var dimension = target.level().dimension().identifier();
             // Different faces can expose the same tank/inventory, so deduplicate by block position.
             if (!ports.add(List.of(dimension, target.pos()))) return List.of();
             result.add(new Delivery(adapter.batchAdapterId(), dimension, target.pos(), target.face(),
@@ -82,7 +83,7 @@ public final class PendingBatchInputs {
             tag.putLong("pos", delivery.pos().asLong());
             tag.putInt("face", delivery.face().get3DDataValue());
             tag.putString("block", delivery.block().toString());
-            tag.put("stack", GenericStack.writeTag(registries, delivery.stack()));
+            tag.put("stack", LegacyAeStackTags.writeGeneric(registries, delivery.stack()));
             list.add(tag);
         }
         return list;
@@ -92,12 +93,13 @@ public final class PendingBatchInputs {
         clear();
         for (var entry : list) {
             if (!(entry instanceof CompoundTag tag)) continue;
-            var stack = GenericStack.readTag(registries, tag.getCompound("stack"));
+            var stack = LegacyAeStackTags.readGeneric(registries, tag.getCompoundOrEmpty("stack"));
             if (stack == null || stack.amount() <= 0) continue;
-            pending.add(new Delivery(ResourceLocation.parse(tag.getString("adapter")),
-                    ResourceLocation.parse(tag.getString("dimension")), BlockPos.of(tag.getLong("pos")),
-                    Direction.from3DDataValue(tag.getInt("face")),
-                    ResourceLocation.parse(tag.getString("block")), stack));
+            pending.add(new Delivery(Identifier.parse(tag.getStringOr("adapter", "minecraft:air")),
+                    Identifier.parse(tag.getStringOr("dimension", "minecraft:overworld")),
+                    BlockPos.of(tag.getLongOr("pos", 0L)),
+                    Direction.from3DDataValue(tag.getIntOr("face", 0)),
+                    Identifier.parse(tag.getStringOr("block", "minecraft:air")), stack));
         }
     }
 

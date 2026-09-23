@@ -22,7 +22,7 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
@@ -45,15 +45,15 @@ import org.jetbrains.annotations.Nullable;
 public final class ArsNouveauEnchantingApparatusAdapter implements MultiblockAdapter {
 
     private static final String MOD_ID = "ars_nouveau";
-    private static final ResourceLocation APPARATUS_BLOCK = arsId("enchanting_apparatus");
-    private static final ResourceLocation PEDESTAL_BLOCK = arsId("arcane_pedestal");
-    private static final ResourceLocation ARCANE_PLATFORM_BLOCK = arsId("arcane_platform");
-    private static final ResourceLocation ARCANE_CORE_BLOCK = arsId("arcane_core");
+    private static final Identifier APPARATUS_BLOCK = arsId("enchanting_apparatus");
+    private static final Identifier PEDESTAL_BLOCK = arsId("arcane_pedestal");
+    private static final Identifier ARCANE_PLATFORM_BLOCK = arsId("arcane_platform");
+    private static final Identifier ARCANE_CORE_BLOCK = arsId("arcane_core");
     private static final int PEDESTAL_RADIUS = 3;
     private static final int SOURCE_RADIUS = 10;
     private static final int MAX_INPUT_UNITS = 128;
 
-    private static final List<ResourceLocation> FALLBACK_RECIPE_TYPES = List.of(
+    private static final List<Identifier> FALLBACK_RECIPE_TYPES = List.of(
             arsId("enchanting_apparatus"),
             arsId("enchantment"),
             arsId("reactive_enchantment"),
@@ -75,7 +75,7 @@ public final class ArsNouveauEnchantingApparatusAdapter implements MultiblockAda
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.ARS_APPARATUS;
     }
 
@@ -257,7 +257,7 @@ public final class ArsNouveauEnchantingApparatusAdapter implements MultiblockAda
             return ItemStack.EMPTY;
         }
         try {
-            return typedRecipe.getResultItem(level.registryAccess()).copy();
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(typedRecipe, level).copy();
         } catch (RuntimeException | LinkageError ignored) {
             return ItemStack.EMPTY;
         }
@@ -486,14 +486,14 @@ public final class ArsNouveauEnchantingApparatusAdapter implements MultiblockAda
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipesForType(ServerLevel level, RecipeType<?> type) {
-        return (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager().getAllRecipesFor((RecipeType) type);
+        return (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type);
     }
 
     private static boolean isArsLoaded() {
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
@@ -502,8 +502,8 @@ public final class ArsNouveauEnchantingApparatusAdapter implements MultiblockAda
         return id.equals(PEDESTAL_BLOCK) || id.equals(ARCANE_PLATFORM_BLOCK);
     }
 
-    private static ResourceLocation arsId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier arsId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private record PlannedUnit(AEItemKey key) {

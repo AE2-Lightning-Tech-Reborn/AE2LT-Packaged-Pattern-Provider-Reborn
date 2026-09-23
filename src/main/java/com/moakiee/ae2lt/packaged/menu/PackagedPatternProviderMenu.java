@@ -3,7 +3,7 @@ package com.moakiee.ae2lt.packaged.menu;
 import java.util.List;
 
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
@@ -12,6 +12,7 @@ import net.minecraft.world.item.ItemStack;
 import appeng.api.inventories.InternalInventory;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.menu.guisync.GuiSync;
+import appeng.menu.guisync.ClientActionKey;
 import appeng.menu.implementations.PatternProviderMenu;
 import appeng.menu.implementations.MenuTypeBuilder;
 import appeng.menu.slot.AppEngSlot;
@@ -24,9 +25,11 @@ import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEnti
 
 public class PackagedPatternProviderMenu extends PatternProviderMenu
         implements FrequencyBindingMenuHost {
+    private static final ClientActionKey<Void> TOGGLE_AUTO_RETURN =
+            new ClientActionKey<>("toggleAutoReturn");
     public static final MenuType<PackagedPatternProviderMenu> TYPE = MenuTypeBuilder
             .create(PackagedPatternProviderMenu::new, PatternProviderLogicHost.class)
-            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(
+            .buildUnregistered(Identifier.fromNamespaceAndPath(
                     AE2LTPackagedProvider.MODID, "packaged_pattern_provider"));
 
     @GuiSync(22000)
@@ -52,7 +55,7 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
         adapterSlot.setEmptyTooltip(() -> List.of(Component.translatable("ae2ltpp.gui.adapter_slot")));
         this.adapterSlot = addSlot(adapterSlot, PackagedPatternProviderSlotSemantics.ADAPTER_CARD);
 
-        registerClientAction("toggleAutoReturn", this::toggleAutoReturn);
+        registerClientAction(TOGGLE_AUTO_RETURN, this::toggleAutoReturn);
     }
 
     public Slot getAdapterSlot() {
@@ -78,7 +81,7 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
     }
 
     public void clientToggleAutoReturn() {
-        sendClientAction("toggleAutoReturn");
+        sendClientAction(TOGGLE_AUTO_RETURN);
     }
 
     public boolean isAutoReturnEnabled() {

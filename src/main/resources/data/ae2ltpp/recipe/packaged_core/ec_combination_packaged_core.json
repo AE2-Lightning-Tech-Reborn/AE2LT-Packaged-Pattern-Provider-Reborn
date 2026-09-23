@@ -7,34 +7,16 @@
   ],
   "type": "extendedcrafting:combination",
   "power_cost": 1000000,
-  "input": {
-    "item": "ae2ltpp:basic_packaged_core"
-  },
+  "input": "ae2ltpp:basic_packaged_core",
   "ingredients": [
-    {
-      "item": "extendedcrafting:crystaltine_ingot"
-    },
-    {
-      "item": "extendedcrafting:crystaltine_ingot"
-    },
-    {
-      "item": "extendedcrafting:crystaltine_ingot"
-    },
-    {
-      "item": "extendedcrafting:crystaltine_ingot"
-    },
-    {
-      "item": "extendedcrafting:enhanced_ender_ingot"
-    },
-    {
-      "item": "extendedcrafting:enhanced_ender_ingot"
-    },
-    {
-      "item": "extendedcrafting:enhanced_ender_ingot"
-    },
-    {
-      "item": "extendedcrafting:enhanced_ender_ingot"
-    }
+    "extendedcrafting:crystaltine_ingot",
+    "extendedcrafting:crystaltine_ingot",
+    "extendedcrafting:crystaltine_ingot",
+    "extendedcrafting:crystaltine_ingot",
+    "extendedcrafting:enhanced_ender_ingot",
+    "extendedcrafting:enhanced_ender_ingot",
+    "extendedcrafting:enhanced_ender_ingot",
+    "extendedcrafting:enhanced_ender_ingot"
   ],
   "result": {
     "id": "ae2ltpp:ec_combination_packaged_core",

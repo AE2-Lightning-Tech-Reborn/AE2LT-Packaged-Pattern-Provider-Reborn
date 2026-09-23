@@ -1,0 +1,32 @@
+// Optional 26.1 integration probe. Its mod jar is never part of the PP artifact.
+sourceSets {
+    availableAdapterProbe {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+}
+
+def availableAdapterProbeJar = tasks.register('availableAdapterProbeJar', Jar) {
+    archiveClassifier = 'available-adapter-probe'
+    from sourceSets.availableAdapterProbe.output
+}
+
+if (providers.gradleProperty('availableAdapterProbe').isPresent()) {
+    dependencies.add('runtimeOnly', files(availableAdapterProbeJar))
+    def resultFile = layout.buildDirectory.file('available-adapter-probe-result.txt')
+    def resultPath = resultFile.get().asFile.absolutePath
+    neoForge.runs.server.systemProperty 'availableAdapterProbeResult', resultPath
+    def prepareProbe = tasks.register('prepareAvailableAdapterProbe') {
+        doLast { new File(resultPath).delete() }
+    }
+    tasks.named('runServer') {
+        dependsOn prepareProbe
+        doLast {
+            def result = new File(resultPath)
+            if (!result.isFile() || !result.text.startsWith('PASS ')) {
+                throw new GradleException('Available adapter probe failed: ' +
+                        (result.isFile() ? result.text : 'no completion marker'))
+            }
+        }
+    }
+}

@@ -18,7 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
@@ -35,8 +35,8 @@ import org.jetbrains.annotations.Nullable;
 public final class AvaritiaExtremeSmithingAdapter implements LinearVirtualCraftingAdapter {
 
     private static final String MOD_ID = "avaritia";
-    private static final ResourceLocation EXTREME_SMITHING_BLOCK = avaritiaId("extreme_smithing_table");
-    private static final ResourceLocation RECIPE_TYPE_ID = avaritiaId("extreme_smithing_recipe");
+    private static final Identifier EXTREME_SMITHING_BLOCK = avaritiaId("extreme_smithing_table");
+    private static final Identifier RECIPE_TYPE_ID = avaritiaId("extreme_smithing_recipe");
 
     @Override
     public int priority() {
@@ -52,7 +52,7 @@ public final class AvaritiaExtremeSmithingAdapter implements LinearVirtualCrafti
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, net.minecraft.core.BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, net.minecraft.core.BlockPos pos) {
         return AdapterIds.AVARITIA_EXTREME_SMITHING;
     }
 
@@ -335,7 +335,7 @@ public final class AvaritiaExtremeSmithingAdapter implements LinearVirtualCrafti
     private static ItemStack assemble(Object recipe, RecipeInput input, ServerLevel level) {
         try {
             return recipe instanceof Recipe<?> r
-                    ? ((Recipe) r).assemble(input, level.registryAccess())
+                    ? ((Recipe) r).assemble(input)
                     : null;
         } catch (RuntimeException | LinkageError ignored) {
             return null;
@@ -348,7 +348,7 @@ public final class AvaritiaExtremeSmithingAdapter implements LinearVirtualCrafti
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(r, level);
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }
@@ -357,8 +357,7 @@ public final class AvaritiaExtremeSmithingAdapter implements LinearVirtualCrafti
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(RECIPE_TYPE_ID)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -366,8 +365,8 @@ public final class AvaritiaExtremeSmithingAdapter implements LinearVirtualCrafti
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation avaritiaId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier avaritiaId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private record SmithingBindHandle(Object recipe, int craftRatio) {

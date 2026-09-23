@@ -32,7 +32,7 @@ side = "BOTH"
 [[dependencies."${mod_id}"]]
 modId = "ae2"
 type = "required"
-versionRange = "[0,)"
+versionRange = "[26.1.12-beta,26.2)"
 ordering = "AFTER"
 side = "BOTH"
 
@@ -51,21 +51,7 @@ ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies."${mod_id}"]]
-modId = "ars_nouveau"
-type = "optional"
-versionRange = "[0,)"
-ordering = "AFTER"
-side = "BOTH"
-
-[[dependencies."${mod_id}"]]
 modId = "draconicevolution"
-type = "optional"
-versionRange = "[0,)"
-ordering = "AFTER"
-side = "BOTH"
-
-[[dependencies."${mod_id}"]]
-modId = "actuallyadditions"
 type = "optional"
 versionRange = "[0,)"
 ordering = "AFTER"
@@ -94,13 +80,6 @@ side = "BOTH"
 
 [[dependencies."${mod_id}"]]
 modId = "occultism"
-type = "optional"
-versionRange = "[0,)"
-ordering = "AFTER"
-side = "BOTH"
-
-[[dependencies."${mod_id}"]]
-modId = "mekmm"
 type = "optional"
 versionRange = "[0,)"
 ordering = "AFTER"

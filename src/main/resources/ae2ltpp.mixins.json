@@ -2,10 +2,14 @@
   "required": true,
   "minVersion": "0.8.5",
   "package": "com.moakiee.ae2lt.packaged.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "mixins": [
     "PatternProviderLogicAccessor",
     "PatternProviderLogicMixin"
+  ],
+  "client": [
+    "client.ItemLayerRenderStateAccessor",
+    "client.ItemStackRenderStateAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

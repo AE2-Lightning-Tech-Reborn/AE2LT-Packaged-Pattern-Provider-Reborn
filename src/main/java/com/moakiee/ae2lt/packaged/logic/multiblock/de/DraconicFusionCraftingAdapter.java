@@ -23,7 +23,7 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -38,7 +38,7 @@ import org.jetbrains.annotations.Nullable;
 public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
 
     private static final String MOD_ID = "draconicevolution";
-    private static final ResourceLocation CRAFTING_CORE_BLOCK = deId("crafting_core");
+    private static final Identifier CRAFTING_CORE_BLOCK = deId("crafting_core");
     private static final int MAX_INPUT_UNITS = 128;
 
     @Override
@@ -52,7 +52,7 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, BlockPos pos) {
         return com.moakiee.ae2lt.packaged.item.AdapterIds.DE_FUSION;
     }
 
@@ -349,12 +349,12 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation deId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier deId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     // ===== Records =====

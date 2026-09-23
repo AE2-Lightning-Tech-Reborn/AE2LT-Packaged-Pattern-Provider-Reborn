@@ -1,6 +1,6 @@
 package com.moakiee.ae2lt.packaged.registry;
 
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -25,9 +25,10 @@ public final class PPBlocks {
     private PPBlocks() {
     }
 
-    private static <T extends Block> DeferredBlock<T> registerBlock(String name, Supplier<T> blockFactory) {
-        var registered = BLOCKS.register(name, blockFactory);
-        PPItems.ITEMS.register(name, () -> new BlockItem(registered.get(), new Item.Properties()));
+    private static <T extends Block> DeferredBlock<T> registerBlock(
+            String name, Function<net.minecraft.world.level.block.state.BlockBehaviour.Properties, T> blockFactory) {
+        var registered = BLOCKS.registerBlock(name, blockFactory);
+        PPItems.ITEMS.registerSimpleBlockItem(name, registered::get);
         return registered;
     }
 }

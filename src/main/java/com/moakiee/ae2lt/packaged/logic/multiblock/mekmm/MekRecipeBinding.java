@@ -66,7 +66,7 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<RecipeHolder<
         if (available.size() != mode.inputs().size()) return null;
         for (var holder : recipes.getOrDefault(mode, List.of())) {
             // Reject an old cached recipe after datapack reload, even before provider cache invalidation.
-            var live = level.getRecipeManager().byKey(holder.id()).orElse(null);
+            var live = level.getServer().getRecipeManager().byKey(holder.id()).orElse(null);
             if (live == null || live.value() != holder.value()) continue;
             var arranged = arrange(holder.value(), mode, available);
             if (arranged == null) continue;

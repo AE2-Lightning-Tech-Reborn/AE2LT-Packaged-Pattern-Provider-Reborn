@@ -97,7 +97,7 @@ final class AvaritiaExtremeSmithingAccess {
             return false;
         }
         try {
-            for (var candidate : ingredient.getItems()) {
+            for (var candidate : com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.items(ingredient)) {
                 if (candidate.getItem() == item) {
                     return true;
                 }

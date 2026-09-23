@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -24,8 +23,8 @@ import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEnti
 class FixedPushDirectionProviderBlock<T extends StablePatternProviderBlockEntity>
         extends AEBaseEntityBlock<T> {
 
-    FixedPushDirectionProviderBlock() {
-        super(metalProps().forceSolidOn());
+    FixedPushDirectionProviderBlock(net.minecraft.world.level.block.state.BlockBehaviour.Properties properties) {
+        super(metalProps(properties).forceSolidOn());
         registerDefaultState(defaultBlockState().setValue(
                 PatternProviderBlock.PUSH_DIRECTION, PushDirection.ALL));
     }
@@ -43,7 +42,8 @@ class FixedPushDirectionProviderBlock<T extends StablePatternProviderBlockEntity
 
     @Override
     public void neighborChanged(BlockState state, Level level, BlockPos pos,
-                                Block block, BlockPos fromPos, boolean isMoving) {
+                                Block block, net.minecraft.world.level.redstone.Orientation orientation,
+                                boolean isMoving) {
         forceAllPushDirection(level, pos);
         var blockEntity = getBlockEntity(level, pos);
         if (blockEntity != null) {
@@ -53,7 +53,7 @@ class FixedPushDirectionProviderBlock<T extends StablePatternProviderBlockEntity
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(
+    protected InteractionResult useItemOn(
             ItemStack heldItem,
             BlockState state,
             Level level,
@@ -63,7 +63,7 @@ class FixedPushDirectionProviderBlock<T extends StablePatternProviderBlockEntity
             BlockHitResult hit) {
         if (InteractionUtil.canWrenchRotate(heldItem)) {
             setSide(level, pos, hit.getDirection());
-            return ItemInteractionResult.sidedSuccess(level.isClientSide());
+            return level.isClientSide() ? InteractionResult.SUCCESS : InteractionResult.SUCCESS_SERVER;
         }
         return super.useItemOn(heldItem, state, level, pos, player, hand, hit);
     }
@@ -82,7 +82,7 @@ class FixedPushDirectionProviderBlock<T extends StablePatternProviderBlockEntity
         if (!level.isClientSide()) {
             blockEntity.openMenu(player, MenuLocators.forBlockEntity(blockEntity));
         }
-        return InteractionResult.sidedSuccess(level.isClientSide());
+        return level.isClientSide() ? InteractionResult.SUCCESS : InteractionResult.SUCCESS_SERVER;
     }
 
     private void forceAllPushDirection(Level level, BlockPos pos) {

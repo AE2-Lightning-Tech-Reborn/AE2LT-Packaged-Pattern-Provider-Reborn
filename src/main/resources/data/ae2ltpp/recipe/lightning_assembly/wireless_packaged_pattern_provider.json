@@ -3,21 +3,15 @@
   "priority": 0,
   "inputs": [
     {
-      "ingredient": {
-        "item": "ae2ltpp:packaged_pattern_provider"
-      },
+      "ingredient": "ae2ltpp:packaged_pattern_provider",
       "count": 1
     },
     {
-      "ingredient": {
-        "item": "ae2lt:lightning_collapse_matrix"
-      },
+      "ingredient": "ae2lt:lightning_collapse_matrix",
       "count": 1
     },
     {
-      "ingredient": {
-        "item": "ae2lt:overloaded_controller"
-      },
+      "ingredient": "ae2lt:overloaded_controller",
       "count": 4
     }
   ],

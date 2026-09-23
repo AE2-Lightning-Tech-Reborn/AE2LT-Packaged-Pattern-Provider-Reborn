@@ -16,18 +16,16 @@ public final class PPBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PackagedPatternProviderBlockEntity>>
             PACKAGED_PATTERN_PROVIDER = BLOCK_ENTITY_TYPES.register(
                     "packaged_pattern_provider",
-                    () -> BlockEntityType.Builder.of(
+                    () -> new BlockEntityType<>(
                             PackagedPatternProviderBlockEntity::new,
-                            PPBlocks.PACKAGED_PATTERN_PROVIDER.get())
-                            .build(null));
+                            PPBlocks.PACKAGED_PATTERN_PROVIDER.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WirelessPackagedPatternProviderBlockEntity>>
             WIRELESS_PACKAGED_PATTERN_PROVIDER = BLOCK_ENTITY_TYPES.register(
                     "wireless_packaged_pattern_provider",
-                    () -> BlockEntityType.Builder.of(
+                    () -> new BlockEntityType<>(
                             WirelessPackagedPatternProviderBlockEntity::new,
-                            PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get())
-                            .build(null));
+                            PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get()));
 
     private PPBlockEntities() {
     }

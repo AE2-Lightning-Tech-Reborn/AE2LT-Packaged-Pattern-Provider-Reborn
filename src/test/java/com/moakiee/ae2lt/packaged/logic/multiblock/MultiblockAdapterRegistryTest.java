@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import net.minecraft.core.BlockPos;
@@ -25,6 +26,11 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 
 class MultiblockAdapterRegistryTest {
+
+    @BeforeEach
+    void setUp() {
+        MultiblockAdapterRegistry.clearForTests();
+    }
 
     @AfterEach
     void tearDown() {
@@ -165,7 +171,7 @@ class MultiblockAdapterRegistryTest {
             int priority,
             BooleanSupplier enabled,
             MultiblockAdapter adapter) throws ReflectiveOperationException {
-        var resourceLocationClass = Class.forName("net.minecraft.resources.ResourceLocation");
+        var resourceLocationClass = Class.forName("net.minecraft.resources.Identifier");
         var fromNamespaceAndPath = resourceLocationClass.getMethod("fromNamespaceAndPath", String.class, String.class);
         var id = fromNamespaceAndPath.invoke(null, "ae2ltpp", path);
         var of = AdapterRegistration.class.getMethod(

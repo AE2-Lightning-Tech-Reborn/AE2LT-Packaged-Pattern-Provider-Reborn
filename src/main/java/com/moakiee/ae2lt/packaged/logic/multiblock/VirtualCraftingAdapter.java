@@ -3,7 +3,7 @@ package com.moakiee.ae2lt.packaged.logic.multiblock;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 
 import appeng.api.crafting.IPatternDetails;
@@ -43,7 +43,7 @@ public interface VirtualCraftingAdapter extends MultiblockAdapter {
      * for adapters with no signature sound (e.g. plain crafting tables).
      */
     @Nullable
-    default ResourceLocation flushSoundId() {
+    default Identifier flushSoundId() {
         return null;
     }
 

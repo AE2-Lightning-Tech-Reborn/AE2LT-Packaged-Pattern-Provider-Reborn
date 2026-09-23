@@ -33,7 +33,7 @@ import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
 import java.util.LinkedHashMap;
 import java.util.List;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -52,11 +52,11 @@ import org.jetbrains.annotations.Nullable;
 public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter {
 
     private static final String MOD_ID = "avaritia";
-    private static final ResourceLocation SCULK_TABLE_BLOCK = avaritiaId("sculk_crafting_table");
-    private static final ResourceLocation NETHER_TABLE_BLOCK = avaritiaId("nether_crafting_table");
-    private static final ResourceLocation END_TABLE_BLOCK = avaritiaId("end_crafting_table");
-    private static final ResourceLocation EXTREME_TABLE_BLOCK = avaritiaId("extreme_crafting_table");
-    private static final ResourceLocation RECIPE_TYPE_ID = avaritiaId("crafting_table_recipe");
+    private static final Identifier SCULK_TABLE_BLOCK = avaritiaId("sculk_crafting_table");
+    private static final Identifier NETHER_TABLE_BLOCK = avaritiaId("nether_crafting_table");
+    private static final Identifier END_TABLE_BLOCK = avaritiaId("end_crafting_table");
+    private static final Identifier EXTREME_TABLE_BLOCK = avaritiaId("extreme_crafting_table");
+    private static final Identifier RECIPE_TYPE_ID = avaritiaId("crafting_table_recipe");
 
     @Override
     public int priority() {
@@ -72,7 +72,7 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
     }
 
     @Override
-    public ResourceLocation requiredAdapterId(ServerLevel level, net.minecraft.core.BlockPos pos) {
+    public Identifier requiredAdapterId(ServerLevel level, net.minecraft.core.BlockPos pos) {
         var spec = tableSpec(level.getBlockState(pos));
         if (spec == null) {
             return AdapterIds.AVARITIA_SCULK_TABLE;
@@ -363,8 +363,7 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static List<RecipeHolder<?>> recipes(ServerLevel level) {
         return BuiltInRegistries.RECIPE_TYPE.getOptional(RECIPE_TYPE_ID)
-                .map(type -> (List<RecipeHolder<?>>) (List<?>) level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) type))
+                .map(type -> (List<RecipeHolder<?>>) (List<?>) com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(level, type))
                 .orElse(List.of());
     }
 
@@ -390,15 +389,15 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
         return ModList.get().isLoaded(MOD_ID);
     }
 
-    private static ResourceLocation blockId(BlockState state) {
+    private static Identifier blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock());
     }
 
-    private static ResourceLocation avaritiaId(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    private static Identifier avaritiaId(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
-    private record TableSpec(ResourceLocation blockId, int gridSize, int tier) {
+    private record TableSpec(Identifier blockId, int gridSize, int tier) {
         int slots() {
             return gridSize * gridSize;
         }

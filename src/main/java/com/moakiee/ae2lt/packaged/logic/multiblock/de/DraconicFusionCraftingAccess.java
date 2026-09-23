@@ -195,8 +195,8 @@ final class DraconicFusionCraftingAccess {
         ensureLookup();
         if (fusionRecipeType == null) return null;
         try {
-            var allRecipes = level.getRecipeManager()
-                    .getAllRecipesFor((RecipeType) fusionRecipeType);
+            var allRecipes = com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.byType(
+                    level, (RecipeType<?>) fusionRecipeType);
             return (List<RecipeHolder<?>>) (List<?>) allRecipes;
         } catch (RuntimeException | LinkageError e) {
             CompatibilityDiagnostics.failure(DraconicFusionCraftingAccess.class, "getFusionRecipes", e);
@@ -257,7 +257,7 @@ final class DraconicFusionCraftingAccess {
     static ItemStack getResultItem(Object recipe, ServerLevel level) {
         if (!(recipe instanceof net.minecraft.world.item.crafting.Recipe<?> typed)) return null;
         try {
-            return typed.getResultItem(level.registryAccess()).copy();
+            return com.moakiee.ae2lt.packaged.logic.multiblock.shared.RecipeCompat26.resultItem(typed, level).copy();
         } catch (RuntimeException | LinkageError e) {
             CompatibilityDiagnostics.failure(DraconicFusionCraftingAccess.class, "getResultItem", e);
             return null;
