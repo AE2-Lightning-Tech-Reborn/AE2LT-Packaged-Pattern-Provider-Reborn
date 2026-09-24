@@ -57,7 +57,12 @@ public record PackagedCoreDefinition(
             core("avaritia_nether_table_packaged_core", AVARITIA, "nether_crafting_table"),
             core("avaritia_end_table_packaged_core", AVARITIA, "end_crafting_table"),
             core("avaritia_extreme_table_packaged_core", AVARITIA, "extreme_crafting_table"),
-            core("avaritia_extreme_smithing_packaged_core", AVARITIA, "extreme_smithing_table"));
+            core("avaritia_extreme_smithing_packaged_core", AVARITIA, "extreme_smithing_table"),
+            core("astral_illumination_packaged_core", "astralsorcery", "altar_illumination"),
+            core("astral_resonance_packaged_core", "astralsorcery", "altar_resonance"),
+            core("astral_luminance_packaged_core", "astralsorcery", "altar_luminance"),
+            core("astral_radiance_packaged_core", "astralsorcery", "altar_radiance"),
+            core("astral_infuser_packaged_core", "astralsorcery", "infuser"));
 
     public static List<PackagedCoreDefinition> all() {
         return ALL;
@@ -100,6 +105,11 @@ public record PackagedCoreDefinition(
             case "avaritia_end_table_packaged_core" -> PPItems.AVARITIA_END_TABLE_ADAPTER;
             case "avaritia_extreme_table_packaged_core" -> PPItems.AVARITIA_EXTREME_TABLE_ADAPTER;
             case "avaritia_extreme_smithing_packaged_core" -> PPItems.AVARITIA_EXTREME_SMITHING_ADAPTER;
+            case "astral_illumination_packaged_core" -> PPItems.ASTRAL_ILLUMINATION_ADAPTER;
+            case "astral_resonance_packaged_core" -> PPItems.ASTRAL_RESONANCE_ADAPTER;
+            case "astral_luminance_packaged_core" -> PPItems.ASTRAL_LUMINANCE_ADAPTER;
+            case "astral_radiance_packaged_core" -> PPItems.ASTRAL_RADIANCE_ADAPTER;
+            case "astral_infuser_packaged_core" -> PPItems.ASTRAL_INFUSER_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };
     }

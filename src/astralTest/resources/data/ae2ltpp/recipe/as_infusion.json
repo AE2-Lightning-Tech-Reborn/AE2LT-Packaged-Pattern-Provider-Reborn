@@ -1,0 +1,15 @@
+{
+  "type": "astralsorcery:infusion",
+  "item_input": {
+    "item": "minecraft:iron_ingot"
+  },
+  "fluid_input": "minecraft:water",
+  "duration": 25,
+  "output": {
+    "id": "minecraft:gold_ingot",
+    "count": 2
+  },
+  "fluid_consumption_chance": 1.0,
+  "consume_multiple_fluids": false,
+  "accept_chalice_input": false
+}

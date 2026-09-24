@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
@@ -17,6 +18,7 @@ import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity
 import com.moakiee.ae2lt.packaged.blockentity.WirelessPackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
+import com.moakiee.ae2lt.packaged.logic.multiblock.astral.AstralSorceryAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsAtomicReconstructorAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsEmpowererAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsNouveauEnchantingApparatusAdapter;
@@ -89,6 +91,10 @@ public class AE2LTPackagedProvider {
             MultiblockAdapterRegistry.register(new AlfheimPortalAdapter());
             MultiblockAdapterRegistry.register(new TerraPlateAdapter());
             MultiblockAdapterRegistry.register(new RunicAltarAdapter());
+            if (ModList.get().isLoaded("astralsorcery")) {
+                MultiblockAdapterRegistry.register(new AstralSorceryAdapter.AstralAltarAdapter());
+                MultiblockAdapterRegistry.register(new AstralSorceryAdapter.AstralInfuserAdapter());
+            }
 
             var packagedBlock = PPBlocks.PACKAGED_PATTERN_PROVIDER.get();
             var packagedBeType = PPBlockEntities.PACKAGED_PATTERN_PROVIDER.get();

@@ -81,3 +81,6 @@ Insert the corresponding **Packaged Core** into the provider to select the type 
 ### Re-Avaritia
 * [Crafting Tables — Sculk / Nether / End / Extreme](avaritia-tables.md)
 * [Extreme Smithing Table](avaritia-extreme-smithing.md)
+
+### Astral Sorcery
+* [Astral Sorcery Altars and Infuser](astral-sorcery.md) ⚠

@@ -1,0 +1,42 @@
+{
+  "type": "astralsorcery:altar_crafting",
+  "baseFocusShatterChance": 0.0,
+  "duration": 25,
+  "effects": [],
+  "grid": {
+    "key": {
+      "I": {
+        "type": "item",
+        "ingredient": {
+          "item": "minecraft:iron_ingot"
+        }
+      }
+    },
+    "pattern": [
+      "   ",
+      " I ",
+      "   "
+    ],
+    "relayPattern": [
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     "
+    ]
+  },
+  "mayChain": false,
+  "onlyNight": false,
+  "outputModifiers": [],
+  "outputs": [
+    {
+      "id": "minecraft:netherite_ingot",
+      "count": 1
+    }
+  ],
+  "requiredAdditionalInputs": [],
+  "requiredFluid": [],
+  "requiredLumen": [],
+  "requiredStarlight": [],
+  "requiredType": "radiance"
+}

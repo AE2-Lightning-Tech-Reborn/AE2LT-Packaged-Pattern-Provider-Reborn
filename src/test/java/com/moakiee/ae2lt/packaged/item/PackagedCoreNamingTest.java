@@ -47,7 +47,12 @@ class PackagedCoreNamingTest {
             "avaritia_nether_table_packaged_core",
             "avaritia_end_table_packaged_core",
             "avaritia_extreme_table_packaged_core",
-            "avaritia_extreme_smithing_packaged_core");
+            "avaritia_extreme_smithing_packaged_core",
+            "astral_illumination_packaged_core",
+            "astral_resonance_packaged_core",
+            "astral_luminance_packaged_core",
+            "astral_radiance_packaged_core",
+            "astral_infuser_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
             "basic_packaged_core");

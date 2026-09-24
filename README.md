@@ -146,6 +146,9 @@ Integration code currently exists for:
 - Mekanism More Machines
 - Malum
 - Botania
+- Astral Sorcery 1.21.1 development branch: four crafting altar tiers and Starlight Infuser
+
+Astral version pin, native test commands and supported recipe rules: [compatibility notes](ASTRAL_SORCERY_COMPATIBILITY.zh-CN.md).
 
 These entries reflect source code present in the repository, not a blanket statement that every target has already been runtime-validated in every environment.
 

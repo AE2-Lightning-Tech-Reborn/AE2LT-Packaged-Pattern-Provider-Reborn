@@ -170,6 +170,28 @@ public final class PPItems {
                     AdapterIds.AVARITIA_EXTREME_SMITHING,
                     Set.of(AdapterIds.AVARITIA_EXTREME_SMITHING));
 
+    // ===== Astral Sorcery =====
+
+    public static final DeferredItem<MultiblockAdapterItem> ASTRAL_ILLUMINATION_ADAPTER =
+            registerPackagedCore("astral_illumination_packaged_core", AdapterIds.ASTRAL_ILLUMINATION,
+                    Set.of(AdapterIds.ASTRAL_ILLUMINATION));
+
+    public static final DeferredItem<MultiblockAdapterItem> ASTRAL_RESONANCE_ADAPTER =
+            registerPackagedCore("astral_resonance_packaged_core", AdapterIds.ASTRAL_RESONANCE,
+                    Set.of(AdapterIds.ASTRAL_ILLUMINATION, AdapterIds.ASTRAL_RESONANCE));
+
+    public static final DeferredItem<MultiblockAdapterItem> ASTRAL_LUMINANCE_ADAPTER =
+            registerPackagedCore("astral_luminance_packaged_core", AdapterIds.ASTRAL_LUMINANCE,
+                    Set.of(AdapterIds.ASTRAL_ILLUMINATION, AdapterIds.ASTRAL_RESONANCE, AdapterIds.ASTRAL_LUMINANCE));
+
+    public static final DeferredItem<MultiblockAdapterItem> ASTRAL_RADIANCE_ADAPTER =
+            registerPackagedCore("astral_radiance_packaged_core", AdapterIds.ASTRAL_RADIANCE,
+                    Set.of(AdapterIds.ASTRAL_ILLUMINATION, AdapterIds.ASTRAL_RESONANCE, AdapterIds.ASTRAL_LUMINANCE, AdapterIds.ASTRAL_RADIANCE));
+
+    public static final DeferredItem<MultiblockAdapterItem> ASTRAL_INFUSER_ADAPTER =
+            registerPackagedCore("astral_infuser_packaged_core", AdapterIds.ASTRAL_INFUSER,
+                    Set.of(AdapterIds.ASTRAL_INFUSER));
+
     // ===== Crafting intermediates =====
 
     /** Generic crafting base for the per-machine packaged cores. */

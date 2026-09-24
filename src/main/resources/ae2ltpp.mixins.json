@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "PatternProviderLogicAccessor",
-    "PatternProviderLogicMixin"
+    "PatternProviderLogicMixin",
+    "AstralInventoryViewMixin"
   ],
   "injectors": {
     "defaultRequire": 1

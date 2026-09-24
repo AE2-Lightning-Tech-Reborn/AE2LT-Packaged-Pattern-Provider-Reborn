@@ -1,0 +1,32 @@
+// Opt-in native Astral profile; production jars never contain these tests or target-mod binaries.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        def absent = providers.gradleProperty('ppAstralAbsent').isPresent()
+        def modsDir = providers.gradleProperty('ppAstralModsDir').orNull
+        if (!absent && (modsDir == null || !file(modsDir).isDirectory())) {
+            throw new GradleException('Set -PppAstralModsDir to a directory containing Astral Sorcery and ObserverLib jars')
+        }
+        sourceSets.create('astralTest') {
+            if (absent) {
+                java.setSrcDirs(['src/astralAbsentTest/java'])
+                resources.exclude('data/ae2ltpp/recipe/**')
+            }
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        if (!absent) dependencies.add('astralTestImplementation', files(fileTree(modsDir) { include '*.jar' }))
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.astralTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.astralTest
+            gameDirectory = project.layout.buildDirectory.dir(absent ? 'astral-absent-native' : 'astral-native').get().asFile
+        }
+    }
+}

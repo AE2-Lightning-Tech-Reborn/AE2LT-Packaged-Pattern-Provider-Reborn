@@ -98,6 +98,17 @@ public final class AdapterIds {
     public static final ResourceLocation AVARITIA_EXTREME_SMITHING =
             id("avaritia/extreme_smithing_packaged_core");
 
+    public static final ResourceLocation ASTRAL_ILLUMINATION =
+            id("astralsorcery/illumination_packaged_core");
+    public static final ResourceLocation ASTRAL_RESONANCE =
+            id("astralsorcery/resonance_packaged_core");
+    public static final ResourceLocation ASTRAL_LUMINANCE =
+            id("astralsorcery/luminance_packaged_core");
+    public static final ResourceLocation ASTRAL_RADIANCE =
+            id("astralsorcery/radiance_packaged_core");
+    public static final ResourceLocation ASTRAL_INFUSER =
+            id("astralsorcery/infuser_packaged_core");
+
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(AE2LTPackagedProvider.MODID, path);
     }

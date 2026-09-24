@@ -78,3 +78,6 @@ item_ids:
 ### Re-Avaritia（无尽贪婪）
 * [工作台 — 幽匿 / 炼狱 / 终末 / 终焉](avaritia-tables.md)
 * [终焉锻造台](avaritia-extreme-smithing.md)
+
+### Astral Sorcery
+* [星辉魔法祭坛与灌注器](astral-sorcery.md) ⚠
