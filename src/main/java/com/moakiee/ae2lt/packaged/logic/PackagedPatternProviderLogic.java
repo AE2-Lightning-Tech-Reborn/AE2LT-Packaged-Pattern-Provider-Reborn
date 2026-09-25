@@ -517,14 +517,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         // Persist the transition after a real flush so clearing a delivered
         // batch or retaining a residual cannot be lost across a crash.
         boolean hadPendingVirtualOutputs = virtualBatch.hasPending();
-        virtualBatch.tickFlush(gameTick, stacks -> {
-            var residual = insertOutputsToReturnInv(stacks);
-            if (residual.isEmpty()) {
-                runPendingFlushEffectSafely();
-                playFlushSoundSafely(sl);
-            }
-            return residual;
-        });
+        boolean flushed = virtualBatch.tickFlushReceipts(gameTick, this::insertOneOutputToReturnInv);
+        if (flushed && !virtualBatch.hasPending()) {
+            runPendingFlushEffectSafely();
+            playFlushSoundSafely(sl);
+        }
         if (hadPendingVirtualOutputs) {
             getProviderHost().saveChanges();
         }
@@ -743,8 +740,6 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         if (outputs.isEmpty()) {
             return List.of();
         }
-        var grid = getGridNode().getGrid();
-        var returnInv = getInternalReturnInv();
         var retained = new ArrayList<GenericStack>();
 
         for (var stack : outputs) {
@@ -752,36 +747,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
                 continue;
             }
             long total = stack.amount();
-            long actuallyInserted = 0;
-            long affordable;
-            try {
-                affordable = PatternProviderPowerCost.maxAffordable(grid, stack.what(), total);
-            } catch (RuntimeException | LinkageError e) {
-                LOG.warn("Virtual output affordability check failed for {} x{}", stack.what(), total, e);
-                affordable = 0;
-            }
-            if (affordable > 0) {
-                long inserted;
-                try {
-                    inserted = Math.max(0L, Math.min(affordable,
-                            returnInv.insert(0, stack.what(), affordable, Actionable.MODULATE)));
-                } catch (RuntimeException | LinkageError e) {
-                    LOG.warn("Virtual output insertion failed for {} x{}", stack.what(), affordable, e);
-                    inserted = 0;
-                }
-                if (inserted > 0) {
-                    // The item is already in AE2's return inventory. If charging
-                    // unexpectedly fails, retain the delivered amount rather than
-                    // requeueing it and duplicating the product.
-                    try {
-                        PatternProviderPowerCost.consume(grid, stack.what(), inserted);
-                    } catch (RuntimeException | LinkageError e) {
-                        LOG.warn("Virtual output energy charge failed after delivery for {} x{}",
-                                stack.what(), inserted, e);
-                    }
-                    actuallyInserted = inserted;
-                }
-            }
+            long actuallyInserted = insertOneOutputToReturnInv(stack);
             long undelivered = total - actuallyInserted;
             if (undelivered > 0) {
                 addMergedResidual(retained, stack.what(), undelivered);
@@ -798,6 +764,34 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             }
         }
         return List.copyOf(retained);
+    }
+
+    private long insertOneOutputToReturnInv(GenericStack stack) {
+        var grid = getGridNode().getGrid();
+        long affordable;
+        try {
+            affordable = PatternProviderPowerCost.maxAffordable(grid, stack.what(), stack.amount());
+        } catch (RuntimeException | LinkageError e) {
+            LOG.warn("Virtual output affordability check failed for {} x{}", stack.what(), stack.amount(), e);
+            return 0;
+        }
+        if (affordable <= 0) return 0;
+        long inserted;
+        try {
+            inserted = Math.max(0L, Math.min(affordable,
+                    getInternalReturnInv().insert(0, stack.what(), affordable, Actionable.MODULATE)));
+        } catch (RuntimeException | LinkageError e) {
+            LOG.warn("Virtual output insertion failed for {} x{}", stack.what(), affordable, e);
+            return 0;
+        }
+        if (inserted > 0) {
+            try {
+                PatternProviderPowerCost.consume(grid, stack.what(), inserted);
+            } catch (RuntimeException | LinkageError e) {
+                LOG.warn("Virtual output energy charge failed after delivery for {} x{}", stack.what(), inserted, e);
+            }
+        }
+        return inserted;
     }
 
     private static void addMergedResidual(List<GenericStack> residuals,

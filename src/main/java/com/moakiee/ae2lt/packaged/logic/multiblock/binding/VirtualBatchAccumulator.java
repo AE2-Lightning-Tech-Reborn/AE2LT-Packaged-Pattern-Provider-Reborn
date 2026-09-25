@@ -2,10 +2,9 @@ package com.moakiee.ae2lt.packaged.logic.multiblock.binding;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.ToLongFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,14 +15,15 @@ import net.minecraft.nbt.Tag;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import com.moakiee.ae2lt.packaged.logic.PendingAmounts;
 
 /**
  * Batches virtual-craft outputs and flushes them on a fixed interval (default
  * every 10 ticks).
  *
- * <p>Outputs are merged by {@link AEKey} inside the pending buffer so each
- * pattern only contributes one entry per key per flush window, keeping the
- * inserted stack count bounded even when push frequency is very high.
+ * <p>Outputs are merged by {@link AEKey} inside the pending buffer. A key is
+ * split into multiple long-sized chunks only when its total exceeds
+ * {@link Long#MAX_VALUE}, so no product is lost to saturation.
  *
  * <p>The class itself enforces no upper bound on accumulated amount; the
  * outer push path is expected to apply a per-tick admission cap (e.g. 64
@@ -37,7 +37,7 @@ public final class VirtualBatchAccumulator {
 
     public static final int FLUSH_INTERVAL_TICKS = 10;
 
-    private final Map<AEKey, Long> pending = new LinkedHashMap<>();
+    private final PendingAmounts<AEKey> pending = new PendingAmounts<>();
     private long lastFlushTick = Long.MIN_VALUE;
 
     /** Merge {@code outputs} into the pending buffer keyed by {@link AEKey}. */
@@ -54,13 +54,10 @@ public final class VirtualBatchAccumulator {
     }
 
     /**
-     * Flush every {@link #FLUSH_INTERVAL_TICKS} ticks. The sink receives a fresh
-     * snapshot and returns only the portion which was not delivered. This keeps
-     * delivery failures from restoring products that already reached the sink.
-     *
-     * @return true when a flush actually happened on this call
+     * Deliver each quantity with a receipt. A later failed insertion cannot
+     * restore outputs whose earlier insertions were already acknowledged.
      */
-    public boolean tickFlush(long gameTick, Function<List<GenericStack>, List<GenericStack>> sink) {
+    public boolean tickFlushReceipts(long gameTick, ToLongFunction<GenericStack> sink) {
         if (lastFlushTick == Long.MIN_VALUE) {
             lastFlushTick = gameTick;
             return false;
@@ -68,40 +65,17 @@ public final class VirtualBatchAccumulator {
         long elapsed;
         try {
             elapsed = Math.subtractExact(gameTick, lastFlushTick);
-            if (elapsed < 0) {
-                // A restored world can move the clock backwards; do not keep
-                // pending outputs asleep until it catches up to an old save.
-                elapsed = Long.MAX_VALUE;
-            }
+            if (elapsed < 0) elapsed = Long.MAX_VALUE;
         } catch (ArithmeticException overflow) {
-            // A wrapped game clock must not suppress flushing forever.
             elapsed = Long.MAX_VALUE;
         }
-        if (elapsed < FLUSH_INTERVAL_TICKS) {
-            return false;
-        }
+        if (elapsed < FLUSH_INTERVAL_TICKS) return false;
         lastFlushTick = gameTick;
-        if (pending.isEmpty()) {
-            return true;
-        }
-        var merged = snapshotStacks();
-        pending.clear();
+        if (pending.isEmpty()) return false;
         try {
-            var residual = sink.apply(merged);
-            if (residual != null) {
-                for (var stack : residual) {
-                    if (stack != null && stack.what() != null && stack.amount() > 0) {
-                        mergePending(stack.what(), stack.amount());
-                    }
-                }
-            }
+            pending.deliver(entry -> sink.applyAsLong(new GenericStack(entry.key(), entry.amount())));
         } catch (RuntimeException | LinkageError e) {
-            // A sink exception means no delivery result can be trusted. Restore
-            // the snapshot; sinks must be exception-safe after committing output.
-            for (var stack : merged) {
-                mergePending(stack.what(), stack.amount());
-            }
-            LOG.warn("Virtual batch flush failed; retaining {} stack(s)", merged.size(), e);
+            LOG.warn("Virtual batch flush failed; retaining unacknowledged outputs", e);
         }
         return true;
     }
@@ -154,23 +128,13 @@ public final class VirtualBatchAccumulator {
         if (key == null || amount <= 0) {
             return;
         }
-        var previous = pending.get(key);
-        if (previous == null) {
-            pending.put(key, amount);
-            return;
-        }
-        try {
-            pending.put(key, Math.addExact(previous, amount));
-        } catch (ArithmeticException overflow) {
-            pending.put(key, Long.MAX_VALUE);
-            LOG.warn("Virtual batch amount saturated at Long.MAX_VALUE for {}", key);
-        }
+        pending.add(key, amount);
     }
 
     private List<GenericStack> snapshotStacks() {
-        var merged = new ArrayList<GenericStack>(pending.size());
-        for (var entry : pending.entrySet()) {
-            merged.add(new GenericStack(entry.getKey(), entry.getValue()));
+        var merged = new ArrayList<GenericStack>();
+        for (var entry : pending.snapshot()) {
+            merged.add(new GenericStack(entry.key(), entry.amount()));
         }
         return merged;
     }
@@ -184,8 +148,13 @@ public final class VirtualBatchAccumulator {
         lastFlushTick = Long.MIN_VALUE;
     }
 
-    /** Snapshot for debug / inspection. Not part of the steady-state hot path. */
+    /** Saturated debug snapshot; use the NBT entries for exact persisted totals. */
     public Map<AEKey, Long> snapshot() {
-        return new HashMap<>(pending);
+        var totals = new HashMap<AEKey, Long>();
+        for (var entry : pending.snapshot()) {
+            totals.merge(entry.key(), entry.amount(), (left, right) ->
+                    left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right);
+        }
+        return totals;
     }
 }

@@ -17,7 +17,9 @@ class VirtualBatchAccumulatorNbtTest {
         assertTrue(source.contains("writeToNBT(CompoundTag tag)"));
         assertTrue(source.contains("readFromNBT(CompoundTag tag)"));
         assertTrue(source.contains("mergePending(stack.what(), stack.amount())"));
-        assertTrue(source.contains("Math.addExact(previous, amount)"));
+        assertTrue(source.contains("pending.add(key, amount)"));
+        assertTrue(source.contains("tickFlushReceipts(long gameTick"));
+        assertTrue(source.contains("pending.deliver(entry -> sink.applyAsLong"));
         assertTrue(source.contains("Math.subtractExact(gameTick, lastFlushTick)"));
         assertTrue(source.contains("elapsed = Long.MAX_VALUE"));
         assertTrue(source.contains("Virtual batch flush failed; retaining"));
