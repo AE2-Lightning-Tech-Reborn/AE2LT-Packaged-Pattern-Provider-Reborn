@@ -786,8 +786,13 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     private void enqueuePendingOutputs(List<GenericStack> outputs) {
         if (outputs.isEmpty()) return;
         pendingOutputs.enqueue(outputs);
-        getProviderHost().saveChanges();
-        alertGridTick();
+        try {
+            getProviderHost().saveChanges();
+            alertGridTick();
+        } catch (RuntimeException | LinkageError failure) {
+            // Ownership is already in the persistent buffer; throwing would let the CPU refund again.
+            appeng.core.AELog.warn("[ae2ltpp] Pending outputs retained, but host notification failed: %s", failure);
+        }
     }
 
     /**
