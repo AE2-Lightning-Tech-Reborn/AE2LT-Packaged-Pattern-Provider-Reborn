@@ -1,6 +1,10 @@
 package com.moakiee.ae2lt.packaged.logic;
 
 import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingBatchInputs;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BatchCopies;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -93,6 +97,9 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     private final LaneRateLimiter virtualPushLimiter =
             new LaneRateLimiter(VIRTUAL_PUSH_CAP_PER_LANE_PER_TICK);
     private final VirtualBatchAccumulator virtualBatch = new VirtualBatchAccumulator();
+    private final PendingBatchInputs pendingBatchInputs = new PendingBatchInputs();
+    private final LaneRateLimiter inputBatchLimiter = new LaneRateLimiter(BatchCopies.MAX_PER_LANE);
+    private long lastBatchRetryTick = Long.MIN_VALUE;
 
     /** Round-robin cursor across real candidates within a single binding. */
     private int realPushRoundRobin;
@@ -134,12 +141,16 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     public void writeToNBT(net.minecraft.nbt.CompoundTag tag) {
         super.writeToNBT(tag);
         virtualBatch.writeToNBT(tag);
+        tag.put("batch_inputs", pendingBatchInputs.writeToNBT());
     }
 
     @Override
     public void readFromNBT(net.minecraft.nbt.CompoundTag tag) {
         super.readFromNBT(tag);
         virtualBatch.readFromNBT(tag);
+        pendingBatchInputs.readFromNBT(tag.getCompound("batch_inputs"));
+        inputBatchLimiter.clear();
+        lastBatchRetryTick = Long.MIN_VALUE;
         pendingFlushSoundId = null;
         pendingFlushEffect = null;
         lastAutoReturnTick = Long.MIN_VALUE;
@@ -153,9 +164,20 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         // inventory/content reset until they can be delivered or dropped.
         pendingFlushSoundId = null;
         pendingFlushEffect = null;
-        if (virtualBatch.hasPending()) {
+        if (virtualBatch.hasPending() || pendingBatchInputs.hasPending()) {
             alertGridTick();
         }
+    }
+
+    @Override
+    public boolean isBusy() {
+        return pendingBatchInputs.hasPending() || super.isBusy();
+    }
+
+    public List<GenericStack> drainPendingBatchInputs() {
+        var drained = pendingBatchInputs.drainKnownInputs();
+        getProviderHost().saveChanges();
+        return drained;
     }
 
     public List<GenericStack> drainVirtualBatch() {
@@ -274,6 +296,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         for (var candidate : binding.candidates()) {
             if (candidate.mode() == BindingMode.VIRTUAL && candidate.adapter() instanceof LinearVirtualCraftingAdapter) {
                 capacity += virtualPushLimiter.remaining(candidate.lane(), tick);
+            } else if (candidate.mode() == BindingMode.REAL && candidate.adapter() instanceof InputBatchCraftingAdapter) {
+                capacity += inputBatchLimiter.remaining(candidate.lane(), tick);
             } else ordinary = true;
         }
         return Math.max(capacity, ordinary ? 1 : 0);
@@ -294,7 +318,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         long remaining = maxCraft;
         try {
             for (var candidate : binding.candidates()) {
-                if (remaining <= 0) break;
+                if (remaining <= 0 || pendingBatchInputs.hasPending()) break;
                 var env = resolveLaneEnv(level, candidate);
                 if (env == null) continue;
                 int accepted = 0;
@@ -318,17 +342,55 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                     pendingFlushSoundId = soundId;
                     pendingFlushEffect = new PendingVirtualFlushEffect(adapter, env.level(), env.pos(), candidate.handle());
                     accepted = copies;
+                } else if (candidate.mode() == BindingMode.REAL
+                        && candidate.adapter() instanceof InputBatchCraftingAdapter adapter) {
+                    if (!cooldownTable.isReady(candidate.lane(), tick)) continue;
+                    if (getProviderHost().getReturnMode() == ReturnMode.AUTO) {
+                        enqueueVirtualOutputs(insertOutputsToReturnInv(adapter.extractOutputs(
+                                env.level(), env.pos(), getOrBuildOutputFilter(), getActionSource(), adapterScope())));
+                    }
+                    if (!adapter.canDispatch(env.level(), env.pos(), candidate.handle(), adapterScope())) {
+                        cooldownTable.recordFailure(candidate.lane(), tick);
+                        continue;
+                    }
+                    var plan = adapter.planWithBinding(env.level(), env.pos(), pattern,
+                            BatchCopies.copy(oneCopyTemplate), candidate.handle(), getActionSource(), adapterScope());
+                    var ports = PendingBatchInputs.prepare(plan, adapter);
+                    if (ports.isEmpty() || !PendingBatchInputs.matchesInputs(ports, oneCopyTemplate)) continue;
+                    int maximum = (int) Math.min(remaining, inputBatchLimiter.remaining(candidate.lane(), tick));
+                    int copies = BatchCopies.fitting(maximum, n -> {
+                        if (!PatternProviderPowerCost.canAfford(grid, oneCopyCost * n)) return false;
+                        try {
+                            BatchCopies.scale(List.of(pattern.getOutputs()), n);
+                            for (var delivery : PendingBatchInputs.scale(ports, n)) {
+                                if (insertBatchDelivery(level, delivery, Actionable.SIMULATE) != delivery.stack().amount()) return false;
+                            }
+                            return true;
+                        } catch (ArithmeticException | IllegalArgumentException overflow) { return false; }
+                    });
+                    if (copies <= 0) continue;
+                    var deliveries = PendingBatchInputs.scale(ports, copies);
+                    var owner = new PendingBatchInputs.Ownership(adapter.batchAdapterId(), env.level().dimension().location(),
+                            env.pos(), BuiltInRegistries.BLOCK.getKey(env.level().getBlockState(env.pos()).getBlock()),
+                            BatchCopies.scale(List.of(pattern.getOutputs()), copies));
+                    if (!inputBatchLimiter.tryAcquire(candidate.lane(), tick, copies)) continue;
+                    pendingBatchInputs.adopt(deliveries, owner);
+                    // Ownership transfers before any callbacks or physical insertion. Thunderbolt
+                    // must only refund the copies which were never adopted by this provider.
+                    remaining -= copies;
+                    accepted = copies;
+                    cooldownTable.recordSuccess(candidate.lane());
                 }
                 if (accepted > 0) {
                     PatternProviderPowerCost.consumeRaw(grid, oneCopyCost * accepted);
                     recordSuccessfulPush(pattern);
                     getProviderHost().saveChanges();
                     alertGridTick();
-
+                    retryBatchInputs(level);
                 }
             }
         } catch (RuntimeException | LinkageError failure) {
-            // Thunderbolt refunds the entire call if pushBatch throws. Once virtual outputs
+            // Thunderbolt refunds the entire call if pushBatch throws. Once batch inputs or outputs
             // are owned here, only the not-yet-accepted copies may go back to the CPU.
             appeng.core.AELog.warn("[ae2ltpp] Batch dispatch stopped after accepting %d copies: %s",
                     maxCraft - remaining, failure);
@@ -336,11 +398,55 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         return remaining;
     }
 
+    @Nullable
+    private InputBatchCraftingAdapter batchAdapter(ResourceLocation id) {
+        for (var adapter : MultiblockAdapterRegistry.getAll()) {
+            if (adapter instanceof InputBatchCraftingAdapter batch && batch.batchAdapterId().equals(id)) return batch;
+        }
+        return null;
+    }
+
+    private long insertBatchDelivery(ServerLevel providerLevel, PendingBatchInputs.Delivery delivery, Actionable mode) {
+        var target = providerLevel.getServer().getLevel(ResourceKey.create(Registries.DIMENSION, delivery.dimension()));
+        if (target == null || !target.isLoaded(delivery.pos())
+                || !BuiltInRegistries.BLOCK.getKey(target.getBlockState(delivery.pos()).getBlock()).equals(delivery.block())) return 0;
+        var adapter = batchAdapter(delivery.adapter());
+        return adapter == null ? 0 : adapter.insertBatchInput(target, delivery.pos(), delivery.face(),
+                delivery.stack(), mode, getActionSource());
+    }
+
+    private void retryBatchInputs(ServerLevel providerLevel) {
+        if (!pendingBatchInputs.hasPending() || lastBatchRetryTick == providerLevel.getGameTime()) return;
+        lastBatchRetryTick = providerLevel.getGameTime();
+        var owner = pendingBatchInputs.ownership();
+        if (owner == null) return;
+        var target = providerLevel.getServer().getLevel(ResourceKey.create(Registries.DIMENSION, owner.dimension()));
+        if (target == null || !target.isLoaded(owner.pos())
+                || !BuiltInRegistries.BLOCK.getKey(target.getBlockState(owner.pos()).getBlock()).equals(owner.block())) return;
+        var adapter = batchAdapter(owner.adapter());
+        if (adapter == null || !adapter.recognizesMain(target, owner.pos(), target.getBlockEntity(owner.pos()))) return;
+        try {
+            if (!pendingBatchInputs.initialized()) {
+                if (!adapter.initializeBatchOwnership(target, owner.pos(), owner.outputs(), adapterScope())) return;
+                pendingBatchInputs.markInitialized();
+            } else if (!adapter.refreshBatchOwnership(target, owner.pos(), adapterScope())) {
+                // Ownership may have been deliberately retired with a removed connection/controller.
+                // Keep known inputs recoverable instead of delivering unowned future products.
+                return;
+            }
+            pendingBatchInputs.deliver(delivery -> insertBatchDelivery(providerLevel, delivery, Actionable.MODULATE));
+        } catch (RuntimeException | LinkageError failure) {
+            LOG.warn("Physical batch delivery failed; unacknowledged transfer is retained without retry or refund", failure);
+        } finally {
+            getProviderHost().saveChanges();
+        }
+    }
+
     // ===== Push path =====
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
-        if (!getGridNode().isActive()) {
+        if (!getGridNode().isActive() || pendingBatchInputs.hasPending()) {
             return false;
         }
         if (!getAvailablePatterns().contains(patternDetails)) {
@@ -535,7 +641,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
 
     @Override
     public boolean hasAnyTickWork() {
-        return super.hasAnyTickWork() || virtualBatch.hasPending();
+        return super.hasAnyTickWork() || virtualBatch.hasPending() || pendingBatchInputs.hasPending();
     }
 
     public void tickPendingAdapters(ServerLevel providerLevel) {
@@ -596,6 +702,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
             return;
         }
         long gameTick = sl.getGameTime();
+
+        if (getGridNode().isActive()) retryBatchInputs(sl);
 
         // Virtual batch always ticks; outputs surface every 10 ticks.
         // Persist the transition after a real flush so clearing a delivered
@@ -804,6 +912,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         }
         cooldownTable.retainAll(active);
         virtualPushLimiter.retainAll(active);
+        inputBatchLimiter.retainAll(active);
     }
 
     // ===== Output delivery =====

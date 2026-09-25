@@ -443,6 +443,9 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         super.addAdditionalDrops(level, pos, drops);
         var logic = getLogic();
         if (logic instanceof PackagedPatternProviderLogic packaged) {
+            for (var stack : packaged.drainPendingBatchInputs()) {
+                stack.what().addDrops(stack.amount(), drops, level, pos);
+            }
             for (var stack : packaged.drainVirtualBatch()) {
                 if (stack.what() instanceof appeng.api.stacks.AEItemKey itemKey) {
                     itemKey.addDrops(stack.amount(), drops, level, pos);

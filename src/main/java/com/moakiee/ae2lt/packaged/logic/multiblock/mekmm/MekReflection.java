@@ -141,13 +141,16 @@ final class MekReflection {
         ensureLookup();
         if (insertChemicalMethod == null || actionSimulate == null || actionExecute == null) return 0;
         try {
+            long requested = (long) chemicalGetAmountMethod.invoke(chemicalStack);
             Object action = simulate ? actionSimulate : actionExecute;
             Object remainder = insertChemicalMethod.invoke(handler, chemicalStack, action);
-            if (remainder == null) return getChemicalAmount(chemicalStack);
-            long remainderAmount = getChemicalAmount(remainder);
-            return getChemicalAmount(chemicalStack) - remainderAmount;
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-            return 0;
+            if (remainder == null) throw new IllegalStateException("Null chemical insertion receipt");
+            long left = (long) chemicalGetAmountMethod.invoke(remainder);
+            if (left < 0 || left > requested) throw new IllegalStateException("Invalid chemical insertion receipt: " + left);
+            return requested - left;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
+            // A handler may mutate before throwing. Returning zero would authorize a duplicate retry.
+            throw new IllegalStateException("Chemical insertion outcome is unknown", failure);
         }
     }
 

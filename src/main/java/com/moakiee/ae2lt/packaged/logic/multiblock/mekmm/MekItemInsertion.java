@@ -18,10 +18,13 @@ final class MekItemInsertion {
 
         S remainder = stack;
         for (int slot = 0; slot < access.slots() && access.amount(remainder) > 0; slot++) {
+            int before = access.amount(remainder);
             remainder = access.insert(slot, remainder, simulate);
-            if (remainder == null) return originalAmount;
+            if (remainder == null || access.amount(remainder) < 0 || access.amount(remainder) > before) {
+                throw new IllegalStateException("Invalid item insertion receipt");
+            }
         }
 
-        return originalAmount - Math.max(0, access.amount(remainder));
+        return originalAmount - access.amount(remainder);
     }
 }

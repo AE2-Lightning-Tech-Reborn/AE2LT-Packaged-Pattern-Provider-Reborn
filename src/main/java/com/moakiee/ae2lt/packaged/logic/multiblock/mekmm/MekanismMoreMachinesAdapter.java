@@ -39,7 +39,7 @@ import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ExpectedStackHarvestOwnership;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
-import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -58,10 +58,39 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekmmMachineSpec.PortTy
  * user only needs one item in the provider regardless of which large machine
  * sits in front of it.
  */
-public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
+public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdapter {
 
     private static final String HARVEST_STATE = "mekmm:harvest";
     private static final long STATE_TTL_TICKS = 20L * 60L * 60L * 6L;
+
+    @Override
+    public ResourceLocation batchAdapterId() { return new ResourceLocation("ae2ltpp", "mekmm"); }
+
+    @Override
+    public long insertBatchInput(ServerLevel level, BlockPos pos, Direction side,
+                                 GenericStack stack, Actionable mode, IActionSource source) {
+        var type = classify(stack.what());
+        if (type == null || !level.isLoaded(pos)) return 0;
+        return inserterFor(type, level, pos, side).apply(stack, mode);
+    }
+
+    @Override
+    public boolean initializeBatchOwnership(ServerLevel level, BlockPos mainPos,
+                                            List<GenericStack> outputs, AdapterPersistentScope scope) {
+        mainPos = resolveMainPos(level, mainPos);
+        if (specAt(level, mainPos) == null) return false;
+        ExpectedStackHarvestOwnership.store(level, mainPos, scope, HARVEST_STATE, outputs);
+        return true;
+    }
+
+    @Override
+    public boolean refreshBatchOwnership(ServerLevel level, BlockPos mainPos, AdapterPersistentScope scope) {
+        mainPos = resolveMainPos(level, mainPos);
+        var claim = ExpectedStackHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
+        if (claim == null || claim.isEmpty()) return false;
+        ExpectedStackHarvestOwnership.store(level, mainPos, scope, HARVEST_STATE, claim.remaining());
+        return true;
+    }
 
     @Override
     public int priority() {
@@ -346,9 +375,8 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
                 if (chemStack == null) return 0L;
                 long inserted = MekReflection.insertChemical(handler, chemStack,
                         mode == Actionable.SIMULATE);
-                if (inserted > 0) {
-                    remaining -= Math.min(inserted, remaining);
-                }
+                if (inserted < 0 || inserted > remaining) throw new IllegalStateException("Invalid chemical receipt");
+                remaining -= inserted;
             }
             return stack.amount() - Math.max(0, remaining);
         };

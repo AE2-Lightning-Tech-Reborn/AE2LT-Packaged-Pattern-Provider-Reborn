@@ -5,6 +5,9 @@ allprojects {
             compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
             runtimeClasspath += output + sourceSets.main.runtimeClasspath
         }
+        repositories { maven { url 'https://www.cursemaven.com' } }
+        dependencies.add('batchTestImplementation', fg.deobf('curse.maven:mekanism-more-machine-1275257:7884538'))
+        dependencies.add('runtimeOnly', fg.deobf('curse.maven:mekanism-more-machine-1275257:7884538'))
         dependencies.add('runtimeOnly', fg.deobf('maven.modrinth:cucumber:7.0.16'))
         dependencies.add('runtimeOnly', fg.deobf('maven.modrinth:extended-crafting:6.0.10'))
         dependencies.add('batchTestImplementation', fg.deobf('mekanism:Mekanism:1.20.1-10.4.16.80:all'))
