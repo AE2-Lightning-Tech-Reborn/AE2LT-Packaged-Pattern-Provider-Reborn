@@ -28,7 +28,6 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.PatternInputAlternatives;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
-import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -50,7 +49,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
  *
  * <p>Pure reflection: Occultism is not a compile dependency.
  */
-public final class OccultismSpiritFireAdapter implements VirtualCraftingAdapter {
+public final class OccultismSpiritFireAdapter implements com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter {
 
     private static final String MOD_ID = "occultism";
     private static final ResourceLocation SPIRIT_FIRE_BLOCK = occultismId("spirit_fire");

@@ -373,7 +373,7 @@ public class PackagedRitualLifecycleRegressionTest {
                     return level.adapters.get(pos);
                 }
             }
-            static class OccultismReflection {
+            static class OccultismRitualAccess {
                 static boolean isIdle(Bowl bowl) { return bowl.idle; }
                 static boolean isSacrificialBowl(Bowl bowl) { return true; }
                 static Handler itemHandler(Bowl bowl) { return null; }

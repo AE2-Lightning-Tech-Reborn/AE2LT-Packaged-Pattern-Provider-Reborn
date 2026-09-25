@@ -36,8 +36,7 @@ class AvaritiaExtremeSmithingReflectionTest {
     }
 
     private static void assertColdAccessors(String[] methods, boolean itemId) throws ReflectiveOperationException {
-        var reflection = Class.forName(AvaritiaExtremeSmithingAdapter.class.getName()
-                + "$AvaritiaSmithingReflection");
+        var reflection = AvaritiaExtremeSmithingAccess.class;
         var bootstrapField = reflection.getDeclaredField("LOOKUP");
         bootstrapField.setAccessible(true);
         var bootstrap = (ReflectionBootstrap) bootstrapField.get(null);

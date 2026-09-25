@@ -128,7 +128,8 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         mainPos = resolveMainPos(level, mainPos);
         MekmmMachineSpec spec = specAt(level, mainPos);
         if (spec == null) return null;
-        return new BindingResult(spec, BindingMode.REAL);
+        var binding = MekRecipeBinding.find(level, level.getBlockEntity(mainPos), spec, pattern);
+        return binding == null ? null : new BindingResult(binding, BindingMode.REAL);
     }
 
     @Override
@@ -139,7 +140,8 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
     @Override
     public boolean canDispatch(ServerLevel level, BlockPos mainPos, Object handle,
                                AdapterPersistentScope scope) {
-        if (!(handle instanceof MekmmMachineSpec spec)) return false;
+        if (!(handle instanceof MekRecipeBinding binding)) return false;
+        var spec = binding.spec();
         mainPos = resolveMainPos(level, mainPos);
         var be = level.getBlockEntity(mainPos);
         if (be == null || !MekReflection.isTileEntityClass(be, spec.tileClass())) return false;
@@ -169,8 +171,9 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
                                         IPatternDetails pattern, KeyCounter[] inputs,
                                         Object handle, IActionSource source,
                                         AdapterPersistentScope scope) {
-        if (!(handle instanceof MekmmMachineSpec spec)
+        if (!(handle instanceof MekRecipeBinding binding)
                 || !canDispatch(level, mainPos, handle, scope)) return null;
+        var spec = binding.spec();
         mainPos = resolveMainPos(level, mainPos);
         var be = level.getBlockEntity(mainPos);
         if (be == null || !MekReflection.isTileEntityClass(be, spec.tileClass())) return null;
@@ -179,52 +182,20 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         PortGroup mode = spec.activeMode(be);
         Direction facing = MekReflection.getFacing(be);
 
-        // Bucket the pattern inputs by type so we can hand them out to ports in
-        // declaration order without caring which slot ended up at index 0.
-        Map<PortType, List<Map.Entry<AEKey, Long>>> bucketed = new EnumMap<>(PortType.class);
-        bucketed.put(PortType.ITEM, new ArrayList<>());
-        bucketed.put(PortType.FLUID, new ArrayList<>());
-        bucketed.put(PortType.CHEMICAL, new ArrayList<>());
-        for (var counter : inputs) {
-            for (var entry : counter) {
-                AEKey key = entry.getKey();
-                long amount = entry.getLongValue();
-                if (amount <= 0) continue;
-                PortType type = classify(key);
-                if (type == null) return null;
-                bucketed.get(type).add(Map.entry(key, amount));
-            }
-        }
-
-        if (hasAmbiguousInputPorts(mode, bucketed)) {
-            return null;
-        }
+        // Native recipe predicates decide the port order, including two different gases/pigments.
+        // Keep the Forge ownership and compensation callbacks around the resulting exact plan.
+        var arranged = binding.arrange(level, mode, pattern, inputs);
+        if (arranged == null) return null;
         var expected = copyPatternOutputs(pattern);
         if (expected.isEmpty()) return null;
-        Map<PortType, Integer> cursor = new EnumMap<>(PortType.class);
         var targets = new ArrayList<TargetSlot>();
-        for (PortDef port : mode.inputs()) {
-            int idx = cursor.getOrDefault(port.type(), 0);
-            var bucket = bucketed.get(port.type());
-            if (idx >= bucket.size()) return null;
-            var pair = bucket.get(idx);
-            cursor.put(port.type(), idx + 1);
-
+        for (int i = 0; i < mode.inputs().size(); i++) {
+            var port = mode.inputs().get(i);
             BlockPos portPos = portPos(mainPos, facing, port.spec());
             Direction portSide = portSide(facing, port.spec());
             if (!level.isLoaded(portPos)) return null;
-
-            targets.add(new TargetSlot(level, portPos, portSide,
-                    List.of(new GenericStack(pair.getKey(), pair.getValue())),
-                    InsertionStrategy.CUSTOM,
-                    inserterFor(port.type(), level, portPos, portSide)));
-        }
-
-        // Refuse if any pattern input was left unassigned — would silently
-        // drop materials otherwise.
-        for (var e : bucketed.entrySet()) {
-            int used = cursor.getOrDefault(e.getKey(), 0);
-            if (used != e.getValue().size()) return null;
+            targets.add(new TargetSlot(level, portPos, portSide, List.of(arranged.get(i)),
+                    InsertionStrategy.CUSTOM, inserterFor(port.type(), level, portPos, portSide)));
         }
 
         var resolvedMainPos = mainPos;
@@ -292,19 +263,7 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         return null;
     }
 
-    private static boolean hasAmbiguousInputPorts(PortGroup mode,
-                                                  Map<PortType, List<Map.Entry<AEKey, Long>>> inputs) {
-        var portsByType = new EnumMap<PortType, Integer>(PortType.class);
-        for (var port : mode.inputs()) {
-            portsByType.merge(port.type(), 1, Integer::sum);
-        }
-        for (var entry : portsByType.entrySet()) {
-            if (entry.getValue() > 1 && !inputs.getOrDefault(entry.getKey(), List.of()).isEmpty()) {
-                return true;
-            }
-        }
-        return false;
-    }
+
 
     private static BlockPos portPos(BlockPos main, Direction facing, MekPortSpec spec) {
         Direction back = facing.getOpposite();

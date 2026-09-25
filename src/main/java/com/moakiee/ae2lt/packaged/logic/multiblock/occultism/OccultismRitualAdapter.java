@@ -1,7 +1,5 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.occultism;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +24,6 @@ import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -50,11 +47,9 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.PatternInputAlternatives;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionSupport;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 /**
  * Runtime adapter for Occultism rituals.
  *
@@ -88,7 +83,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
 
     @Override
     public boolean recognizesMain(ServerLevel level, BlockPos pos, BlockEntity be) {
-        return be != null && isOccultismLoaded() && OccultismReflection.isGoldenBowl(be);
+        return be != null && isOccultismLoaded() && OccultismRitualAccess.isGoldenBowl(be);
     }
 
     @Override
@@ -155,7 +150,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             return;
         }
         var be = level.getBlockEntity(mainPos);
-        if (be != null && recognizesMain(level, mainPos, be) && OccultismReflection.isIdle(be)) {
+        if (be != null && recognizesMain(level, mainPos, be) && OccultismRitualAccess.isIdle(be)) {
             // OFF jobs own no products. AUTO jobs may retire only once their debt is paid.
             clearHarvestState(level, mainPos, scope);
         }
@@ -172,16 +167,16 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             LOG.debug("canDispatch: not recognized at {}", mainPos);
             return false;
         }
-        if (!OccultismReflection.isIdle(be)) {
+        if (!OccultismRitualAccess.isIdle(be)) {
             LOG.debug("canDispatch: golden bowl busy at {}", mainPos);
             return false;
         }
-        var goldenHandler = OccultismReflection.itemHandler(be);
+        var goldenHandler = OccultismRitualAccess.itemHandler(be);
         if (goldenHandler == null || !slotEmpty(goldenHandler)) {
             LOG.debug("canDispatch: golden bowl slot not empty at {}", mainPos);
             return false;
         }
-        if (!OccultismReflection.hasValidPentacle(bind.recipe(), level, mainPos)) {
+        if (!OccultismRitualAccess.hasValidPentacle(bind.recipe(), level, mainPos)) {
             LOG.debug("canDispatch: pentacle invalid for {} at {}", bind.recipe().getClass().getSimpleName(), mainPos);
             return false;
         }
@@ -314,7 +309,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             return List.of();
         }
         var be = level.getBlockEntity(mainPos);
-        if (be == null || !recognizesMain(level, mainPos, be) || !OccultismReflection.isIdle(be)) {
+        if (be == null || !recognizesMain(level, mainPos, be) || !OccultismRitualAccess.isIdle(be)) {
             return List.of();
         }
 
@@ -356,11 +351,11 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             }
             var bowlBe = level.getBlockEntity(bowlPos);
             if (bowlBe == null
-                    || !OccultismReflection.isSacrificialBowl(bowlBe)
+                    || !OccultismRitualAccess.isSacrificialBowl(bowlBe)
                     || !isUpsideDownBowl(bowlBe.getBlockState())) {
                 continue;
             }
-            var handler = OccultismReflection.itemHandler(bowlBe);
+            var handler = OccultismRitualAccess.itemHandler(bowlBe);
             if (handler == null || handler.getSlots() <= 0) {
                 continue;
             }
@@ -461,9 +456,9 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             }
             var bowlBe = level.getBlockEntity(bowlPos);
             if (bowlBe != null
-                    && OccultismReflection.isSacrificialBowl(bowlBe)
+                    && OccultismRitualAccess.isSacrificialBowl(bowlBe)
                     && isUpsideDownBowl(bowlBe.getBlockState())) {
-                var handler = OccultismReflection.itemHandler(bowlBe);
+                var handler = OccultismRitualAccess.itemHandler(bowlBe);
                 if (handler == null || handler.getSlots() <= 0) {
                     return null;
                 }
@@ -522,8 +517,8 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
                                                List<AcceptedInsertion> acceptedInsertions,
                                                Consumer<GenericStack> recovered) {
         var goldenBowl = level.getBlockEntity(mainPos);
-        if (goldenBowl == null || !OccultismReflection.isGoldenBowl(goldenBowl)
-                || !OccultismReflection.isIdle(goldenBowl)) {
+        if (goldenBowl == null || !OccultismRitualAccess.isGoldenBowl(goldenBowl)
+                || !OccultismRitualAccess.isIdle(goldenBowl)) {
             return;
         }
         int recoveredCount = 0;
@@ -535,10 +530,10 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             GenericStack stack = null;
             if (targetIndex < match.ingredients().size()) {
                 var bowlBe = level.getBlockEntity(targets.get(targetIndex).pos());
-                IItemHandler handler = bowlBe == null ? null : OccultismReflection.itemHandler(bowlBe);
+                IItemHandler handler = bowlBe == null ? null : OccultismRitualAccess.itemHandler(bowlBe);
                 stack = recoverExactInsertion(handler, accepted.stack());
             } else if (targetIndex == match.ingredients().size()) {
-                stack = recoverExactInsertion(OccultismReflection.itemHandler(goldenBowl),
+                stack = recoverExactInsertion(OccultismRitualAccess.itemHandler(goldenBowl),
                         accepted.stack());
             } else {
                 stack = accepted.stack();
@@ -627,8 +622,8 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
         int mismatchLogged = 0;
         for (var recipe : recipes(level)) {
             scanned++;
-            var activation = OccultismReflection.getActivationItem(recipe);
-            var ingredients = OccultismReflection.getIngredients(recipe);
+            var activation = OccultismRitualAccess.getActivationItem(recipe);
+            var ingredients = OccultismRitualAccess.getIngredients(recipe);
             if (activation == null || ingredients == null) {
                 missingApi++;
                 if (mismatchLogged < 5 && LOG.isDebugEnabled()) {
@@ -656,9 +651,9 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
                             recipe.getId(),
                             ingredientFirstItems(activation),
                             ingredientListItems(ingredients),
-                            OccultismReflection.requiresSacrifice(recipe),
-                            OccultismReflection.requiresItemUse(recipe),
-                            ingredientFirstItems(OccultismReflection.getItemToUse(recipe)));
+                            OccultismRitualAccess.requiresSacrifice(recipe),
+                            OccultismRitualAccess.requiresItemUse(recipe),
+                            ingredientFirstItems(OccultismRitualAccess.getItemToUse(recipe)));
                     mismatchLogged++;
                 }
                 continue;
@@ -667,7 +662,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             // input-matched recipe needs it. (Checking it first rejected all 70
             // recipes whenever the player's built pentacle belonged to a
             // different ritual, and hid input mismatches behind pentacleFail.)
-            if (!OccultismReflection.hasValidPentacle(recipe, level, mainPos)) {
+            if (!OccultismRitualAccess.hasValidPentacle(recipe, level, mainPos)) {
                 pentacleFail++;
                 if (mismatchLogged < 5 && LOG.isDebugEnabled()) {
                     LOG.debug("findCandidate: recipe {} input-matched but pentacle invalid at {}",
@@ -726,8 +721,8 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
      */
     @Nullable
     private static InputMatch matchInputsToRecipe(List<PlannedUnit> units, Object recipe) {
-        var activation = OccultismReflection.getActivationItem(recipe);
-        var ingredients = OccultismReflection.getIngredients(recipe);
+        var activation = OccultismRitualAccess.getActivationItem(recipe);
+        var ingredients = OccultismRitualAccess.getIngredients(recipe);
         if (activation == null || ingredients == null) {
             return null;
         }
@@ -771,15 +766,15 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
         boolean completesSacrifice = false;
         boolean completesItemUse = false;
         var proxyCosts = new ArrayList<PlannedUnit>(2);
-        var itemToUse = OccultismReflection.getItemToUse(recipe);
-        boolean requiresSacrifice = OccultismReflection.requiresSacrifice(recipe);
+        var itemToUse = OccultismRitualAccess.getItemToUse(recipe);
+        boolean requiresSacrifice = OccultismRitualAccess.requiresSacrifice(recipe);
         var sacrificeTag = requiresSacrifice
-                ? OccultismReflection.getEntityToSacrifice(recipe)
+                ? OccultismRitualAccess.getEntityToSacrifice(recipe)
                 : null;
         if (requiresSacrifice && sacrificeTag == null) {
             return null;
         }
-        boolean requiresItemUse = itemToUse != null && OccultismReflection.requiresItemUse(recipe);
+        boolean requiresItemUse = itemToUse != null && OccultismRitualAccess.requiresItemUse(recipe);
         for (int i = 0; i < units.size(); i++) {
             if (used[i]) {
                 continue;
@@ -850,7 +845,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
 
     @Nullable
     private static List<BowlSlot> findEmptySacrificialBowls(ServerLevel level, BlockPos mainPos, Object recipe) {
-        var bowls = OccultismReflection.getSacrificialBowls(recipe, level, mainPos);
+        var bowls = OccultismRitualAccess.getSacrificialBowls(recipe, level, mainPos);
         if (bowls == null) {
             return null;
         }
@@ -864,7 +859,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
                 continue;
             }
 
-            var handler = OccultismReflection.itemHandler(bowlBe);
+            var handler = OccultismRitualAccess.itemHandler(bowlBe);
             if (handler == null || handler.getSlots() <= 0) {
                 return null;
             }
@@ -885,12 +880,12 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
 
             var be = level.getBlockEntity(pos);
             if (be == null
-                    || !OccultismReflection.isSacrificialBowl(be)
+                    || !OccultismRitualAccess.isSacrificialBowl(be)
                     || isUpsideDownBowl(be.getBlockState())) {
                 return 0L;
             }
 
-            var handler = OccultismReflection.itemHandler(be);
+            var handler = OccultismRitualAccess.itemHandler(be);
             if (handler == null || handler.getSlots() <= 0 || !handler.getStackInSlot(0).isEmpty()) {
                 return 0L;
             }
@@ -918,25 +913,25 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
 
             var be = level.getBlockEntity(pos);
             if (be == null
-                    || !OccultismReflection.isGoldenBowl(be)
-                    || !OccultismReflection.isIdle(be)
-                    || !OccultismReflection.hasValidPentacle(recipe, level, pos)) {
+                    || !OccultismRitualAccess.isGoldenBowl(be)
+                    || !OccultismRitualAccess.isIdle(be)
+                    || !OccultismRitualAccess.hasValidPentacle(recipe, level, pos)) {
                 return 0L;
             }
 
-            var handler = OccultismReflection.itemHandler(be);
+            var handler = OccultismRitualAccess.itemHandler(be);
             if (handler == null || handler.getSlots() <= 0 || !handler.getStackInSlot(0).isEmpty()) {
                 return 0L;
             }
 
-            if (!OccultismReflection.canCompleteDeferredRequirements(
+            if (!OccultismRitualAccess.canCompleteDeferredRequirements(
                     be, completesSacrifice, completesItemUse)) {
                 return 0L;
             }
             if (mode == Actionable.MODULATE) {
                 var remainder = handler.insertItem(0, unit.stack(), false);
                 var accepted = 1L - remainder.getCount();
-                if (accepted > 0 && !OccultismReflection.completeDeferredRequirements(
+                if (accepted > 0 && !OccultismRitualAccess.completeDeferredRequirements(
                         be, completesSacrifice, completesItemUse)) {
                     throw new IllegalStateException("Could not verify Occultism proxy requirement state");
                 }
@@ -959,7 +954,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
                 }
                 var bowl = level.getBlockEntity(mainPos);
                 if (bowl == null || (mode == Actionable.MODULATE
-                        && !OccultismReflection.deferredRequirementsComplete(
+                        && !OccultismRitualAccess.deferredRequirementsComplete(
                         bowl, completesSacrifice, completesItemUse))) {
                     return 0L;
                 }
@@ -1007,7 +1002,6 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
         return List.copyOf(planned);
     }
 
-
     private static boolean matchesPlannedStack(GenericStack stack, PlannedUnit unit) {
         return stack.amount() == 1 && unit.key().equals(stack.what());
     }
@@ -1041,7 +1035,6 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
         return (List<Recipe<?>>) (List<?>) level.getRecipeManager()
                 .getAllRecipesFor((RecipeType) type);
     }
-
 
     private static boolean isOccultismLoaded() {
         return ModList.get().isLoaded(MOD_ID);
@@ -1082,329 +1075,4 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
     private record BowlSlot(BlockPos pos) {
     }
 
-    private static final class OccultismReflection {
-        private static final String GOLDEN_BOWL_CLASS =
-                "com.klikli_dev.occultism.common.blockentity.GoldenSacrificialBowlBlockEntity";
-        private static final String SACRIFICIAL_BOWL_CLASS =
-                "com.klikli_dev.occultism.common.blockentity.SacrificialBowlBlockEntity";
-        private static final String RITUAL_RECIPE_CLASS =
-                "com.klikli_dev.occultism.crafting.recipe.RitualRecipe";
-        private static final String RITUAL_CLASS =
-                "com.klikli_dev.occultism.common.ritual.Ritual";
-
-        private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("occultism-ritual");
-        private static volatile @Nullable Class<?> goldenBowlClass;
-        private static volatile @Nullable Class<?> sacrificialBowlClass;
-        private static volatile @Nullable Method getCurrentRitualRecipeMethod;
-        private static volatile @Nullable Field itemStackHandlerField;
-        private static volatile @Nullable Method getActivationItemMethod;
-        private static volatile @Nullable Method getRitualTypeMethod;
-        private static volatile @Nullable Method requiresSacrificeMethod;
-        private static volatile @Nullable Method getEntityToSacrificeMethod;
-        private static volatile @Nullable Method requiresItemUseMethod;
-        private static volatile @Nullable Method getItemToUseMethod;
-        private static volatile @Nullable Method getPentacleMethod;
-        private static volatile @Nullable Method getRitualMethod;
-        private static volatile @Nullable Method getSacrificialBowlsMethod;
-        private static volatile @Nullable Field sacrificeProvidedField;
-        private static volatile @Nullable Field itemUseProvidedField;
-
-        static boolean isGoldenBowl(Object object) {
-            ensureLookup();
-            return goldenBowlClass != null && goldenBowlClass.isInstance(object);
-        }
-
-        static boolean isSacrificialBowl(Object object) {
-            ensureLookup();
-            return sacrificialBowlClass != null && sacrificialBowlClass.isInstance(object);
-        }
-
-        static boolean isIdle(Object goldenBowl) {
-            ensureLookup();
-            if (getCurrentRitualRecipeMethod == null) {
-                return false;
-            }
-            try {
-                return getCurrentRitualRecipeMethod.invoke(goldenBowl) == null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        static boolean requiresSacrifice(Object recipe) {
-            ensureLookup();
-            if (requiresSacrificeMethod == null) {
-                return false;
-            }
-            try {
-                var value = requiresSacrificeMethod.invoke(recipe);
-                return value instanceof Boolean b && b;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        @Nullable
-        @SuppressWarnings("unchecked")
-        static TagKey<EntityType<?>> getEntityToSacrifice(Object recipe) {
-            ensureLookup();
-            if (getEntityToSacrificeMethod == null) {
-                return null;
-            }
-            try {
-                var value = getEntityToSacrificeMethod.invoke(recipe);
-                return value instanceof TagKey<?> tag
-                        ? (TagKey<EntityType<?>>) tag
-                        : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        static boolean requiresItemUse(Object recipe) {
-            ensureLookup();
-            if (requiresItemUseMethod == null) {
-                return false;
-            }
-            try {
-                var value = requiresItemUseMethod.invoke(recipe);
-                return value instanceof Boolean b && b;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        @Nullable
-        static Ingredient getItemToUse(Object recipe) {
-            ensureLookup();
-            if (getItemToUseMethod == null) {
-                return null;
-            }
-            try {
-                var value = getItemToUseMethod.invoke(recipe);
-                return value instanceof Ingredient ingredient && !ingredient.isEmpty() ? ingredient : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        static boolean canCompleteDeferredRequirements(Object goldenBowl,
-                                                       boolean sacrifice, boolean itemUse) {
-            ensureLookup();
-            return goldenBowl != null
-                    && (!sacrifice || sacrificeProvidedField != null)
-                    && (!itemUse || itemUseProvidedField != null);
-        }
-
-        static boolean completeDeferredRequirements(Object goldenBowl, boolean sacrifice, boolean itemUse) {
-            if (!canCompleteDeferredRequirements(goldenBowl, sacrifice, itemUse)) {
-                return false;
-            }
-            try {
-                if (sacrifice) {
-                    sacrificeProvidedField.setBoolean(goldenBowl, true);
-                }
-                if (itemUse) {
-                    itemUseProvidedField.setBoolean(goldenBowl, true);
-                }
-                return deferredRequirementsComplete(goldenBowl, sacrifice, itemUse);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("completeDeferredRequirements failed (sacrifice={}, itemUse={}): {}",
-                        sacrifice, itemUse, e.toString());
-                return false;
-            }
-        }
-
-        static boolean deferredRequirementsComplete(Object goldenBowl, boolean sacrifice, boolean itemUse) {
-            ensureLookup();
-            try {
-                return (!sacrifice || sacrificeProvidedField != null
-                        && sacrificeProvidedField.getBoolean(goldenBowl))
-                        && (!itemUse || itemUseProvidedField != null
-                        && itemUseProvidedField.getBoolean(goldenBowl));
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        @Nullable
-        static IItemHandler itemHandler(Object bowl) {
-            ensureLookup();
-            if (itemStackHandlerField == null) {
-                return null;
-            }
-            try {
-                var value = itemStackHandlerField.get(bowl);
-                return value instanceof IItemHandler handler ? handler : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static Ingredient getActivationItem(Object recipe) {
-            ensureLookup();
-            if (getActivationItemMethod == null) {
-                return null;
-            }
-            try {
-                var value = getActivationItemMethod.invoke(recipe);
-                return value instanceof Ingredient ingredient ? ingredient : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static List<Ingredient> getIngredients(Object recipe) {
-            // Direct vanilla-interface dispatch instead of reflection:
-            // getIngredients() overrides a net.minecraft method, so in a
-            // production (reobfuscated) jar the implementing method is
-            // renamed to its SRG name and lookups by the mojmap name fail
-            // even though the method exists. Calling through the erased
-            // Recipe interface is compile-time-reobfuscated on our side and
-            // therefore always resolves.
-            if (!(recipe instanceof Recipe<?> vanillaRecipe)) {
-                return null;
-            }
-            try {
-                var value = vanillaRecipe.getIngredients();
-                var result = new ArrayList<Ingredient>(value.size());
-                for (Ingredient ingredient : value) {
-                    result.add(ingredient);
-                }
-                return List.copyOf(result);
-            } catch (RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static ResourceLocation getRitualType(Object recipe) {
-            ensureLookup();
-            if (getRitualTypeMethod == null) {
-                return null;
-            }
-            try {
-                var value = getRitualTypeMethod.invoke(recipe);
-                return value instanceof ResourceLocation id ? id : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        static boolean hasValidPentacle(Object recipe, Level level, BlockPos pos) {
-            var pentacle = getPentacle(recipe);
-        if (pentacle == null) {
-            return false;
-        }
-        try {
-            var validate = ReflectionSupport.findMethodCached(pentacle.getClass(), "validate", Level.class, BlockPos.class)
-                    .orElse(null);
-            if (validate == null) {
-                return false;
-            }
-            return validate.invoke(pentacle, level, pos) != null;
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-            return false;
-        }
-    }
-
-        @Nullable
-        static List<?> getSacrificialBowls(Object recipe, Level level, BlockPos pos) {
-            ensureLookup();
-            if (getRitualMethod == null || getSacrificialBowlsMethod == null) {
-                return null;
-            }
-            try {
-                var ritual = getRitualMethod.invoke(recipe);
-                var value = getSacrificialBowlsMethod.invoke(ritual, level, pos);
-                return value instanceof List<?> list ? list : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        @Nullable
-        private static Object getPentacle(Object recipe) {
-            ensureLookup();
-            if (getPentacleMethod == null) {
-                return null;
-            }
-            try {
-                return getPentacleMethod.invoke(recipe);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        private static void ensureLookup() {
-            LOOKUP.run(OccultismReflection::doLookup);
-        }
-
-        private static void doLookup() {
-            goldenBowlClass = tryClass(GOLDEN_BOWL_CLASS);
-            sacrificialBowlClass = tryClass(SACRIFICIAL_BOWL_CLASS);
-            var ritualRecipeClass = tryClass(RITUAL_RECIPE_CLASS);
-            var ritualClass = tryClass(RITUAL_CLASS);
-
-            if (goldenBowlClass != null) {
-                getCurrentRitualRecipeMethod = tryMethod(goldenBowlClass, "getCurrentRitualRecipe");
-                sacrificeProvidedField = tryField(goldenBowlClass, "sacrificeProvided");
-                itemUseProvidedField = tryField(goldenBowlClass, "itemUseProvided");
-            }
-            if (sacrificialBowlClass != null) {
-                itemStackHandlerField = tryField(sacrificialBowlClass, "itemStackHandler");
-            }
-            if (ritualRecipeClass != null) {
-                getActivationItemMethod = tryMethod(ritualRecipeClass, "getActivationItem");
-                getRitualTypeMethod = tryMethod(ritualRecipeClass, "getRitualType");
-                requiresSacrificeMethod = tryMethod(ritualRecipeClass, "requiresSacrifice");
-                getEntityToSacrificeMethod = tryMethod(ritualRecipeClass, "getEntityToSacrifice");
-                requiresItemUseMethod = tryMethod(ritualRecipeClass, "requiresItemUse");
-                getItemToUseMethod = tryMethod(ritualRecipeClass, "getItemToUse");
-                getPentacleMethod = tryMethod(ritualRecipeClass, "getPentacle");
-                getRitualMethod = tryMethod(ritualRecipeClass, "getRitual");
-            }
-            if (ritualClass != null) {
-                getSacrificialBowlsMethod = tryMethod(ritualClass, "getSacrificialBowls",
-                        Level.class, BlockPos.class);
-            }
-        }
-
-        @Nullable
-        private static Class<?> tryClass(String name) {
-            try {
-                return Class.forName(name);
-            } catch (ClassNotFoundException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        @Nullable
-        private static Method tryMethod(Class<?> declaring, String name, Class<?>... params) {
-            try {
-                return declaring.getMethod(name, params);
-            } catch (NoSuchMethodException | SecurityException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        @Nullable
-        private static Field tryField(Class<?> declaring, String name) {
-            for (Class<?> type = declaring; type != null; type = type.getSuperclass()) {
-                try {
-                    var field = type.getDeclaredField(name);
-                    field.setAccessible(true);
-                    return field;
-                } catch (NoSuchFieldException ignored) {
-                    // Continue into the superclass: Occultism moved these
-                    // ritual-state fields between versions.
-                } catch (RuntimeException | LinkageError ignored) {
-                    return null;
-                }
-            }
-            return null;
-        }
-    }
 }

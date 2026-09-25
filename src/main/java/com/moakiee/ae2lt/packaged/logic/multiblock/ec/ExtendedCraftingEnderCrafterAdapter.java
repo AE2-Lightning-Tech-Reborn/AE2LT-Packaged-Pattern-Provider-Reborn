@@ -1,6 +1,5 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.ec;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -21,7 +20,6 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.fml.ModList;
-import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.config.Actionable;
@@ -43,11 +41,9 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.BoundedConstraintMatcher;
 import com.moakiee.ae2lt.packaged.logic.multiblock.SlotHarvestOwnership;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionSupport;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
  * Runtime adapter for ExtendedCrafting's Ender Crafter — a 3x3 tick-driven
@@ -114,7 +110,7 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)) return false;
 
-        var inv = EcReflection.getInventory(be);
+        var inv = ExtendedCraftingEnderCrafterAccess.getInventory(be);
         if (inv == null || inv.getSlots() < GRID_SIZE + 1) return false;
 
         for (int i = 0; i < GRID_SIZE; i++) {
@@ -146,9 +142,9 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
                 || !canDispatch(level, mainPos, handle, scope)) return null;
         var be = level.getBlockEntity(mainPos);
         if (be == null) return null;
-        var inv = EcReflection.getInventory(be);
+        var inv = ExtendedCraftingEnderCrafterAccess.getInventory(be);
         if (inv == null || inv.getSlots() < GRID_SIZE + 1) return null;
-        var expectedOutput = EcReflection.getResultItem(bind.recipe(), level);
+        var expectedOutput = ExtendedCraftingEnderCrafterAccess.getResultItem(bind.recipe(), level);
         if (expectedOutput == null || expectedOutput.isEmpty()) return null;
         var layout = assignGrid(bind.recipe(), inputs);
         if (layout == null) return null;
@@ -183,7 +179,7 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
                                              AdapterPersistentScope scope) {
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)) return List.of();
-        var inv = EcReflection.getInventory(be);
+        var inv = ExtendedCraftingEnderCrafterAccess.getInventory(be);
         if (inv == null || inv.getSlots() <= OUTPUT_SLOT) return List.of();
         var ownership = SlotHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
         if (ownership == null || SlotHarvestOwnership.expired(level, ownership)) return List.of();
@@ -215,7 +211,7 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
     @Nullable
     private static Object findCandidateRecipe(ServerLevel level, IPatternDetails pattern) {
         for (var recipe : recipes(level)) {
-            var result = EcReflection.getResultItem(recipe, level);
+            var result = ExtendedCraftingEnderCrafterAccess.getResultItem(recipe, level);
             if (result == null || result.isEmpty()) continue;
             if (!outputMatches(pattern, result)) continue;
             return recipe;
@@ -254,8 +250,8 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
         var orderedIngredients = new ArrayList<Ingredient>();
         var gridSlots = new ArrayList<Integer>();
 
-        int width = EcReflection.getShapedWidth(recipe);
-        int height = EcReflection.getShapedHeight(recipe);
+        int width = ExtendedCraftingEnderCrafterAccess.getShapedWidth(recipe);
+        int height = ExtendedCraftingEnderCrafterAccess.getShapedHeight(recipe);
         boolean isShaped = width > 0 && height > 0 && width <= 3 && height <= 3;
 
         // Fallback: a 9-element ingredient list is always a 3x3 padded shape.
@@ -325,7 +321,7 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
             if (stack.amount() != 1 || !unit.key().equals(stack.what())) return 0L;
             var be = level.getBlockEntity(pos);
             if (be == null || !blockId(be.getBlockState()).equals(CRAFTER_BLOCK)) return 0L;
-            var inv = EcReflection.getInventory(be);
+            var inv = ExtendedCraftingEnderCrafterAccess.getInventory(be);
             if (!(inv instanceof IItemHandlerModifiable modifiable)) return 0L;
             if (modifiable.getSlots() <= slot) return 0L;
             if (!modifiable.getStackInSlot(slot).isEmpty()) return 0L;
@@ -343,7 +339,7 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
                                                Consumer<GenericStack> recovered) {
         var be = level.getBlockEntity(mainPos);
         if (be == null || !blockId(be.getBlockState()).equals(CRAFTER_BLOCK)) return;
-        var inv = EcReflection.getInventory(be);
+        var inv = ExtendedCraftingEnderCrafterAccess.getInventory(be);
         if (!(inv instanceof IItemHandlerModifiable modifiable)
                 || inv.getSlots() <= OUTPUT_SLOT
                 || !inv.getStackInSlot(OUTPUT_SLOT).isEmpty()) {
@@ -465,122 +461,4 @@ public final class ExtendedCraftingEnderCrafterAdapter implements MultiblockAdap
 
     // ===== Reflection =====
 
-    private static final class EcReflection {
-        private static final String BASE_INVENTORY_CLASS =
-                "com.blakebr0.cucumber.tileentity.BaseInventoryTileEntity";
-        private static final String SHAPED_RECIPE_PATTERN =
-                "net.minecraft.world.item.crafting.ShapedRecipePattern";
-
-        private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("ec-ender-crafter");
-        private static volatile @Nullable Method getInventoryMethod;
-        private static volatile @Nullable Method shapedWidthMethod;
-        private static volatile @Nullable Method shapedHeightMethod;
-        private static volatile @Nullable Class<?> shapedRecipePatternClass;
-
-        @Nullable
-        static IItemHandler getInventory(BlockEntity be) {
-            ensureLookup();
-            if (getInventoryMethod == null) return null;
-            try {
-                var value = getInventoryMethod.invoke(be);
-                return value instanceof IItemHandler h ? h : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static ItemStack getResultItem(Object recipe, ServerLevel level) {
-            if (!(recipe instanceof Recipe<?> r)) return null;
-            try {
-                return r.getResultItem(level.registryAccess());
-            } catch (RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        static int getShapedWidth(Object recipe) {
-            return getShapedDimension(recipe, shapedWidthMethod, "getWidth");
-        }
-
-        static int getShapedHeight(Object recipe) {
-            return getShapedDimension(recipe, shapedHeightMethod, "getHeight");
-        }
-
-        /**
-         * 1.20.5+ keeps shaped dimensions in {@code ShapedRecipePattern}; on
-         * 1.20.x EC's shaped recipes declare {@code getWidth()}/{@code
-         * getHeight()} directly (shapeless variants have neither, which
-         * classifies them as shapeless).
-         */
-        private static int getShapedDimension(Object recipe, @Nullable Method patternMethod,
-                                              String directName) {
-            if (patternMethod != null && shapedRecipePatternClass != null) {
-                var pattern = findPattern(recipe);
-                if (pattern != null) {
-                    try {
-                        var value = patternMethod.invoke(pattern);
-                        if (value instanceof Integer i) return i;
-                    } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                    }
-                }
-            }
-            var direct = ReflectionSupport.findMethodCached(recipe.getClass(), directName).orElse(null);
-            if (direct == null) return -1;
-            try {
-                var value = direct.invoke(recipe);
-                return value instanceof Integer i ? i : -1;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return -1;
-            }
-        }
-
-        /**
-         * Walks the recipe class hierarchy looking for any declared field
-         * whose type is {@code ShapedRecipePattern}. Avoids hard-coding the
-         * field name ({@code pattern}) and copes with private visibility.
-         */
-        @Nullable
-        private static Object findPattern(Object recipe) {
-            var patternClass = shapedRecipePatternClass;
-            if (patternClass == null) return null;
-            for (Class<?> c = recipe.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
-                for (var f : c.getDeclaredFields()) {
-                    if (patternClass.isAssignableFrom(f.getType())) {
-                        try {
-                            f.setAccessible(true);
-                            return f.get(recipe);
-                        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                            return null;
-                        }
-                    }
-                }
-            }
-            return null;
-        }
-
-        private static void ensureLookup() {
-            LOOKUP.run(() -> {
-                try {
-                    var baseInventoryClass = Class.forName(BASE_INVENTORY_CLASS);
-                    getInventoryMethod = baseInventoryClass.getMethod("getInventory");
-                } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                    LOG.warn("EnderCrafter reflection: BaseInventoryTileEntity#getInventory lookup failed: {}",
-                            e.toString());
-                }
-                try {
-                    var patternClass = Class.forName(SHAPED_RECIPE_PATTERN);
-                    shapedRecipePatternClass = patternClass;
-                    shapedWidthMethod = patternClass.getMethod("width");
-                    shapedHeightMethod = patternClass.getMethod("height");
-                } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                    // 1.20.x: no ShapedRecipePattern; shaped EC recipes carry
-                    // their own getWidth()/getHeight() — resolved per call.
-                    shapedRecipePatternClass = null;
-                    shapedWidthMethod = null;
-                    shapedHeightMethod = null;
-                }
-            });
-        }
-    }
 }

@@ -141,17 +141,17 @@ dependencies {
     // AE2 Lightning Tech owns the packaged-provider host APIs (frequency binding,
     // wireless provider policy, encoded-pattern validation) plus the wireless
     // connection support types this addon builds on.
-    implementation(fg.deobf("com.moakiee.ae2lt:ae2lt:${ae2lt_version}")) {
+    implementation(fg.deobf("com.moakiee.ae2lt:${ae2lt_artifact_id}:${ae2lt_version}")) {
         // This addon declares its own development runtime. Do not inherit
         // AE2LT's full local-development mod set.
         transitive = false
     }
 
     // Thunderbolt Core owns the host-neutral overload pattern contract.
-    compileOnly(fg.deobf("com.moakiee.thunderbolt:thunderbolt:${thunderbolt_version}")) {
+    compileOnly(fg.deobf("com.moakiee.thunderbolt:${thunderbolt_artifact_id}:${thunderbolt_version}")) {
         transitive = false
     }
-    runtimeOnly(fg.deobf("com.moakiee.thunderbolt:thunderbolt:${thunderbolt_version}")) {
+    runtimeOnly(fg.deobf("com.moakiee.thunderbolt:${thunderbolt_artifact_id}:${thunderbolt_version}")) {
         transitive = false
     }
 
@@ -185,7 +185,7 @@ dependencies {
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly(fg.deobf("com.moakiee.thunderbolt:thunderbolt:${thunderbolt_version}")) {
+    testRuntimeOnly(fg.deobf("com.moakiee.thunderbolt:${thunderbolt_artifact_id}:${thunderbolt_version}")) {
         transitive = false
     }
 

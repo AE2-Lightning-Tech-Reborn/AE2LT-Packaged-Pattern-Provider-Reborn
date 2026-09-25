@@ -1,5 +1,7 @@
 package com.moakiee.ae2lt.packaged.logic;
 
+import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BatchCopies;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -71,7 +73,8 @@ import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderLogic;
  *       in the world.</li>
  * </ul>
  */
-public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
+public class PackagedPatternProviderLogic extends StablePatternProviderLogic
+        implements com.moakiee.thunderbolt.api.crafting.batch.IBatchCraftingProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(PackagedPatternProviderLogic.class);
 
@@ -250,6 +253,87 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             return scope;
         }
         return AdapterPersistentScope.NOOP;
+    }
+
+    private boolean batchControlsAllowDispatch() {
+        // Preserve pulse, lock-until-result and blocking semantics through the existing single path.
+        return !isBlocking() && getConfigManager().getSetting(appeng.api.config.Settings.LOCK_CRAFTING_MODE)
+                == LockCraftingMode.NONE;
+    }
+
+    @Override
+    public long getBatchCapacity(IPatternDetails details) {
+        if (!getGridNode().isActive() || isBusy() || getCraftingLockedReason() != LockCraftingMode.NONE) return 0;
+        if (!BatchCopies.eligible(details) || !batchControlsAllowDispatch()) return 1;
+        if (!getAvailablePatterns().contains(details)
+                || !(getProviderHost().getLevel() instanceof ServerLevel level)) return 0;
+        long tick = level.getGameTime();
+        var binding = getOrComputeBinding(level, details, tick);
+        long capacity = 0;
+        boolean ordinary = false;
+        for (var candidate : binding.candidates()) {
+            if (candidate.mode() == BindingMode.VIRTUAL && candidate.adapter() instanceof LinearVirtualCraftingAdapter) {
+                capacity += virtualPushLimiter.remaining(candidate.lane(), tick);
+            } else ordinary = true;
+        }
+        return Math.max(capacity, ordinary ? 1 : 0);
+    }
+
+    @Override
+    public long pushBatch(IPatternDetails pattern, KeyCounter[] oneCopyTemplate, long maxCraft) {
+        if (maxCraft <= 0) return 0;
+        if (oneCopyTemplate == null || !BatchCopies.eligible(pattern) || !batchControlsAllowDispatch()
+                || !getGridNode().isActive() || isBusy() || getCraftingLockedReason() != LockCraftingMode.NONE
+                || !getAvailablePatterns().contains(pattern)
+                || !(getProviderHost().getLevel() instanceof ServerLevel level)) return maxCraft;
+        long tick = level.getGameTime();
+        var binding = getOrComputeBinding(level, pattern, tick);
+        var grid = getGridNode().getGrid();
+        double oneCopyCost = PatternProviderPowerCost.totalCost(oneCopyTemplate);
+        if (!Double.isFinite(oneCopyCost) || oneCopyCost < 0) return maxCraft;
+        long remaining = maxCraft;
+        try {
+            for (var candidate : binding.candidates()) {
+                if (remaining <= 0) break;
+                var env = resolveLaneEnv(level, candidate);
+                if (env == null) continue;
+                int accepted = 0;
+                if (candidate.mode() == BindingMode.VIRTUAL
+                        && candidate.adapter() instanceof LinearVirtualCraftingAdapter adapter) {
+                    int maximum = (int) Math.min(remaining, virtualPushLimiter.remaining(candidate.lane(), tick));
+                    int copies = BatchCopies.fitting(maximum,
+                            n -> PatternProviderPowerCost.canAfford(grid, oneCopyCost * n));
+                    if (copies <= 0) continue;
+                    // Only adapters explicitly promising pure, linear evaluation enter this path.
+                    var result = adapter.planVirtualWithBinding(env.level(), env.pos(), pattern,
+                            BatchCopies.copy(oneCopyTemplate), candidate.handle(), getActionSource());
+                    if (result == null || !result.isPure() || result.outputs().isEmpty()) continue;
+                    List<GenericStack> outputs;
+                    try { outputs = BatchCopies.scale(result.outputs(), copies); }
+                    catch (ArithmeticException | IllegalArgumentException overflow) { continue; }
+                    var soundId = adapter.flushSoundId();
+                    if (!virtualPushLimiter.tryAcquire(candidate.lane(), tick, copies)) continue;
+                    virtualBatch.enqueue(outputs);
+                    remaining -= copies;
+                    pendingFlushSoundId = soundId;
+                    pendingFlushEffect = new PendingVirtualFlushEffect(adapter, env.level(), env.pos(), candidate.handle());
+                    accepted = copies;
+                }
+                if (accepted > 0) {
+                    PatternProviderPowerCost.consumeRaw(grid, oneCopyCost * accepted);
+                    recordSuccessfulPush(pattern);
+                    getProviderHost().saveChanges();
+                    alertGridTick();
+
+                }
+            }
+        } catch (RuntimeException | LinkageError failure) {
+            // Thunderbolt refunds the entire call if pushBatch throws. Once virtual outputs
+            // are owned here, only the not-yet-accepted copies may go back to the CPU.
+            appeng.core.AELog.warn("[ae2ltpp] Batch dispatch stopped after accepting %d copies: %s",
+                    maxCraft - remaining, failure);
+        }
+        return remaining;
     }
 
     // ===== Push path =====

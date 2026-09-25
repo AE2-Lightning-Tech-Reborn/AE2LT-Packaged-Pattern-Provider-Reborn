@@ -1,0 +1,19 @@
+// Native Forge batch tests; only this profile adds the optional EC/Cucumber test runtime.
+allprojects {
+    afterEvaluate {
+        sourceSets.create('batchTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        dependencies.add('runtimeOnly', fg.deobf('maven.modrinth:cucumber:7.0.16'))
+        dependencies.add('runtimeOnly', fg.deobf('maven.modrinth:extended-crafting:6.0.10'))
+        dependencies.add('batchTestImplementation', fg.deobf('mekanism:Mekanism:1.20.1-10.4.16.80:all'))
+        dependencies.add('runtimeOnly', fg.deobf('mekanism:Mekanism:1.20.1-10.4.16.80:all'))
+        dependencies.add('runtimeOnly', fg.deobf('maven.modrinth:applied-mekanistics:1.4.3'))
+        minecraft.runs.gameTestServer {
+            property 'forge.enabledGameTestNamespaces', 'ae2ltpp_batch'
+            workingDirectory project.file('build/batch-test-forge')
+            mods { ae2ltpp { source sourceSets.batchTest } }
+        }
+    }
+}

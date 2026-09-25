@@ -1,7 +1,5 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.aa;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Objects;
 
@@ -11,12 +9,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.fml.ModList;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.security.IActionSource;
@@ -26,14 +20,12 @@ import appeng.api.stacks.KeyCounter;
 
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
-import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
  * Virtual adapter for Actually Additions' Atomic Reconstructor laser
@@ -79,7 +71,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
         return be != null
                 && AaSupport.isActuallyAdditionsLoaded()
                 && AdapterBlocks.idOf(be.getBlockState()).equals(ATOMIC_RECONSTRUCTOR_BLOCK)
-                && AaReconstructorReflection.isAtomicReconstructor(be);
+                && ActuallyAdditionsAtomicReconstructorAccess.isAtomicReconstructor(be);
     }
 
     @Override
@@ -141,7 +133,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
         // Lens gating: only the stock conversion lens runs vanilla recipes
         // virtualizably; specialized lenses (miner, death, ...) have side
         // effects we can't faithfully simulate without world interaction.
-        if (!AaReconstructorReflection.hasDefaultConversionLens(be)) {
+        if (!ActuallyAdditionsAtomicReconstructorAccess.hasDefaultConversionLens(be)) {
             return null;
         }
 
@@ -150,7 +142,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
             return null;
         }
 
-        var ingredient = AaReconstructorReflection.getInput(bind.recipe());
+        var ingredient = ActuallyAdditionsAtomicReconstructorAccess.getInput(bind.recipe());
         if (ingredient == null || !ingredient.test(input.singleStack())) {
             return null;
         }
@@ -195,7 +187,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
         if (totalCost > Integer.MAX_VALUE) {
             return null;
         }
-        int storedCharge = AaReconstructorReflection.getEnergy(be);
+        int storedCharge = ActuallyAdditionsAtomicReconstructorAccess.getEnergy(be);
         if (storedCharge < totalCost) {
             return null;
         }
@@ -207,10 +199,10 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
                 () -> {
                     var current = level.getBlockEntity(committedPos);
                     if (current == null || !recognizesMain(level, committedPos, current)
-                            || AaReconstructorReflection.getEnergy(current) < energyCost) {
+                            || ActuallyAdditionsAtomicReconstructorAccess.getEnergy(current) < energyCost) {
                         return false;
                     }
-                    return AaReconstructorReflection.extractEnergy(current, energyCost);
+                    return ActuallyAdditionsAtomicReconstructorAccess.extractEnergy(current, energyCost);
                 });
     }
 
@@ -220,7 +212,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
         if (be == null || !recognizesMain(level, mainPos, be)) {
             return;
         }
-        AaReconstructorReflection.invokeReconstructor(be);
+        ActuallyAdditionsAtomicReconstructorAccess.invokeReconstructor(be);
     }
 
     @Override
@@ -239,7 +231,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
     @Nullable
     private static ReconstructorBindHandle findCandidateRecipe(ServerLevel level, IPatternDetails pattern) {
         for (var recipe : AaSupport.recipes(level, LASER_RECIPE_TYPE)) {
-            int energy = AaReconstructorReflection.getRecipeEnergy(recipe);
+            int energy = ActuallyAdditionsAtomicReconstructorAccess.getRecipeEnergy(recipe);
             if (energy <= 0) {
                 continue;
             }
@@ -351,230 +343,4 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
     private record ReconstructorBindHandle(Object recipe, int recipeEnergy) {
     }
 
-    private static final class AaReconstructorReflection {
-        private static final org.slf4j.Logger LOG =
-                org.slf4j.LoggerFactory.getLogger("ae2ltpp/aa-reconstructor");
-
-        private static final String RECONSTRUCTOR_CLASS =
-                "de.ellpeck.actuallyadditions.mod.tile.TileEntityAtomicReconstructor";
-        private static final String LENS_CONVERSION_CLASS =
-                "de.ellpeck.actuallyadditions.api.lens.LensConversion";
-        private static final String LASER_RECIPE_CLASS =
-                "de.ellpeck.actuallyadditions.mod.crafting.LaserRecipe";
-        private static final String API_CLASS =
-                "de.ellpeck.actuallyadditions.api.ActuallyAdditionsAPI";
-        private static final String METHOD_HANDLER_CLASS =
-                "de.ellpeck.actuallyadditions.api.internal.IMethodHandler";
-        private static final String ENERGY_TILE_INTERFACE =
-                "de.ellpeck.actuallyadditions.api.internal.IEnergyTile";
-        private static final String ATOMIC_RECONSTRUCTOR_INTERFACE =
-                "de.ellpeck.actuallyadditions.api.internal.IAtomicReconstructor";
-
-        private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("aa-reconstructor");
-        private static volatile @Nullable Class<?> reconstructorClass;
-        private static volatile @Nullable Class<?> laserRecipeClass;
-        private static volatile @Nullable Field methodHandlerField;
-        private static volatile @Nullable Method getLensMethod;
-        private static volatile @Nullable Method invokeReconstructorMethod;
-        private static volatile @Nullable Method getEnergyMethod;
-        private static volatile @Nullable Method extractEnergyMethod;
-        private static volatile @Nullable Method getInputMethod;
-        private static volatile @Nullable Method getRecipeEnergyMethod;
-
-        static boolean isAtomicReconstructor(Object o) {
-            ensureLookup();
-            return reconstructorClass != null && reconstructorClass.isInstance(o);
-        }
-
-        static boolean hasDefaultConversionLens(BlockEntity be) {
-            ensureLookup();
-            if (getLensMethod == null || !isAtomicReconstructor(be)) {
-                return false;
-            }
-            try {
-                var lens = getLensMethod.invoke(be);
-                if (lens == null) {
-                    return false;
-                }
-                // Class-name string compare (instead of Class.forName-based
-                // isInstance) so we don't depend on the LensConversion class
-                // being loadable from our classloader. AA's
-                // {@code TileEntityAtomicReconstructor.getLens()} returns
-                // either the static {@code ActuallyAdditionsAPI.lensDefaultConversion}
-                // singleton (empty slot — typed LensConversion) or a custom
-                // {@code Lens} subclass when a specialized lens item is installed.
-                // Only LensConversion is virtualizable; everything else
-                // (LensMining / LensDeath / LensColor / …) has side effects we
-                // can't faithfully replay without world interaction.
-                return lens.getClass().getName().equals(LENS_CONVERSION_CLASS);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        static boolean invokeReconstructor(BlockEntity be) {
-            ensureLookup();
-            if (methodHandlerField == null || invokeReconstructorMethod == null || !isAtomicReconstructor(be)) {
-                return false;
-            }
-            try {
-                var handler = methodHandlerField.get(null);
-                if (handler == null) {
-                    return false;
-                }
-                var value = invokeReconstructorMethod.invoke(handler, be);
-                return value instanceof Boolean b && b;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        static int getEnergy(BlockEntity be) {
-            ensureLookup();
-            if (getEnergyMethod == null || !isAtomicReconstructor(be)) {
-                return 0;
-            }
-            try {
-                var value = getEnergyMethod.invoke(be);
-                return value instanceof Number number ? number.intValue() : 0;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return 0;
-            }
-        }
-
-        /**
-         * Drains {@code amount} from the reconstructor's internal storage. AA
-         * routes this through {@code TileEntityAtomicReconstructor.extractEnergy(int)},
-         * which delegates to the underlying {@code storage.extractEnergyInternal}.
-         *
-         * @return false when the lookup or call fails — caller treats this as
-         *         "not enough charge / wrong wiring" and aborts.
-         */
-        static boolean extractEnergy(BlockEntity be, int amount) {
-            ensureLookup();
-            if (extractEnergyMethod == null || !isAtomicReconstructor(be)) {
-                return false;
-            }
-            if (amount <= 0) {
-                return true;
-            }
-            try {
-                extractEnergyMethod.invoke(be, amount);
-                return true;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        @Nullable
-        static Ingredient getInput(Object recipe) {
-            ensureLookup();
-            if (getInputMethod == null || !isLaserRecipe(recipe)) {
-                return null;
-            }
-            try {
-                var value = getInputMethod.invoke(recipe);
-                return value instanceof Ingredient ingredient ? ingredient : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        static int getRecipeEnergy(Object recipe) {
-            ensureLookup();
-            if (getRecipeEnergyMethod == null || !isLaserRecipe(recipe)) {
-                return 0;
-            }
-            try {
-                var value = getRecipeEnergyMethod.invoke(recipe);
-                return value instanceof Number number ? number.intValue() : 0;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return 0;
-            }
-        }
-
-        private static boolean isLaserRecipe(Object recipe) {
-            return laserRecipeClass != null && laserRecipeClass.isInstance(recipe);
-        }
-
-        private static void ensureLookup() {
-            LOOKUP.run(AaReconstructorReflection::doLookup);
-        }
-
-        /**
-         * Best-effort reflection bootstrap. Each step is independently
-         * try/catch'd so a single broken signature (e.g. AA renaming a
-         * method in a future release) only disables the affected feature,
-         * not the whole adapter. Failures are logged at WARN so an admin
-         * can spot mismatches without having to reconfigure log levels.
-         */
-        private static void doLookup() {
-            reconstructorClass = tryClass(RECONSTRUCTOR_CLASS);
-            laserRecipeClass = tryClass(LASER_RECIPE_CLASS);
-            var apiClass = tryClass(API_CLASS);
-            var methodHandlerClass = tryClass(METHOD_HANDLER_CLASS);
-            var atomicReconstructorInterface = tryClass(ATOMIC_RECONSTRUCTOR_INTERFACE);
-            var energyTileInterface = tryClass(ENERGY_TILE_INTERFACE);
-
-            if (apiClass != null) {
-                methodHandlerField = tryField(apiClass, "methodHandler");
-            }
-            if (methodHandlerClass != null && atomicReconstructorInterface != null) {
-                invokeReconstructorMethod = tryMethod(methodHandlerClass, "invokeReconstructor",
-                        atomicReconstructorInterface);
-            }
-            if (atomicReconstructorInterface != null) {
-                getLensMethod = tryMethod(atomicReconstructorInterface, "getLens");
-            }
-            if (energyTileInterface != null) {
-                getEnergyMethod = tryMethod(energyTileInterface, "getEnergy");
-                extractEnergyMethod = tryMethod(energyTileInterface, "extractEnergy", int.class);
-            }
-            if (laserRecipeClass != null) {
-                getInputMethod = tryMethod(laserRecipeClass, "getInput");
-                getRecipeEnergyMethod = tryMethod(laserRecipeClass, "getEnergy");
-            }
-
-            LOG.info("AA reflection ready: reconstructor={} laser={} methodHandler={} invoke={} getLens={} getEnergy={} extractEnergy={} getInput={} recipeEnergy={}",
-                    reconstructorClass != null,
-                    laserRecipeClass != null,
-                    methodHandlerField != null,
-                    invokeReconstructorMethod != null,
-                    getLensMethod != null,
-                    getEnergyMethod != null,
-                    extractEnergyMethod != null,
-                    getInputMethod != null,
-                    getRecipeEnergyMethod != null);
-        }
-
-        @Nullable
-        private static Class<?> tryClass(String name) {
-            try {
-                return Class.forName(name);
-            } catch (ClassNotFoundException | LinkageError e) {
-                LOG.warn("AA class lookup failed: {} ({})", name, e.getMessage());
-                return null;
-            }
-        }
-
-        @Nullable
-        private static Field tryField(Class<?> declaring, String name) {
-            try {
-                return declaring.getField(name);
-            } catch (NoSuchFieldException | LinkageError e) {
-                LOG.warn("AA field lookup failed: {}#{} ({})", declaring.getName(), name, e.getMessage());
-                return null;
-            }
-        }
-
-        @Nullable
-        private static Method tryMethod(Class<?> declaring, String name, Class<?>... params) {
-            try {
-                return declaring.getMethod(name, params);
-            } catch (NoSuchMethodException | LinkageError e) {
-                LOG.warn("AA method lookup failed: {}#{} ({})", declaring.getName(), name, e.getMessage());
-                return null;
-            }
-        }
-    }
 }

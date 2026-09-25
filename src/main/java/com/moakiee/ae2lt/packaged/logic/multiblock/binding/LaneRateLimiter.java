@@ -31,16 +31,20 @@ public final class LaneRateLimiter {
         return use == null || use.gameTick != gameTick || use.count < capacityPerTick;
     }
 
-    public boolean tryAcquire(LaneKey lane, long gameTick) {
+    public int remaining(LaneKey lane, long gameTick) {
         var use = uses.get(lane);
-        if (use == null || use.gameTick != gameTick) {
-            uses.put(lane, new Use(gameTick, 1));
-            return true;
-        }
-        if (use.count >= capacityPerTick) {
-            return false;
-        }
-        uses.put(lane, new Use(gameTick, use.count + 1));
+        return use == null || use.gameTick != gameTick ? capacityPerTick : capacityPerTick - use.count;
+    }
+
+    public boolean tryAcquire(LaneKey lane, long gameTick) {
+        return tryAcquire(lane, gameTick, 1);
+    }
+
+    public boolean tryAcquire(LaneKey lane, long gameTick, int copies) {
+        if (copies <= 0 || copies > remaining(lane, gameTick)) return false;
+        var use = uses.get(lane);
+        int previous = use == null || use.gameTick != gameTick ? 0 : use.count;
+        uses.put(lane, new Use(gameTick, previous + copies));
         return true;
     }
 

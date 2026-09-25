@@ -1,11 +1,15 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.ec;
 
-import java.lang.reflect.Method;
+import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.currentStacks;
+import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.gridIsEmpty;
+import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.hasSingleItemOutput;
+import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.outputMatchesBatch;
+import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.assemble;
+import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.virtualOutputs;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -14,10 +18,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
@@ -41,11 +42,9 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.PatternInputAlternatives;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
-import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
  * Runtime adapter for ExtendedCrafting's ordinary crafting tables.
@@ -62,7 +61,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
  * returns the assembled result plus remaining items without inserting into the
  * table grid.
  */
-public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapter {
+public final class ExtendedCraftingTableAdapter implements com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter {
 
     private static final String MOD_ID = "extendedcrafting";
     private static final ResourceLocation BASIC_TABLE_BLOCK = ecId("basic_table");
@@ -81,7 +80,7 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
         return be != null
                 && isExtendedCraftingLoaded()
                 && tableSpec(be.getBlockState()) != null
-                && EcReflection.isSupportedTable(be);
+                && ExtendedCraftingTableAccess.isSupportedTable(be);
     }
 
     @Override
@@ -157,7 +156,7 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
             return null;
         }
 
-        var handler = EcReflection.getHandler(be);
+        var handler = ExtendedCraftingTableAccess.getHandler(be);
         if (handler == null || handler.getSlots() < spec.slots() || !gridIsEmpty(handler, spec.slots())) {
             return null;
         }
@@ -203,7 +202,7 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
             return null;
         }
 
-        var input = EcReflection.createTableInput(spec.gridSize(), stacksForPlan(spec.slots(), planned), spec.tier());
+        var input = ExtendedCraftingTableAccess.createTableInput(spec.gridSize(), stacksForPlan(spec.slots(), planned), spec.tier());
         if (input == null || !recipeMatches(bind.recipe(), input, level)) {
             return null;
         }
@@ -242,13 +241,13 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
         }
 
         var spec = tableSpec(be.getBlockState());
-        var handler = EcReflection.getHandler(be);
+        var handler = ExtendedCraftingTableAccess.getHandler(be);
         if (spec == null || !(handler instanceof IItemHandlerModifiable modifiable)
                 || handler.getSlots() < spec.slots() || gridIsEmpty(handler, spec.slots())) {
             return List.of();
         }
 
-        var input = EcReflection.createTableInput(spec.gridSize(), currentStacks(handler, spec.slots()), spec.tier());
+        var input = ExtendedCraftingTableAccess.createTableInput(spec.gridSize(), currentStacks(handler, spec.slots()), spec.tier());
         if (input == null) {
             return List.of();
         }
@@ -275,18 +274,6 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
 
         applyCraftRemainders(modifiable, spec.gridSize(), input, remaining);
         return List.of(new GenericStack(AEItemKey.of(result), result.getCount()));
-    }
-
-    private static List<GenericStack> virtualOutputs(ItemStack result, NonNullList<ItemStack> remaining,
-                                                     int craftRatio) {
-        var outputs = new ArrayList<GenericStack>();
-        outputs.add(new GenericStack(AEItemKey.of(result), (long) craftRatio * result.getCount()));
-        for (var stack : remaining) {
-            if (!stack.isEmpty()) {
-                outputs.add(new GenericStack(AEItemKey.of(stack), (long) craftRatio * stack.getCount()));
-            }
-        }
-        return List.copyOf(outputs);
     }
 
     /**
@@ -481,7 +468,7 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
         int gridSize = spec.gridSize();
         int slots = spec.slots();
 
-        var width = EcReflection.recipeWidth(recipe);
+        var width = ExtendedCraftingTableAccess.recipeWidth(recipe);
         if (width == null) {
             if (perCraftStacks.size() > slots) {
                 return null;
@@ -546,8 +533,8 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
         if (remaining.size() < input.getContainerSize()) {
             return false;
         }
-        int top = EcReflection.top(input);
-        int left = EcReflection.left(input);
+        int top = ExtendedCraftingTableAccess.top(input);
+        int left = ExtendedCraftingTableAccess.left(input);
         for (int y = 0; y < input.getHeight(); y++) {
             for (int x = 0; x < input.getWidth(); x++) {
                 int inputIndex = x + y * input.getWidth();
@@ -579,8 +566,8 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
 
     private static void applyCraftRemainders(IItemHandlerModifiable handler, int gridSize, CraftingContainer input,
                                              NonNullList<ItemStack> remaining) {
-        int top = EcReflection.top(input);
-        int left = EcReflection.left(input);
+        int top = ExtendedCraftingTableAccess.top(input);
+        int left = ExtendedCraftingTableAccess.left(input);
         for (int y = 0; y < input.getHeight(); y++) {
             for (int x = 0; x < input.getWidth(); x++) {
                 int inputIndex = x + y * input.getWidth();
@@ -607,15 +594,6 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
         }
     }
 
-    private static boolean gridIsEmpty(IItemHandler handler, int slots) {
-        for (int i = 0; i < slots; i++) {
-            if (!handler.getStackInSlot(i).isEmpty()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private static List<ItemStack> stacksForPlan(int slots, List<PlannedUnit> planned) {
         var stacks = NonNullList.withSize(slots, ItemStack.EMPTY);
         for (var unit : planned) {
@@ -624,41 +602,12 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
         return stacks;
     }
 
-    private static List<ItemStack> currentStacks(IItemHandler handler, int slots) {
-        var stacks = NonNullList.withSize(slots, ItemStack.EMPTY);
-        for (int i = 0; i < slots; i++) {
-            stacks.set(i, handler.getStackInSlot(i).copy());
-        }
-        return stacks;
-    }
-
-    private static boolean hasSingleItemOutput(IPatternDetails pattern) {
-        var outputs = pattern.getOutputs();
-        return outputs.length == 1 && outputs[0].what() instanceof AEItemKey;
-    }
-
     /**
      * Batch match: pattern output amount must equal the derived total
      * (K × per-craft result count). Used in the virtual-craft hot path
      * so the user can write any uniform N:N pattern (e.g.
      * {@code 8 stone → 8 brick}) and have it consumed in one push.
      */
-    private static boolean outputMatchesBatch(IPatternDetails pattern, ItemStack result,
-                                               long expectedTotalCount) {
-        var outputs = pattern.getOutputs();
-        if (outputs.length != 1) {
-            return false;
-        }
-        var expected = outputs[0];
-        if (!(expected.what() instanceof AEItemKey expectedKey)
-                || expected.amount() != expectedTotalCount) {
-            return false;
-        }
-        var actual = AEItemKey.of(result);
-        return OverloadPatternSemantics.isIdOnlyOutput(pattern, 0)
-                ? expectedKey.dropSecondary().equals(actual.dropSecondary())
-                : expectedKey.equals(actual);
-    }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static boolean recipeMatches(Object recipe, CraftingContainer input, ServerLevel level) {
@@ -666,18 +615,6 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
             return recipe instanceof Recipe<?> r && ((Recipe) r).matches(input, level);
         } catch (RuntimeException | LinkageError ignored) {
             return false;
-        }
-    }
-
-    @Nullable
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static ItemStack assemble(Object recipe, CraftingContainer input, ServerLevel level) {
-        try {
-            return recipe instanceof Recipe<?> r
-                    ? ((Recipe) r).assemble(input, level.registryAccess())
-                    : null;
-        } catch (RuntimeException | LinkageError ignored) {
-            return null;
         }
     }
 
@@ -779,132 +716,4 @@ public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapte
     private record EcBindHandle(TableSpec spec, Object recipe, int craftRatio, boolean overload) {
     }
 
-    private static final class EcReflection {
-        private static final String BASIC_TABLE_CLASS =
-                "com.blakebr0.extendedcrafting.tileentity.BasicTableTileEntity";
-        private static final String ADVANCED_TABLE_CLASS =
-                "com.blakebr0.extendedcrafting.tileentity.AdvancedTableTileEntity";
-        private static final String ELITE_TABLE_CLASS =
-                "com.blakebr0.extendedcrafting.tileentity.EliteTableTileEntity";
-        private static final String ULTIMATE_TABLE_CLASS =
-                "com.blakebr0.extendedcrafting.tileentity.UltimateTableTileEntity";
-        private static final String BASE_INVENTORY_CLASS =
-                "com.blakebr0.cucumber.tileentity.BaseInventoryTileEntity";
-
-        /** Menu owner stub; the container is never opened as a screen. */
-        private static final AbstractContainerMenu DUMMY_MENU = new AbstractContainerMenu(null, 0) {
-            @Override
-            public ItemStack quickMoveStack(Player player, int index) {
-                return ItemStack.EMPTY;
-            }
-
-            @Override
-            public boolean stillValid(Player player) {
-                return true;
-            }
-        };
-
-        private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("ec-table");
-        private static volatile @Nullable Set<Class<?>> tableClasses;
-        private static volatile @Nullable Method getInventoryMethod;
-        private static volatile @Nullable Method shapedRecipeWidthMethod;
-
-        static boolean isSupportedTable(Object o) {
-            ensureLookup();
-            if (tableClasses == null) {
-                return false;
-            }
-            for (var clazz : tableClasses) {
-                if (clazz.isInstance(o)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        @Nullable
-        static IItemHandler getHandler(BlockEntity be) {
-            ensureLookup();
-            if (getInventoryMethod == null) {
-                return null;
-            }
-            try {
-                var value = getInventoryMethod.invoke(be);
-                return value instanceof IItemHandler h ? h : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        /**
-         * 1.20.x has no {@code TableCraftingInput} API class; the tiles hand
-         * their full {@code gridSize x gridSize} inventory straight to
-         * {@code matches(IItemHandler)}. A vanilla {@link CraftingContainer}
-         * of the same shape reproduces that exactly (offset is always the
-         * grid origin), and Cucumber's {@code ISpecialRecipe} defaults bridge
-         * {@code Container} to {@code IItemHandler} for the generic
-         * {@code matches/assemble/getRemainingItems} entry points.
-         */
-        @Nullable
-        static CraftingContainer createTableInput(int size, List<ItemStack> stacks, int tier) {
-            if (stacks.size() != size * size) {
-                return null;
-            }
-            var container = new TransientCraftingContainer(DUMMY_MENU, size, size);
-            for (int i = 0; i < stacks.size(); i++) {
-                container.setItem(i, stacks.get(i).copy());
-            }
-            return container;
-        }
-
-        // The container covers the whole grid, so a matched recipe's window
-        // starts at the table origin.
-        static int top(CraftingContainer input) {
-            return 0;
-        }
-
-        static int left(CraftingContainer input) {
-            return 0;
-        }
-
-        @Nullable
-        static Integer recipeWidth(Object recipe) {
-            ensureLookup();
-            if (shapedRecipeWidthMethod == null) {
-                return null;
-            }
-            try {
-                if (!shapedRecipeWidthMethod.getDeclaringClass().isInstance(recipe)) {
-                    return null;
-                }
-                var value = shapedRecipeWidthMethod.invoke(recipe);
-                return value instanceof Integer i ? i : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        private static void ensureLookup() {
-            LOOKUP.run(() -> {
-                try {
-                    doLookup();
-                } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                }
-            });
-        }
-
-        private static void doLookup() throws ReflectiveOperationException {
-            tableClasses = Set.of(
-                    Class.forName(BASIC_TABLE_CLASS),
-                    Class.forName(ADVANCED_TABLE_CLASS),
-                    Class.forName(ELITE_TABLE_CLASS),
-                    Class.forName(ULTIMATE_TABLE_CLASS));
-
-            var baseInventoryClass = Class.forName(BASE_INVENTORY_CLASS);
-            getInventoryMethod = baseInventoryClass.getMethod("getInventory");
-
-            var shapedRecipeClass = Class.forName("com.blakebr0.extendedcrafting.crafting.recipe.ShapedTableRecipe");
-            shapedRecipeWidthMethod = shapedRecipeClass.getMethod("getWidth");
-        }
-    }
 }

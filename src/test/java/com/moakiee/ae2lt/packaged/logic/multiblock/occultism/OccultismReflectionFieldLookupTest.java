@@ -14,7 +14,7 @@ class OccultismReflectionFieldLookupTest {
     void resolvesPrivateFieldFromSuperclass() throws ReflectiveOperationException {
         var reflection = Class.forName(
                 "com.moakiee.ae2lt.packaged.logic.multiblock.occultism."
-                        + "OccultismRitualAdapter$OccultismReflection");
+                        + "OccultismRitualAccess");
         Method tryField = reflection.getDeclaredMethod("tryField", Class.class, String.class);
         tryField.setAccessible(true);
 

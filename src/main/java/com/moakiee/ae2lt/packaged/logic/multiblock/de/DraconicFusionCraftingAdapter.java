@@ -1,7 +1,5 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.de;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -18,7 +16,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.fml.ModList;
@@ -34,17 +31,14 @@ import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AcceptedInsertion;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
-import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchCommitException;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionSupport;
 import com.moakiee.ae2lt.packaged.logic.multiblock.SlotHarvestOwnership;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
  * Runtime adapter for Draconic Evolution's Fusion Crafting multiblock.
@@ -99,23 +93,23 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
         if (!(handle instanceof FusionBindHandle bind)) return false;
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)
-                || !DEReflection.canStartCraft(be)) return false;
-        if (DEReflection.isCrafting(be)) return false;
+                || !DraconicFusionCraftingAccess.canStartCraft(be)) return false;
+        if (DraconicFusionCraftingAccess.isCrafting(be)) return false;
 
-        var outputStack = DEReflection.getOutputStack(be);
+        var outputStack = DraconicFusionCraftingAccess.getOutputStack(be);
         if (outputStack == null) return false;
         boolean outputEmpty = outputStack.isEmpty();
         if (SlotHarvestOwnership.blocksDispatch(level, mainPos, scope, HARVEST_STATE, outputEmpty)) {
             return false;
         }
 
-        var expected = DEReflection.getResultItem(bind.recipe(), level);
+        var expected = DraconicFusionCraftingAccess.getResultItem(bind.recipe(), level);
         if (!validOutput(expected) || !outputEmpty) return false;
-        var injectors = DEReflection.getInjectors(be, level);
+        var injectors = DraconicFusionCraftingAccess.getInjectors(be, level);
         if (injectors == null) return false;
 
-        var fusionIngredients = DEReflection.getFusionIngredients(bind.recipe());
-        var recipeTierIndex = DEReflection.getRecipeTierIndex(bind.recipe());
+        var fusionIngredients = DraconicFusionCraftingAccess.getFusionIngredients(bind.recipe());
+        var recipeTierIndex = DraconicFusionCraftingAccess.getRecipeTierIndex(bind.recipe());
         if (fusionIngredients == null || recipeTierIndex < 0) return false;
         return canSatisfyInjectors(injectors, recipeTierIndex, fusionIngredients);
     }
@@ -143,7 +137,7 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
         var units = expandInputUnits(inputs);
         if (units == null || units.isEmpty()) return null;
 
-        var injectors = DEReflection.getInjectors(be, level);
+        var injectors = DraconicFusionCraftingAccess.getInjectors(be, level);
         if (injectors == null) return null;
 
         var match = assignInputsToRecipe(bind.recipe(), level, units, injectors);
@@ -165,7 +159,7 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
         }
 
         return new DispatchPlan(List.copyOf(targets), () -> {
-            DEReflection.startCraftIfIdle(be);
+            DraconicFusionCraftingAccess.startCraftIfIdle(be);
             var expected = match.result();
             SlotHarvestOwnership.store(level, mainPos, scope, HARVEST_STATE,
                     expected, recipeId(bind.recipe()));
@@ -187,17 +181,17 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
                                              AdapterPersistentScope scope) {
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)
-                || DEReflection.isCrafting(be)) return List.of();
+                || DraconicFusionCraftingAccess.isCrafting(be)) return List.of();
         var ownership = SlotHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
         if (ownership == null || SlotHarvestOwnership.expired(level, ownership)) return List.of();
-        var stack = DEReflection.getOutputStack(be);
+        var stack = DraconicFusionCraftingAccess.getOutputStack(be);
         var expected = ownership.expectedOutput();
         if (stack == null || stack.isEmpty()
                 || !ItemStack.isSameItemSameTags(stack, expected)
                 || stack.getCount() < expected.getCount()) return List.of();
         var key = AEItemKey.of(stack);
         if (!filter.matches(key) || !allowsAutoReturn(level, mainPos, filter, key)) return List.of();
-        var extracted = DEReflection.extractOutput(be, expected.getCount());
+        var extracted = DraconicFusionCraftingAccess.extractOutput(be, expected.getCount());
         if (extracted.isEmpty() || extracted.getCount() != expected.getCount()
                 || !ItemStack.isSameItemSameTags(extracted, expected)) return List.of();
         SlotHarvestOwnership.clear(level, mainPos, scope, HARVEST_STATE);
@@ -212,14 +206,14 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
      */
     @Nullable
     private static Object findCandidateRecipe(ServerLevel level, IPatternDetails pattern) {
-        var recipes = DEReflection.getFusionRecipes(level);
+        var recipes = DraconicFusionCraftingAccess.getFusionRecipes(level);
         if (recipes == null) return null;
 
         for (var recipe : recipes) {
-            var catalyst = DEReflection.getCatalyst(recipe);
-            var fusionIngredients = DEReflection.getFusionIngredients(recipe);
-            var recipeTierIndex = DEReflection.getRecipeTierIndex(recipe);
-            var resultItem = DEReflection.getResultItem(recipe, level);
+            var catalyst = DraconicFusionCraftingAccess.getCatalyst(recipe);
+            var fusionIngredients = DraconicFusionCraftingAccess.getFusionIngredients(recipe);
+            var recipeTierIndex = DraconicFusionCraftingAccess.getRecipeTierIndex(recipe);
+            var resultItem = DraconicFusionCraftingAccess.getResultItem(recipe, level);
             if (catalyst == null || fusionIngredients == null
                     || fusionIngredients.stream().anyMatch(info -> !info.consume())
                     || recipeTierIndex < 0 || resultItem == null || resultItem.isEmpty()) {
@@ -240,10 +234,10 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
     private RecipeMatch assignInputsToRecipe(Object recipe, ServerLevel level,
                                               List<PlannedUnit> units,
                                               List<InjectorInfo> injectors) {
-        var catalyst = DEReflection.getCatalyst(recipe);
-        var fusionIngredients = DEReflection.getFusionIngredients(recipe);
-        var recipeTierIndex = DEReflection.getRecipeTierIndex(recipe);
-        var resultItem = DEReflection.getResultItem(recipe, level);
+        var catalyst = DraconicFusionCraftingAccess.getCatalyst(recipe);
+        var fusionIngredients = DraconicFusionCraftingAccess.getFusionIngredients(recipe);
+        var recipeTierIndex = DraconicFusionCraftingAccess.getRecipeTierIndex(recipe);
+        var resultItem = DraconicFusionCraftingAccess.getResultItem(recipe, level);
         if (catalyst == null || fusionIngredients == null
                 || fusionIngredients.stream().anyMatch(info -> !info.consume())
                 || recipeTierIndex < 0 || resultItem == null || resultItem.isEmpty()
@@ -251,7 +245,7 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
             return null;
         }
 
-        int catalystCount = DEReflection.getCatalystCount(recipe);
+        int catalystCount = DraconicFusionCraftingAccess.getCatalystCount(recipe);
         if (catalystCount <= 0) catalystCount = 1;
         final int requiredCatalystCount = catalystCount;
 
@@ -330,13 +324,13 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
             if (stack.amount() != unit.amount() || !unit.key().equals(stack.what())) return 0L;
             var be = level.getBlockEntity(pos);
             if (be == null || !blockId(be.getBlockState()).equals(CRAFTING_CORE_BLOCK)) return 0L;
-            if (DEReflection.isCrafting(be)
-                    || !DEReflection.canStartCraft(be)
-                    || !DEReflection.canSetCatalystStack(be)) return 0L;
-            var current = DEReflection.getCatalystStack(be);
+            if (DraconicFusionCraftingAccess.isCrafting(be)
+                    || !DraconicFusionCraftingAccess.canStartCraft(be)
+                    || !DraconicFusionCraftingAccess.canSetCatalystStack(be)) return 0L;
+            var current = DraconicFusionCraftingAccess.getCatalystStack(be);
             if (current == null || !current.isEmpty()) return 0L;
             if (mode == Actionable.MODULATE) {
-                DEReflection.setCatalystStack(be, unit.stack());
+                DraconicFusionCraftingAccess.setCatalystStack(be, unit.stack());
             }
             return (long) unit.amount();
         };
@@ -348,17 +342,17 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
             if (stack.amount() != 1 || !unit.key().equals(stack.what())) return 0L;
             var core = level.getBlockEntity(corePos);
             if (core == null || !blockId(core.getBlockState()).equals(CRAFTING_CORE_BLOCK)
-                    || DEReflection.isCrafting(core)) {
+                    || DraconicFusionCraftingAccess.isCrafting(core)) {
                 return 0L;
             }
             var be = level.getBlockEntity(pos);
             if (be == null
-                    || !DEReflection.canStartCraft(core)
-                    || !DEReflection.canSetInjectorStack(core, be)) return 0L;
-            var injStack = DEReflection.getInjectorStack(be);
+                    || !DraconicFusionCraftingAccess.canStartCraft(core)
+                    || !DraconicFusionCraftingAccess.canSetInjectorStack(core, be)) return 0L;
+            var injStack = DraconicFusionCraftingAccess.getInjectorStack(be);
             if (injStack == null || !injStack.isEmpty()) return 0L;
             if (mode == Actionable.MODULATE) {
-                DEReflection.setInjectorStack(be, unit.stack());
+                DraconicFusionCraftingAccess.setInjectorStack(be, unit.stack());
             }
             return 1L;
         };
@@ -416,7 +410,7 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
                                                Consumer<GenericStack> recovered) {
         var core = level.getBlockEntity(mainPos);
         if (core == null || !blockId(core.getBlockState()).equals(CRAFTING_CORE_BLOCK)
-                || DEReflection.isCrafting(core)) return;
+                || DraconicFusionCraftingAccess.isCrafting(core)) return;
         for (var insertion : accepted) {
             int index = targets.indexOf(insertion.target());
             if (index < 0 || insertion.stack().amount() > Integer.MAX_VALUE
@@ -425,18 +419,18 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
             if (target == null) continue;
             var expected = key.toStack((int) insertion.stack().amount());
             var current = index == 0
-                    ? DEReflection.getCatalystStack(target)
-                    : DEReflection.getInjectorStack(target);
+                    ? DraconicFusionCraftingAccess.getCatalystStack(target)
+                    : DraconicFusionCraftingAccess.getInjectorStack(target);
             if (current == null || !ItemStack.isSameItemSameTags(current, expected)
                     || current.getCount() != expected.getCount()) continue;
             if (index == 0) {
-                if (!DEReflection.canSetCatalystStack(target)) continue;
-                if (!DEReflection.clearCatalystIfExact(target, expected, Actionable.SIMULATE)) continue;
-                if (!DEReflection.clearCatalystIfExact(target, expected, Actionable.MODULATE)) continue;
+                if (!DraconicFusionCraftingAccess.canSetCatalystStack(target)) continue;
+                if (!DraconicFusionCraftingAccess.clearCatalystIfExact(target, expected, Actionable.SIMULATE)) continue;
+                if (!DraconicFusionCraftingAccess.clearCatalystIfExact(target, expected, Actionable.MODULATE)) continue;
             } else {
-                if (!DEReflection.canSetInjectorStack(core, target)) continue;
-                if (!DEReflection.clearInjectorIfExact(target, expected, Actionable.SIMULATE)) continue;
-                if (!DEReflection.clearInjectorIfExact(target, expected, Actionable.MODULATE)) continue;
+                if (!DraconicFusionCraftingAccess.canSetInjectorStack(core, target)) continue;
+                if (!DraconicFusionCraftingAccess.clearInjectorIfExact(target, expected, Actionable.SIMULATE)) continue;
+                if (!DraconicFusionCraftingAccess.clearInjectorIfExact(target, expected, Actionable.MODULATE)) continue;
             }
             recovered.accept(insertion.stack());
         }
@@ -486,420 +480,17 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
         }
     }
 
-    private record InjectorInfo(BlockPos pos, int tierIndex, boolean empty) {}
+    record InjectorInfo(BlockPos pos, int tierIndex, boolean empty) {}
 
     private record InjectorAssignment(BlockPos injectorPos, PlannedUnit unit) {}
 
-    private record IngredientInfo(Ingredient ingredient, boolean consume) {}
+    record IngredientInfo(Ingredient ingredient, boolean consume) {}
 
     private record RecipeMatch(PlannedUnit catalyst, List<InjectorAssignment> injectorAssignments, ItemStack result) {}
 
     /** Opaque binding handle returned from {@link #bind}. */
     private record FusionBindHandle(Object recipe) {}
 
-    // ===== DEReflection =====
+    // ===== DraconicFusionCraftingAccess =====
 
-    private static final class DEReflection {
-        private static final String CORE_CLASS =
-                "com.brandon3055.draconicevolution.blocks.tileentity.TileFusionCraftingCore";
-        private static final String INJECTOR_CLASS =
-                "com.brandon3055.draconicevolution.blocks.tileentity.TileFusionCraftingInjector";
-        private static final String FUSION_RECIPE_CLASS =
-                "com.brandon3055.draconicevolution.api.crafting.IFusionRecipe";
-        private static final String FUSION_INGREDIENT_CLASS =
-                "com.brandon3055.draconicevolution.api.crafting.IFusionRecipe$IFusionIngredient";
-        private static final String STACK_INGREDIENT_CLASS =
-                "com.brandon3055.draconicevolution.api.crafting.IngredientStack";
-        private static final String DRACONIC_API_CLASS =
-                "com.brandon3055.draconicevolution.api.DraconicAPI";
-        private static final String TECH_LEVEL_CLASS =
-                "com.brandon3055.brandonscore.api.TechLevel";
-
-        private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("draconic-fusion");
-        private static volatile @Nullable Method isCraftingMethod;
-        private static volatile @Nullable Method startCraftMethod;
-        private static volatile @Nullable Method getInjectorsMethod;
-        private static volatile @Nullable Method getInjectorStackMethod;
-        private static volatile @Nullable Method setInjectorStackMethod;
-        private static volatile @Nullable Method getInjectorTierMethod;
-        private static volatile @Nullable Method getCatalystStackMethod;
-        private static volatile @Nullable Method setCatalystStackMethod;
-        private static volatile @Nullable Method getOutputStackMethod;
-        private static volatile @Nullable Method setOutputStackMethod;
-        private static volatile @Nullable Method fusionIngredientsMethod;
-        private static volatile @Nullable Method getCatalystMethod;
-        private static volatile @Nullable Method getRecipeTierMethod;
-        private static volatile @Nullable Method ingredientGetMethod;
-        private static volatile @Nullable Method ingredientConsumeMethod;
-        private static volatile @Nullable Field techLevelIndexField;
-        private static volatile @Nullable Object fusionRecipeType;
-
-        static boolean isCrafting(BlockEntity be) {
-            ensureLookup();
-            if (isCraftingMethod == null) return true;
-            try {
-                return Boolean.TRUE.equals(isCraftingMethod.invoke(be));
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return true;
-            }
-        }
-
-        static boolean canSetCatalystStack(BlockEntity be) {
-            ensureLookup();
-            return supportsMutation(setCatalystStackMethod, be);
-        }
-
-        static boolean canSetInjectorStack(BlockEntity core, BlockEntity injector) {
-            ensureLookup();
-            return supportsMutation(setInjectorStackMethod, injector);
-        }
-
-        static boolean canStartCraft(BlockEntity be) {
-            ensureLookup();
-            return supportsMutation(startCraftMethod, be);
-        }
-
-        private static boolean supportsMutation(@Nullable Method method, Object target) {
-            return method != null && method.getDeclaringClass().isInstance(target);
-        }
-
-        static void startCraft(BlockEntity be) {
-            ensureLookup();
-            ReflectionSupport.invokeMutation(startCraftMethod, be);
-        }
-
-        static void startCraftIfIdle(BlockEntity be) {
-            if (isCrafting(be)) {
-                throw new DispatchCommitException("Draconic fusion core was already crafting at commit time");
-            }
-            startCraft(be);
-            if (!isCrafting(be)) {
-                throw new DispatchCommitException("Draconic fusion core did not enter crafting after startCraft");
-            }
-        }
-
-        @Nullable
-        static ItemStack getCatalystStack(BlockEntity be) {
-            ensureLookup();
-            if (getCatalystStackMethod == null) return null;
-            try {
-                var result = getCatalystStackMethod.invoke(be);
-                return result instanceof ItemStack s ? s : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        static void setCatalystStack(BlockEntity be, ItemStack stack) {
-            ensureLookup();
-            ReflectionSupport.invokeMutation(setCatalystStackMethod, be, stack);
-        }
-
-        static boolean clearCatalystIfExact(BlockEntity be, ItemStack expected,
-                                             Actionable mode) {
-            ensureLookup();
-            if (getCatalystStackMethod == null || setCatalystStackMethod == null) return false;
-            var current = getCatalystStack(be);
-            if (current == null || !ItemStack.isSameItemSameTags(current, expected)
-                    || current.getCount() != expected.getCount()) return false;
-            if (mode == Actionable.SIMULATE) return true;
-            setCatalystStack(be, ItemStack.EMPTY);
-            var remaining = getCatalystStack(be);
-            return remaining != null && remaining.isEmpty();
-        }
-
-        @Nullable
-        static ItemStack getOutputStack(BlockEntity be) {
-            ensureLookup();
-            if (getOutputStackMethod == null) return null;
-            try {
-                var result = getOutputStackMethod.invoke(be);
-                return result instanceof ItemStack s ? s : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        static ItemStack extractOutput(BlockEntity be) {
-            var current = getOutputStack(be);
-            return current == null ? ItemStack.EMPTY : extractOutput(be, current.getCount());
-        }
-
-        static ItemStack extractOutput(BlockEntity be, int amount) {
-            ensureLookup();
-            if (amount <= 0 || getOutputStackMethod == null || setOutputStackMethod == null) {
-                return ItemStack.EMPTY;
-            }
-            try {
-                var result = getOutputStackMethod.invoke(be);
-                if (!(result instanceof ItemStack stack) || stack.isEmpty()
-                        || stack.getCount() < amount) {
-                    return ItemStack.EMPTY;
-                }
-                var original = stack.copy();
-                var extracted = stack.copyWithCount(amount);
-                var remaining = stack.copyWithCount(stack.getCount() - amount);
-                setOutputStackMethod.invoke(be, remaining);
-                var after = getOutputStackMethod.invoke(be);
-                if (!(after instanceof ItemStack afterStack)
-                        || afterStack.getCount() != remaining.getCount()
-                        || !ItemStack.isSameItemSameTags(afterStack, remaining)) {
-                    try {
-                        setOutputStackMethod.invoke(be, original);
-                    } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                    }
-                    return ItemStack.EMPTY;
-                }
-                return extracted;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return ItemStack.EMPTY;
-            }
-        }
-
-
-        @Nullable
-        static ItemStack getInjectorStack(BlockEntity be) {
-            ensureLookup();
-            if (getInjectorStackMethod == null) return null;
-            try {
-                var result = getInjectorStackMethod.invoke(be);
-                return result instanceof ItemStack s ? s : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        static void setInjectorStack(BlockEntity be, ItemStack stack) {
-            ensureLookup();
-            ReflectionSupport.invokeMutation(setInjectorStackMethod, be, stack);
-        }
-
-        static boolean clearInjectorIfExact(BlockEntity be, ItemStack expected,
-                                             Actionable mode) {
-            ensureLookup();
-            if (getInjectorStackMethod == null || setInjectorStackMethod == null) return false;
-            var current = getInjectorStack(be);
-            if (current == null || !ItemStack.isSameItemSameTags(current, expected)
-                    || current.getCount() != expected.getCount()) return false;
-            if (mode == Actionable.SIMULATE) return true;
-            setInjectorStack(be, ItemStack.EMPTY);
-            var remaining = getInjectorStack(be);
-            return remaining != null && remaining.isEmpty();
-        }
-
-        @Nullable
-        @SuppressWarnings("unchecked")
-        static List<InjectorInfo> getInjectors(BlockEntity core, ServerLevel level) {
-            ensureLookup();
-            if (getInjectorsMethod == null) return null;
-            try {
-                var raw = getInjectorsMethod.invoke(core);
-                if (!(raw instanceof List<?> list)) return null;
-                var result = new ArrayList<InjectorInfo>(list.size());
-                for (var obj : list) {
-                    if (obj instanceof BlockEntity injBe) {
-                        var stack = getInjectorStack(injBe);
-                        int tier = getInjectorTierIndex(injBe);
-                        if (stack != null && tier >= 0) {
-                            result.add(new InjectorInfo(injBe.getBlockPos(), tier, stack.isEmpty()));
-                        }
-                    }
-                }
-                return result;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        private static int getInjectorTierIndex(BlockEntity injBe) {
-            ensureLookup();
-            if (getInjectorTierMethod == null || techLevelIndexField == null) return -1;
-            try {
-                var tier = getInjectorTierMethod.invoke(injBe);
-                if (tier == null) return -1;
-                return techLevelIndexField.getInt(tier);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return -1;
-            }
-        }
-
-
-        @Nullable
-        @SuppressWarnings("unchecked")
-        static List<Recipe<?>> getFusionRecipes(ServerLevel level) {
-            ensureLookup();
-            if (fusionRecipeType == null) return null;
-            try {
-                var allRecipes = level.getRecipeManager()
-                        .getAllRecipesFor((RecipeType) fusionRecipeType);
-                return (List<Recipe<?>>) (List<?>) allRecipes;
-            } catch (RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static Ingredient getCatalyst(Object recipe) {
-            ensureLookup();
-            if (getCatalystMethod == null) return null;
-            try {
-                var result = getCatalystMethod.invoke(recipe);
-                return result instanceof Ingredient ing ? ing : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static List<IngredientInfo> getFusionIngredients(Object recipe) {
-            ensureLookup();
-            if (fusionIngredientsMethod == null || ingredientGetMethod == null
-                    || ingredientConsumeMethod == null) return null;
-            try {
-                var raw = fusionIngredientsMethod.invoke(recipe);
-                if (!(raw instanceof List<?> list)) return null;
-                var result = new ArrayList<IngredientInfo>(list.size());
-                for (var obj : list) {
-                    var ing = ingredientGetMethod.invoke(obj);
-                    var consume = ingredientConsumeMethod.invoke(obj);
-                    if (ing instanceof Ingredient ingredient && consume instanceof Boolean b) {
-                        result.add(new IngredientInfo(ingredient, b));
-                    }
-                }
-                return result;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        static int getRecipeTierIndex(Object recipe) {
-            ensureLookup();
-            if (getRecipeTierMethod == null || techLevelIndexField == null) return -1;
-            try {
-                var tier = getRecipeTierMethod.invoke(recipe);
-                if (tier == null) return -1;
-                return techLevelIndexField.getInt(tier);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return -1;
-            }
-        }
-
-
-        @Nullable
-        static ItemStack getResultItem(Object recipe, ServerLevel level) {
-            // Direct vanilla-interface dispatch instead of reflection:
-            // FusionRecipe.getResultItem(RegistryAccess) overrides a
-            // net.minecraft method, so a production (reobfuscated) jar renames
-            // the implementation to its SRG name and getMethod lookups by the
-            // mojmap name fail even though the method exists. Calling through
-            // the erased Recipe interface is compile-time-reobfuscated on our
-            // side and dispatches to DE's override correctly.
-            if (!(recipe instanceof Recipe<?> vanillaRecipe)) {
-                return null;
-            }
-            try {
-                var result = vanillaRecipe.getResultItem(level.registryAccess());
-                return result != null && !result.isEmpty() ? result.copy() : null;
-            } catch (RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        static int getCatalystCount(Object recipe) {
-            ensureLookup();
-            try {
-                var catalyst = getCatalystMethod.invoke(recipe);
-                if (!(catalyst instanceof Ingredient ing)) return 1;
-                // DE 1.20.x represents counted catalysts as IngredientStack (an
-                // Ingredient subclass) exposing the count via getCount().
-                var stackIngClass = ReflectionSupport.findClassCached(STACK_INGREDIENT_CLASS).orElse(null);
-                if (stackIngClass != null && stackIngClass.isInstance(ing)) {
-                    var count = ReflectionSupport.findMethodCached(stackIngClass, "getCount")
-                            .orElse(null);
-                    if (count != null) {
-                        var value = count.invoke(ing);
-                        if (value instanceof Number n && n.intValue() > 0) {
-                            return n.intValue();
-                        }
-                    }
-                }
-                return 1;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return 1;
-            }
-        }
-
-        private static void ensureLookup() {
-            LOOKUP.run(DEReflection::doLookup);
-        }
-
-        @SuppressWarnings("unchecked")
-        private static void doLookup() {
-            // Core + injector BE members. Each group resolves independently so a
-            // single missing name cannot silently disable the whole adapter.
-            try {
-                var coreClass = Class.forName(CORE_CLASS);
-                isCraftingMethod = coreClass.getMethod("isCrafting");
-                startCraftMethod = coreClass.getMethod("startCraft");
-                getCatalystStackMethod = coreClass.getMethod("getCatalystStack");
-                setCatalystStackMethod = coreClass.getMethod("setCatalystStack", ItemStack.class);
-                getOutputStackMethod = coreClass.getMethod("getOutputStack");
-                setOutputStackMethod = coreClass.getMethod("setOutputStack", ItemStack.class);
-                getInjectorsMethod = coreClass.getMethod("getInjectors");
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("[ae2ltpp] DE fusion: failed to resolve TileFusionCraftingCore members: {}", e.getMessage());
-            }
-
-            try {
-                var injectorClass = Class.forName(INJECTOR_CLASS);
-                getInjectorStackMethod = injectorClass.getMethod("getInjectorStack");
-                setInjectorStackMethod = injectorClass.getMethod("setInjectorStack", ItemStack.class);
-                getInjectorTierMethod = injectorClass.getMethod("getInjectorTier");
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("[ae2ltpp] DE fusion: failed to resolve TileFusionCraftingInjector members: {}", e.getMessage());
-            }
-
-            try {
-                var techLevelClass = Class.forName(TECH_LEVEL_CLASS);
-                techLevelIndexField = techLevelClass.getField("index");
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("[ae2ltpp] DE fusion: failed to resolve TechLevel.index: {}", e.getMessage());
-            }
-
-            try {
-                var recipeClass = Class.forName(FUSION_RECIPE_CLASS);
-                fusionIngredientsMethod = recipeClass.getMethod("fusionIngredients");
-                getCatalystMethod = recipeClass.getMethod("getCatalyst");
-                getRecipeTierMethod = recipeClass.getMethod("getRecipeTier");
-                // getResultItem is NOT resolved reflectively: it overrides a
-                // vanilla Recipe method and is renamed to its SRG name in a
-                // production jar, so getMethod("getResultItem", ...) fails.
-                // DEReflection.getResultItem calls the vanilla interface
-                // directly instead, which is reobf-safe.
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("[ae2ltpp] DE fusion: failed to resolve IFusionRecipe members: {}", e.getMessage());
-            }
-
-            try {
-                var ingredientClass = Class.forName(FUSION_INGREDIENT_CLASS);
-                ingredientGetMethod = ingredientClass.getMethod("get");
-                ingredientConsumeMethod = ingredientClass.getMethod("consume");
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("[ae2ltpp] DE fusion: failed to resolve IFusionIngredient members: {}", e.getMessage());
-            }
-
-            try {
-                // Resolve fusion recipe type from DraconicAPI's RegistryObject.
-                var apiClass = Class.forName(DRACONIC_API_CLASS);
-                var typeField = apiClass.getField("FUSION_RECIPE_TYPE");
-                var holder = typeField.get(null);
-                if (holder != null) {
-                    var getMethod = holder.getClass().getMethod("get");
-                    fusionRecipeType = getMethod.invoke(holder);
-                }
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("[ae2ltpp] DE fusion: failed to resolve DraconicAPI.FUSION_RECIPE_TYPE: {}", e.getMessage());
-            }
-        }
-    }
 }

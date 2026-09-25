@@ -370,6 +370,20 @@ class DispatchExecutorCommitCompensationTest {
         assertTrue(residuals.isEmpty());
     }
 
+    @Test
+    void invalidReceiptsCannotAllowCpuToRefundUnknownInputs() {
+        for (long receipt : new long[]{-1, 6}) {
+            var key = new TestKey();
+            var returned = new PatternProviderReturnInventory(() -> {});
+            var first = new TargetSlot(null, BlockPos.ZERO, null, List.of(new GenericStack(key, 5)),
+                    InsertionStrategy.CUSTOM, (stack, mode) -> mode == Actionable.SIMULATE ? stack.amount() : receipt);
+            var next = target(key, 4, new AtomicLong());
+            var result = DispatchExecutor.execute(new DispatchPlan(List.of(first, next), null), null, returned);
+            assertTrue(result.success());
+            assertEquals(4, returned.getAmount(0));
+        }
+    }
+
     private static TargetSlot target(AEKey key, long amount, AtomicLong acceptedAmount) {
         var stack = new GenericStack(key, amount);
         return new TargetSlot(

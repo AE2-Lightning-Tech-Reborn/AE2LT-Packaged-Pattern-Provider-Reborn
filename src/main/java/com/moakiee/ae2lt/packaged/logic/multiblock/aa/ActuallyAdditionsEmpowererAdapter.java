@@ -1,7 +1,5 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.aa;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -14,14 +12,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.energy.IEnergyStorage;
-import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.config.Actionable;
@@ -33,7 +25,6 @@ import appeng.api.stacks.KeyCounter;
 
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
-import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
@@ -41,7 +32,6 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
  * Runtime adapter for Actually Additions' Empowerer setup.
@@ -74,7 +64,7 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
         return be != null
                 && AaSupport.isActuallyAdditionsLoaded()
                 && AdapterBlocks.idOf(be.getBlockState()).equals(EMPOWERER_BLOCK)
-                && AaReflection.isEmpowerer(be);
+                && ActuallyAdditionsEmpowererAccess.isEmpowerer(be);
     }
 
     @Override
@@ -104,9 +94,9 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
         if (!(handle instanceof EmpowererBindHandle bind)) return false;
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)) return false;
-        if (AaReflection.getProcessTime(be) > 0) return false;
+        if (ActuallyAdditionsEmpowererAccess.getProcessTime(be) > 0) return false;
 
-        var inv = AaReflection.getHandler(be);
+        var inv = ActuallyAdditionsEmpowererAccess.getHandler(be);
         if (inv == null || inv.getSlots() < 1 || !inv.getStackInSlot(0).isEmpty()) return false;
 
         var stands = findEmptyDisplayStands(level, mainPos);
@@ -161,7 +151,7 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
                                              IActionSource source) {
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)
-                || AaReflection.getProcessTime(be) > 0) {
+                || ActuallyAdditionsEmpowererAccess.getProcessTime(be) > 0) {
             return List.of();
         }
 
@@ -169,13 +159,13 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
             return List.of();
         }
 
-        var handler = AaReflection.getHandler(be);
+        var handler = ActuallyAdditionsEmpowererAccess.getHandler(be);
         if (handler == null || handler.getSlots() < 1) {
             return List.of();
         }
 
         var stack = handler.getStackInSlot(0);
-        if (stack.isEmpty() || AaReflection.isPossibleInput(stack)) {
+        if (stack.isEmpty() || ActuallyAdditionsEmpowererAccess.isPossibleInput(stack)) {
             return List.of();
         }
 
@@ -202,10 +192,10 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
             if (result == null || result.isEmpty() || !outputMatches(pattern, result)) {
                 continue;
             }
-            if (AaReflection.getInput(recipe) == null) {
+            if (ActuallyAdditionsEmpowererAccess.getInput(recipe) == null) {
                 continue;
             }
-            var modifiers = AaReflection.getModifiers(recipe);
+            var modifiers = ActuallyAdditionsEmpowererAccess.getModifiers(recipe);
             if (modifiers == null || modifiers.size() != 4) {
                 continue;
             }
@@ -219,8 +209,8 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
      */
     @Nullable
     private static RecipeMatch assignInputsToRecipe(Object recipe, List<PlannedUnit> units) {
-        var input = AaReflection.getInput(recipe);
-        var modifiers = AaReflection.getModifiers(recipe);
+        var input = ActuallyAdditionsEmpowererAccess.getInput(recipe);
+        var modifiers = ActuallyAdditionsEmpowererAccess.getModifiers(recipe);
         if (input == null || modifiers == null || modifiers.size() != 4) {
             return null;
         }
@@ -235,7 +225,7 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
         if (match == null) {
             return null;
         }
-        if (!AaReflection.recipeMatches(recipe, match.base(), match.modifiers())) {
+        if (!ActuallyAdditionsEmpowererAccess.recipeMatches(recipe, match.base(), match.modifiers())) {
             return null;
         }
         return new RecipeMatch(recipe, match.base(), match.modifiers());
@@ -251,10 +241,10 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
             }
             var be = level.getBlockEntity(pos);
             if (be == null || !AdapterBlocks.idOf(be.getBlockState()).equals(DISPLAY_STAND_BLOCK)
-                    || !AaReflection.isDisplayStand(be)) {
+                    || !ActuallyAdditionsEmpowererAccess.isDisplayStand(be)) {
                 return null;
             }
-            var handler = AaReflection.getHandler(be);
+            var handler = ActuallyAdditionsEmpowererAccess.getHandler(be);
             if (handler == null || handler.getSlots() < 1 || !handler.getStackInSlot(0).isEmpty()) {
                 return null;
             }
@@ -271,10 +261,10 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
             }
             var be = level.getBlockEntity(pos);
             if (be == null || !AdapterBlocks.idOf(be.getBlockState()).equals(DISPLAY_STAND_BLOCK)
-                    || !AaReflection.isDisplayStand(be)) {
+                    || !ActuallyAdditionsEmpowererAccess.isDisplayStand(be)) {
                 return false;
             }
-            var handler = AaReflection.getHandler(be);
+            var handler = ActuallyAdditionsEmpowererAccess.getHandler(be);
             if (handler == null || handler.getSlots() < 1 || !handler.getStackInSlot(0).isEmpty()) {
                 return false;
             }
@@ -284,18 +274,18 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
 
     private static boolean standsHaveTickEnergy(ServerLevel level, List<BlockPos> standPositions,
                                                 Object recipe) {
-        int time = AaReflection.getTime(recipe);
+        int time = ActuallyAdditionsEmpowererAccess.getTime(recipe);
         if (time <= 0) {
             return false;
         }
-        int energyPerTick = AaReflection.getEnergyPerStand(recipe) / time;
+        int energyPerTick = ActuallyAdditionsEmpowererAccess.getEnergyPerStand(recipe) / time;
         if (energyPerTick <= 0) {
             return true;
         }
 
         for (var pos : standPositions) {
             var be = level.getBlockEntity(pos);
-            if (be == null || AaReflection.getEnergyStored(be) < energyPerTick) {
+            if (be == null || ActuallyAdditionsEmpowererAccess.getEnergyStored(be) < energyPerTick) {
                 return false;
             }
         }
@@ -310,11 +300,11 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
             }
             var be = level.getBlockEntity(pos);
             if (be == null || !AdapterBlocks.idOf(be.getBlockState()).equals(EMPOWERER_BLOCK)
-                    || !AaReflection.isEmpowerer(be)
-                    || AaReflection.getProcessTime(be) > 0) {
+                    || !ActuallyAdditionsEmpowererAccess.isEmpowerer(be)
+                    || ActuallyAdditionsEmpowererAccess.getProcessTime(be) > 0) {
                 return 0L;
             }
-            var handler = AaReflection.getHandler(be);
+            var handler = ActuallyAdditionsEmpowererAccess.getHandler(be);
             if (!(handler instanceof IItemHandlerModifiable modifiable)
                     || modifiable.getSlots() < 1
                     || !modifiable.getStackInSlot(0).isEmpty()) {
@@ -335,10 +325,10 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
             }
             var be = level.getBlockEntity(pos);
             if (be == null || !AdapterBlocks.idOf(be.getBlockState()).equals(DISPLAY_STAND_BLOCK)
-                    || !AaReflection.isDisplayStand(be)) {
+                    || !ActuallyAdditionsEmpowererAccess.isDisplayStand(be)) {
                 return 0L;
             }
-            var handler = AaReflection.getHandler(be);
+            var handler = ActuallyAdditionsEmpowererAccess.getHandler(be);
             if (!(handler instanceof IItemHandlerModifiable modifiable)
                     || modifiable.getSlots() < 1
                     || !modifiable.getStackInSlot(0).isEmpty()) {
@@ -407,7 +397,7 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
         return stack.amount() == 1 && unit.key().equals(stack.what());
     }
 
-    private record PlannedUnit(AEItemKey key) {
+    record PlannedUnit(AEItemKey key) {
         PlannedUnit {
             Objects.requireNonNull(key, "key");
         }
@@ -428,211 +418,4 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
     private record EmpowererBindHandle(Object recipe) {
     }
 
-    private static final class AaReflection {
-        private static final String EMPOWERER_CLASS =
-                "de.ellpeck.actuallyadditions.mod.tile.TileEntityEmpowerer";
-        private static final String DISPLAY_STAND_CLASS =
-                "de.ellpeck.actuallyadditions.mod.tile.TileEntityDisplayStand";
-        private static final String INVENTORY_BASE_CLASS =
-                "de.ellpeck.actuallyadditions.mod.tile.TileEntityInventoryBase";
-        private static final String EMPOWERER_RECIPE_CLASS =
-                "de.ellpeck.actuallyadditions.mod.crafting.EmpowererRecipe";
-
-        private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("aa-empowerer");
-        private static volatile @Nullable Class<?> empowererClass;
-        private static volatile @Nullable Class<?> displayStandClass;
-        private static volatile @Nullable Class<?> empowererRecipeClass;
-        private static volatile @Nullable Field invField;
-        private static volatile @Nullable Field processTimeField;
-        private static volatile @Nullable Field storageField;
-        private static volatile @Nullable Method isPossibleInputMethod;
-        private static volatile @Nullable Method recipeMatchesMethod;
-        private static volatile @Nullable Method getInputMethod;
-        private static volatile @Nullable Method getStandOneMethod;
-        private static volatile @Nullable Method getStandTwoMethod;
-        private static volatile @Nullable Method getStandThreeMethod;
-        private static volatile @Nullable Method getStandFourMethod;
-        private static volatile @Nullable Method getTimeMethod;
-        private static volatile @Nullable Method getEnergyPerStandMethod;
-
-        static boolean isEmpowerer(Object o) {
-            ensureLookup();
-            return empowererClass != null && empowererClass.isInstance(o);
-        }
-
-        static boolean isDisplayStand(Object o) {
-            ensureLookup();
-            return displayStandClass != null && displayStandClass.isInstance(o);
-        }
-
-        @Nullable
-        static IItemHandler getHandler(BlockEntity be) {
-            ensureLookup();
-            if (invField == null) {
-                return null;
-            }
-            try {
-                var value = invField.get(be);
-                return value instanceof IItemHandler h ? h : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        static int getProcessTime(BlockEntity be) {
-            ensureLookup();
-            if (processTimeField == null || !isEmpowerer(be)) {
-                return 0;
-            }
-            try {
-                return processTimeField.getInt(be);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return 0;
-            }
-        }
-
-        static boolean isPossibleInput(ItemStack stack) {
-            ensureLookup();
-            if (isPossibleInputMethod == null) {
-                return false;
-            }
-            try {
-                var value = isPossibleInputMethod.invoke(null, stack);
-                return value instanceof Boolean b && b;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        static int getEnergyStored(BlockEntity be) {
-            ensureLookup();
-            if (storageField == null || !isDisplayStand(be)) {
-                return 0;
-            }
-            try {
-                var value = storageField.get(be);
-                return value instanceof IEnergyStorage storage ? storage.getEnergyStored() : 0;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return 0;
-            }
-        }
-
-        @Nullable
-        static Ingredient getInput(Object recipe) {
-            ensureLookup();
-            if (getInputMethod == null || !isEmpowererRecipe(recipe)) {
-                return null;
-            }
-            try {
-                var value = getInputMethod.invoke(recipe);
-                return value instanceof Ingredient ingredient ? ingredient : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static List<Ingredient> getModifiers(Object recipe) {
-            ensureLookup();
-            if (!isEmpowererRecipe(recipe)
-                    || getStandOneMethod == null
-                    || getStandTwoMethod == null
-                    || getStandThreeMethod == null
-                    || getStandFourMethod == null) {
-                return null;
-            }
-            try {
-                var one = getStandOneMethod.invoke(recipe);
-                var two = getStandTwoMethod.invoke(recipe);
-                var three = getStandThreeMethod.invoke(recipe);
-                var four = getStandFourMethod.invoke(recipe);
-                if (one instanceof Ingredient i1
-                        && two instanceof Ingredient i2
-                        && three instanceof Ingredient i3
-                        && four instanceof Ingredient i4) {
-                    return List.of(i1, i2, i3, i4);
-                }
-                return null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        static boolean recipeMatches(Object recipe, PlannedUnit base, List<PlannedUnit> modifiers) {
-            ensureLookup();
-            if (recipeMatchesMethod == null || !isEmpowererRecipe(recipe) || modifiers.size() != 4) {
-                return false;
-            }
-            try {
-                var value = recipeMatchesMethod.invoke(recipe,
-                        base.stack(),
-                        modifiers.get(0).stack(),
-                        modifiers.get(1).stack(),
-                        modifiers.get(2).stack(),
-                        modifiers.get(3).stack());
-                return value instanceof Boolean b && b;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        static int getTime(Object recipe) {
-            ensureLookup();
-            if (getTimeMethod == null || !isEmpowererRecipe(recipe)) {
-                return 0;
-            }
-            try {
-                return (Integer) getTimeMethod.invoke(recipe);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return 0;
-            }
-        }
-
-        static int getEnergyPerStand(Object recipe) {
-            ensureLookup();
-            if (getEnergyPerStandMethod == null || !isEmpowererRecipe(recipe)) {
-                return 0;
-            }
-            try {
-                return (Integer) getEnergyPerStandMethod.invoke(recipe);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return 0;
-            }
-        }
-
-        private static boolean isEmpowererRecipe(Object recipe) {
-            return empowererRecipeClass != null && empowererRecipeClass.isInstance(recipe);
-        }
-
-        private static void ensureLookup() {
-            LOOKUP.run(() -> {
-                try {
-                    doLookup();
-                } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                }
-            });
-        }
-
-        private static void doLookup() throws ReflectiveOperationException {
-            empowererClass = Class.forName(EMPOWERER_CLASS);
-            displayStandClass = Class.forName(DISPLAY_STAND_CLASS);
-            empowererRecipeClass = Class.forName(EMPOWERER_RECIPE_CLASS);
-            var inventoryBaseClass = Class.forName(INVENTORY_BASE_CLASS);
-
-            invField = inventoryBaseClass.getField("inv");
-            processTimeField = empowererClass.getField("processTime");
-            storageField = displayStandClass.getField("storage");
-
-            isPossibleInputMethod = empowererClass.getMethod("isPossibleInput", ItemStack.class);
-            recipeMatchesMethod = empowererRecipeClass.getMethod("matches",
-                    ItemStack.class, ItemStack.class, ItemStack.class, ItemStack.class, ItemStack.class);
-            getInputMethod = empowererRecipeClass.getMethod("getInput");
-            getStandOneMethod = empowererRecipeClass.getMethod("getStandOne");
-            getStandTwoMethod = empowererRecipeClass.getMethod("getStandTwo");
-            getStandThreeMethod = empowererRecipeClass.getMethod("getStandThree");
-            getStandFourMethod = empowererRecipeClass.getMethod("getStandFour");
-            getTimeMethod = empowererRecipeClass.getMethod("getTime");
-            getEnergyPerStandMethod = empowererRecipeClass.getMethod("getEnergyPerStand");
-        }
-    }
 }

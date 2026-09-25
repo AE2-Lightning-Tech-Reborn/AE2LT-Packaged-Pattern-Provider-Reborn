@@ -283,6 +283,8 @@ class CompatibilityReflectionContractTest {
     }
 
     private static String read(String path) throws IOException {
-        return Files.readString(Path.of(path));
+        var access = Path.of(path.replace("Adapter.java", "Access.java"));
+        return Files.readString(Path.of(path))
+                + (Files.exists(access) && !access.equals(Path.of(path)) ? Files.readString(access) : "");
     }
 }
