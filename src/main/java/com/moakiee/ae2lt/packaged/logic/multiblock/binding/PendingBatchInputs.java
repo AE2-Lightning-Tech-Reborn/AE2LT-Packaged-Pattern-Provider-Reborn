@@ -18,6 +18,7 @@ import net.minecraft.resources.Identifier;
 
 /** One accepted physical batch. Every undelivered port input remains owned by PP until inserted. */
 public final class PendingBatchInputs {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(PendingBatchInputs.class);
     public record Delivery(Identifier adapter, Identifier dimension, BlockPos pos,
                            Direction face, Identifier block, GenericStack stack) {
         public Delivery {
@@ -68,7 +69,21 @@ public final class PendingBatchInputs {
         while (iterator.hasNext()) {
             var delivery = iterator.next();
             long amount = delivery.stack().amount();
-            long accepted = Math.max(0, Math.min(amount, sink.applyAsLong(delivery)));
+            long accepted;
+            try {
+                accepted = sink.applyAsLong(delivery);
+                if (accepted < 0 || accepted > amount) {
+                    throw new IllegalStateException("Invalid batch insertion receipt: " + accepted);
+                }
+            } catch (RuntimeException | LinkageError failure) {
+                // The attempted input may already be in the machine. Never replay it or
+                // include it in drops/persistence as a known undelivered input. Unvisited
+                // deliveries remain pending, as do earlier confirmed partial receipts.
+                iterator.remove();
+                LOG.error("Batch input ownership is unknown at {} for {} x{}; removed from automatic retry and refund",
+                        delivery.pos(), delivery.stack().what(), amount, failure);
+                throw failure;
+            }
             if (accepted == amount) iterator.remove();
             else if (accepted > 0) iterator.set(delivery.withAmount(amount - accepted));
         }

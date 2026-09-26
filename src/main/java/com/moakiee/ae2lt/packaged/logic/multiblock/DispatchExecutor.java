@@ -47,19 +47,17 @@ public final class DispatchExecutor {
                 long accepted;
                 try {
                     accepted = insertOne(target, stack, Actionable.MODULATE, source);
-                } catch (RuntimeException | LinkageError failure) {
-                    // Insertions must report their receipt and must not throw after accepting a
-                    // quantity. A later failed call cannot undo earlier, acknowledged transfers.
-                    if (!acceptedAny) {
-                        LOG.error("Dispatch failed before accepting inputs at {}", target.pos(), failure);
-                        return DispatchResult.failure("Target at " + target.pos() + " failed before accepting inputs.");
+                    if (accepted < 0 || accepted > stack.amount()) {
+                        throw new IllegalStateException("Invalid adapter insertion receipt: " + accepted);
                     }
-                    retainUndelivered.accept(remainingInputs(targets, targetIndex, stackIndex, 0));
-                    LOG.error("Dispatch stopped at {}; retained the failed and unvisited inputs", target.pos(), failure);
+                } catch (RuntimeException | LinkageError failure) {
+                    // A throwing or invalid receipt does not prove that the machine accepted
+                    // zero. Consume ownership of this unknown input and retain only the tail
+                    // that was never attempted; failure would let AE2 refund the whole plan.
+                    retainUndelivered.accept(remainingInputs(targets, targetIndex, stackIndex, stack.amount()));
+                    LOG.error("Dispatch stopped at {}; current input ownership is unknown; retained only unvisited inputs",
+                            target.pos(), failure);
                     return DispatchResult.success(null);
-                }
-                if (accepted < 0 || accepted > stack.amount()) {
-                    throw new IllegalStateException("Invalid adapter insertion receipt: " + accepted);
                 }
                 acceptedAny |= accepted > 0;
                 if (accepted < stack.amount()) {
@@ -96,7 +94,9 @@ public final class DispatchExecutor {
         var target = targets.get(targetIndex);
         var stack = target.stacks().get(stackIndex);
         var remaining = new ArrayList<GenericStack>();
-        remaining.add(new GenericStack(stack.what(), stack.amount() - accepted));
+        if (accepted < stack.amount()) {
+            remaining.add(new GenericStack(stack.what(), stack.amount() - accepted));
+        }
         remaining.addAll(target.stacks().subList(stackIndex + 1, target.stacks().size()));
         for (int next = targetIndex + 1; next < targets.size(); next++) {
             remaining.addAll(targets.get(next).stacks());
