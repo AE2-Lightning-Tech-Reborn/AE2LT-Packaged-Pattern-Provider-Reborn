@@ -21,8 +21,32 @@ final class ExtendedCraftingCombinationAccess {
 
     private static volatile boolean lookupDone;
     private static volatile @Nullable Method getProgressMethod;
+    private static volatile @Nullable Method getActiveRecipeMethod;
     private static volatile @Nullable Method getInputMethod;
     private static volatile @Nullable Method getPedestalIngredientsMethod;
+
+    /** Refresh the machine's recipe cache immediately after its inputs arrive. */
+    static void refreshRecipe(BlockEntity be) {
+        ensureLookup();
+        if (getActiveRecipeMethod == null) return;
+        try {
+            getActiveRecipeMethod.invoke(be);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
+            CompatibilityDiagnostics.failure(ExtendedCraftingCombinationAccess.class, "refreshRecipe", failure);
+        }
+    }
+
+    /** A zero progress value alone also describes a valid recipe waiting for FE. */
+    static boolean isIdleWithoutRecipe(BlockEntity be) {
+        ensureLookup();
+        if (getActiveRecipeMethod == null || getProgress(be) != 0) return false;
+        try {
+            return getActiveRecipeMethod.invoke(be) == null;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
+            CompatibilityDiagnostics.failure(ExtendedCraftingCombinationAccess.class, "isIdleWithoutRecipe", failure);
+            return false;
+        }
+    }
 
     static int getProgress(BlockEntity be) {
         ensureLookup();
@@ -87,8 +111,9 @@ final class ExtendedCraftingCombinationAccess {
             try {
                 var coreClass = Class.forName(CORE_TILE_CLASS);
                 getProgressMethod = coreClass.getMethod("getProgress");
+                getActiveRecipeMethod = coreClass.getMethod("getActiveRecipe");
             } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("Combination reflection: CraftingCoreTileEntity#getProgress lookup failed: {}",
+                LOG.warn("Combination reflection: CraftingCoreTileEntity lifecycle lookup failed: {}",
                         e.toString());
             }
             try {

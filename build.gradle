@@ -199,6 +199,10 @@ dependencies {
     implementation "de.mari_023:ae2wtlib_api:${ae2wtlib_version}"
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testImplementation "org.mockito:mockito-core:5.20.0"
+    // Exercise the reflection contract against the native 26.1 optional mods.
+    testRuntimeOnly "maven.modrinth:5JMG1gql:JNqZA1Du" // Extended Crafting 8.0.2
+    testRuntimeOnly "maven.modrinth:Rw1NrDzF:ZkLAGLIj" // Cucumber 9.0.6
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 
     if (thunderboltMavenNotation != null && !thunderboltMavenNotation.isBlank()) {

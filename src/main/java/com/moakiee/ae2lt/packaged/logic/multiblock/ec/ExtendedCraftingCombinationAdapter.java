@@ -98,14 +98,15 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         var inv = CucumberInventoryAccess.get(be);
         if (inv == null || inv.getSlots() <= CORE_SLOT) return false;
         if (!inv.getStackInSlot(CORE_SLOT).isEmpty()) return false;
-        if (ExtendedCraftingCombinationAccess.getProgress(be) > 0) return false;
+        if (ExtendedCraftingCombinationAccess.getProgress(be) != 0) return false;
 
         var ingredients = ExtendedCraftingCombinationAccess.getRecipeIngredients(bind.recipe());
         if (ingredients == null) return false;
         int needed = ingredients.size();
         if (needed <= 0 || needed > MAX_INGREDIENTS) return false;
 
-        return countEmptyPedestals(level, mainPos) >= needed;
+        var pedestals = findEmptyPedestals(level, mainPos);
+        return pedestals != null && pedestals.size() >= needed;
     }
 
     @Override
@@ -113,7 +114,8 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
     public DispatchPlan planWithBinding(ServerLevel level, BlockPos mainPos,
                                         IPatternDetails pattern, KeyCounter[] inputs,
                                         Object handle, IActionSource source) {
-        if (!(handle instanceof CombinationBindHandle bind)) return null;
+        if (!(handle instanceof CombinationBindHandle bind)
+                || !canDispatch(level, mainPos, handle)) return null;
         var be = level.getBlockEntity(mainPos);
         if (be == null) return null;
 
@@ -125,7 +127,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         if (match == null) return null;
 
         var emptyPedestals = findEmptyPedestals(level, mainPos);
-        if (emptyPedestals.size() < ingredients.size()) return null;
+        if (emptyPedestals == null || emptyPedestals.size() < ingredients.size()) return null;
 
         var targets = new ArrayList<TargetSlot>(ingredients.size() + 1);
         targets.add(new TargetSlot(
@@ -144,7 +146,10 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
                     pedestalInserter(level, pedestalPos, unit)));
         }
 
-        return new DispatchPlan(List.copyOf(targets), null);
+        // Refresh recipe state after all inputs arrive. The machine's own ticker
+        // still owns FE consumption and crafting progress.
+        return new DispatchPlan(List.copyOf(targets),
+                () -> ExtendedCraftingCombinationAccess.refreshRecipe(be));
     }
 
     @Override
@@ -153,9 +158,6 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
                                              IActionSource source) {
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)) return List.of();
-        // While the craft is in progress the Core slot still holds the
-        // catalyst; only drain once the BE has finished and reset progress.
-        if (ExtendedCraftingCombinationAccess.getProgress(be) > 0) return List.of();
 
         var inv = CucumberInventoryAccess.get(be);
         if (inv == null || inv.getSlots() <= CORE_SLOT) return List.of();
@@ -164,7 +166,11 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         if (stack.isEmpty()) return List.of();
 
         var key = AEItemKey.of(stack);
-        if (!allowsAutoReturn(level, mainPos, filter, key)) return List.of();
+        // Slot zero holds both catalyst and product. Unlike a dedicated output
+        // slot, an arbitrary idle stack here is not sufficient proof of output.
+        if (!filter.matches(key)) return List.of();
+        // Avoid an EC pedestal scan for empty slots or non-output inputs.
+        if (!ExtendedCraftingCombinationAccess.isIdleWithoutRecipe(be)) return List.of();
 
         if (!(inv instanceof IItemHandlerModifiable modifiable)) return List.of();
         var copy = stack.copy();
@@ -236,7 +242,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
             if (stack.amount() != 1 || !unit.key().equals(stack.what())) return 0L;
             var be = level.getBlockEntity(pos);
             if (be == null || !blockId(be.getBlockState()).equals(CORE_BLOCK)) return 0L;
-            if (ExtendedCraftingCombinationAccess.getProgress(be) > 0) return 0L;
+            if (ExtendedCraftingCombinationAccess.getProgress(be) != 0) return 0L;
             var inv = CucumberInventoryAccess.get(be);
             if (!(inv instanceof IItemHandlerModifiable modifiable)) return 0L;
             if (modifiable.getSlots() <= CORE_SLOT) return 0L;
@@ -274,8 +280,10 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
      * as {@code BlockPos.betweenClosedStream}) collecting empty pedestals.
      * The Core's own ingredient scan uses identical order, so the i-th
      * assigned ingredient maps cleanly to the i-th BE-side pedestal at
-     * completion.
+     * completion. An occupied or unreadable pedestal area is not ready for
+     * another complete recipe and returns null.
      */
+    @Nullable
     private static List<BlockPos> findEmptyPedestals(ServerLevel level, BlockPos mainPos) {
         var result = new ArrayList<BlockPos>();
         var min = mainPos.offset(-AOE_RADIUS, 0, -AOE_RADIUS);
@@ -285,21 +293,19 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
             for (int z = min.getZ(); z <= max.getZ(); z++) {
                 cursor.set(x, mainPos.getY(), z);
                 if (cursor.equals(mainPos)) continue;
-                if (!level.isLoaded(cursor)) continue;
+                if (!level.isLoaded(cursor)) return null;
                 if (!blockId(level.getBlockState(cursor)).equals(PEDESTAL_BLOCK)) continue;
                 var be = level.getBlockEntity(cursor);
-                if (be == null) continue;
+                if (be == null) return null;
                 var inv = CucumberInventoryAccess.get(be);
-                if (inv == null || inv.getSlots() <= PEDESTAL_SLOT) continue;
-                if (!inv.getStackInSlot(PEDESTAL_SLOT).isEmpty()) continue;
+                if (inv == null || inv.getSlots() <= PEDESTAL_SLOT) return null;
+                // EC includes every occupied pedestal when matching. Filling
+                // other empty pedestals would accumulate incompatible inputs.
+                if (!inv.getStackInSlot(PEDESTAL_SLOT).isEmpty()) return null;
                 result.add(cursor.immutable());
             }
         }
         return result;
-    }
-
-    private static int countEmptyPedestals(ServerLevel level, BlockPos mainPos) {
-        return findEmptyPedestals(level, mainPos).size();
     }
 
     // ===== Helpers =====
