@@ -27,8 +27,41 @@ final class ExtendedCraftingCombinationAccess {
     private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("ec-combination");
     private static volatile @Nullable Method getInventoryMethod;
     private static volatile @Nullable Method getProgressMethod;
+    private static volatile @Nullable Method getActiveRecipeMethod;
     private static volatile boolean inventoryInvokeDiagnosticLogged;
     private static volatile boolean progressInvokeDiagnosticLogged;
+    private static volatile boolean recipeInvokeDiagnosticLogged;
+
+    /** Refresh only the recipe cache; the machine ticker owns FE and progress. */
+    static void refreshRecipe(BlockEntity be) {
+        ensureLookup();
+        if (getActiveRecipeMethod == null) return;
+        try {
+            getActiveRecipeMethod.invoke(be);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
+            reportRecipeFailure(be, failure);
+        }
+    }
+
+    /** Zero progress can also mean that a valid recipe is waiting for power. */
+    static boolean isIdleWithoutRecipe(BlockEntity be) {
+        ensureLookup();
+        if (getActiveRecipeMethod == null || getProgress(be) != 0) return false;
+        try {
+            return getActiveRecipeMethod.invoke(be) == null;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
+            reportRecipeFailure(be, failure);
+            return false;
+        }
+    }
+
+    private static void reportRecipeFailure(BlockEntity be, Throwable failure) {
+        if (!recipeInvokeDiagnosticLogged) {
+            recipeInvokeDiagnosticLogged = true;
+            LOG.warn("Combination reflection: getActiveRecipe invocation failed for {}: {}",
+                    be.getClass().getName(), failure.toString());
+        }
+    }
 
     @Nullable
     static IItemHandler getInventory(BlockEntity be) {
@@ -103,8 +136,9 @@ final class ExtendedCraftingCombinationAccess {
             try {
                 var coreClass = Class.forName(CORE_TILE_CLASS);
                 getProgressMethod = coreClass.getMethod("getProgress");
+                getActiveRecipeMethod = coreClass.getMethod("getActiveRecipe");
             } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                LOG.warn("Combination reflection: CraftingCoreTileEntity#getProgress lookup failed: {}",
+                LOG.warn("Combination reflection: CraftingCoreTileEntity lifecycle lookup failed: {}",
                         e.toString());
             }
             LOG.info("Extended Crafting Combination reflection ready: inventory={} progress={} "

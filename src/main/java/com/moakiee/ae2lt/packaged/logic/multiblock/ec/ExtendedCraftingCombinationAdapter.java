@@ -125,7 +125,8 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         if (ingredients == null) return false;
         int needed = ingredients.size();
         if (needed <= 0 || needed > MAX_INGREDIENTS) return false;
-        if (countEmptyPedestals(level, mainPos) < needed) return false;
+        var pedestals = findEmptyPedestals(level, mainPos);
+        if (pedestals == null || pedestals.size() < needed) return false;
         if (SlotHarvestOwnership.blocksDispatch(level, mainPos, scope, HARVEST_STATE, true)) {
             return false;
         }
@@ -159,7 +160,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         var match = matchInputs(catalyst, ingredients, inputs);
         if (match == null) return null;
         var emptyPedestals = findEmptyPedestals(level, mainPos);
-        if (emptyPedestals.size() < ingredients.size()) return null;
+        if (emptyPedestals == null || emptyPedestals.size() < ingredients.size()) return null;
 
         var targets = new ArrayList<TargetSlot>(ingredients.size() + 1);
         targets.add(new TargetSlot(
@@ -182,6 +183,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
                     scope.clearFlag(mainPos, runObservedFlagKey(level));
                     SlotHarvestOwnership.store(level, mainPos, scope, HARVEST_STATE,
                             expectedOutput, recipeId(bind.recipe()));
+                    ExtendedCraftingCombinationAccess.refreshRecipe(be);
                 },
                 (accepted, recovered) -> recoverPartialDispatch(
                         level, mainPos, targets, accepted, recovered));
@@ -205,19 +207,6 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         }
         var ownership = SlotHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
         if (ownership == null || SlotHarvestOwnership.expired(level, ownership)) return List.of();
-        int progress = ExtendedCraftingCombinationAccess.getProgress(be);
-        if (progress < 0) {
-            // Reflection failure: run state is unknown, so the run-observed
-            // marker must never be set from an unreadable progress value.
-            return List.of();
-        }
-        if (progress > 0) {
-            scope.setFlag(mainPos, runObservedFlagKey(level));
-            return List.of();
-        }
-        if (!scope.hasFlag(mainPos, runObservedFlagKey(level))) {
-            return List.of();
-        }
         var inv = ExtendedCraftingCombinationAccess.getInventory(be);
         if (inv == null || inv.getSlots() <= CORE_SLOT) return List.of();
         var stack = inv.getStackInSlot(CORE_SLOT);
@@ -229,6 +218,9 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         if (attributable != expectedCount || !(inv instanceof IItemHandlerModifiable modifiable)) {
             return List.of();
         }
+        // The center slot holds inputs as well as products. Consult the live
+        // recipe even when progress is zero, including before the first tick.
+        if (!ExtendedCraftingCombinationAccess.isIdleWithoutRecipe(be)) return List.of();
         var extracted = stack.copy();
         extracted.setCount(expectedCount);
         if (stack.getCount() == expectedCount) {
@@ -353,8 +345,10 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
      * as {@code BlockPos.betweenClosedStream}) collecting empty pedestals.
      * The Core's own ingredient scan uses identical order, so the i-th
      * assigned ingredient maps cleanly to the i-th BE-side pedestal at
-     * completion.
+     * completion. Occupied or unreadable pedestal areas return null so leftover
+     * inputs cannot be mixed with another recipe.
      */
+    @Nullable
     private static List<BlockPos> findEmptyPedestals(ServerLevel level, BlockPos mainPos) {
         var result = new ArrayList<BlockPos>();
         var min = mainPos.offset(-AOE_RADIUS, 0, -AOE_RADIUS);
@@ -364,21 +358,17 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
             for (int z = min.getZ(); z <= max.getZ(); z++) {
                 cursor.set(x, mainPos.getY(), z);
                 if (cursor.equals(mainPos)) continue;
-                if (!level.isLoaded(cursor)) continue;
+                if (!level.isLoaded(cursor)) return null;
                 if (!blockId(level.getBlockState(cursor)).equals(PEDESTAL_BLOCK)) continue;
                 var be = level.getBlockEntity(cursor);
-                if (be == null) continue;
+                if (be == null) return null;
                 var inv = ExtendedCraftingCombinationAccess.getInventory(be);
-                if (inv == null || inv.getSlots() <= PEDESTAL_SLOT) continue;
-                if (!inv.getStackInSlot(PEDESTAL_SLOT).isEmpty()) continue;
+                if (inv == null || inv.getSlots() <= PEDESTAL_SLOT) return null;
+                if (!inv.getStackInSlot(PEDESTAL_SLOT).isEmpty()) return null;
                 result.add(cursor.immutable());
             }
         }
         return result;
-    }
-
-    private static int countEmptyPedestals(ServerLevel level, BlockPos mainPos) {
-        return findEmptyPedestals(level, mainPos).size();
     }
 
     // ===== Helpers =====
