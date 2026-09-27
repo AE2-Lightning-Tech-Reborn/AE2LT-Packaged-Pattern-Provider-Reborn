@@ -162,6 +162,7 @@ dependencies {
     implementation "de.mari_023:ae2wtlib_api:${ae2wtlib_version}"
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testImplementation "org.mockito:mockito-core:5.12.0"
 
     if (thunderboltMavenNotation != null && !thunderboltMavenNotation.isBlank()) {
         compileOnly thunderboltMavenNotation
