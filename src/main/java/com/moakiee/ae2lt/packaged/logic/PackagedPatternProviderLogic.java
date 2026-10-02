@@ -1,6 +1,7 @@
 package com.moakiee.ae2lt.packaged.logic;
 
 import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.ProviderInternalCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BatchCopies;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingBatchInputs;
@@ -650,6 +651,18 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         var mode = getProviderHost().getProviderMode();
         var installedCard = installedAdapterStack();
 
+        for (var adapter : MultiblockAdapterRegistry.activeAdapters()) {
+            if (!(adapter instanceof ProviderInternalCraftingAdapter internal)
+                    || !isAdapterUnlocked(adapter, level, getProviderHost().getBlockPos(), installedCard)) continue;
+            var result = adapter.bind(level, getProviderHost().getBlockPos(), pattern);
+            if (result != null && result.mode() == BindingMode.VIRTUAL) {
+                candidates.add(new LaneCandidate(new LaneKey.InternalLane(internal.internalLaneId()),
+                        adapter, result.handle(), result.mode()));
+                // One internal lane for the combined core, even when multiple mods offer this conversion.
+                break;
+            }
+        }
+
         if (mode == ProviderMode.NORMAL) {
             for (var face : neighborIndex.adapterFaces(level)) {
                 var adapter = neighborIndex.getAdapter(face);
@@ -704,6 +717,13 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     @Nullable
     private LaneEnv resolveLaneEnv(ServerLevel providerLevel, LaneCandidate candidate) {
         var lane = candidate.lane();
+        if (lane instanceof LaneKey.InternalLane internalLane) {
+            if (!(candidate.adapter() instanceof ProviderInternalCraftingAdapter internal)
+                    || !internal.internalLaneId().equals(internalLane.adapterId())
+                    || !isAdapterUnlocked(candidate.adapter(), providerLevel,
+                            getProviderHost().getBlockPos(), installedAdapterStack())) return null;
+            return new LaneEnv(providerLevel, getProviderHost().getBlockPos());
+        }
         if (lane instanceof LaneKey.FaceLane(Direction face)) {
             var pos = getProviderHost().getBlockPos().relative(face);
             if (!providerLevel.isLoaded(pos)) {
@@ -735,6 +755,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
 
     private void pruneStaleLaneState() {
         Set<LaneKey> active = new HashSet<>();
+        for (var adapter : MultiblockAdapterRegistry.activeAdapters()) {
+            if (adapter instanceof ProviderInternalCraftingAdapter internal) {
+                active.add(new LaneKey.InternalLane(internal.internalLaneId()));
+            }
+        }
         for (var dir : EnumSet.allOf(Direction.class)) {
             active.add(new LaneKey.FaceLane(dir));
         }

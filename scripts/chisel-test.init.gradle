@@ -1,0 +1,29 @@
+// Opt-in native tests. Target mods/dependencies are supplied locally and never enter the release jar.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('chiselTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        def modsDir = providers.gradleProperty('ppChiselModsDir').orNull
+        if (modsDir != null) {
+            if (!file(modsDir).isDirectory()) throw new GradleException('ppChiselModsDir must be a directory')
+            dependencies.add('chiselTestRuntimeOnly', files(fileTree(modsDir) { include '*.jar' }))
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.chiselTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.chiselTest
+            systemProperty 'ae2ltpp.chiselTestProfile', providers.gradleProperty('ppChiselProfile').getOrElse('absent')
+            gameDirectory = project.layout.buildDirectory.dir('chisel-native-' +
+                    providers.gradleProperty('ppChiselProfile').getOrElse('absent')).get().asFile
+        }
+    }
+}

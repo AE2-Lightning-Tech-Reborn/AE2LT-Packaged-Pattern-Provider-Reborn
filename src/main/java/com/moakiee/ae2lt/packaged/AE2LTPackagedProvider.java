@@ -18,6 +18,10 @@ import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity
 import com.moakiee.ae2lt.packaged.blockentity.WirelessPackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
+import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRegistration;
+import com.moakiee.ae2lt.packaged.item.AdapterIds;
+import com.moakiee.ae2lt.packaged.logic.multiblock.chisel.ChippedWorkbenchAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.chisel.HandheldChiselAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.astral.AstralSorceryAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsAtomicReconstructorAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsEmpowererAdapter;
@@ -94,6 +98,18 @@ public class AE2LTPackagedProvider {
             if (ModList.get().isLoaded("astralsorcery")) {
                 MultiblockAdapterRegistry.register(new AstralSorceryAdapter.AstralAltarAdapter());
                 MultiblockAdapterRegistry.register(new AstralSorceryAdapter.AstralInfuserAdapter());
+            }
+
+            if (ModList.get().isLoaded("chipped")) {
+                MultiblockAdapterRegistry.register(new ChippedWorkbenchAdapter());
+            }
+            if (ModList.get().isLoaded("rechiseled")) {
+                MultiblockAdapterRegistry.register(new AdapterRegistration(AdapterIds.RECHISELED, 120,
+                        () -> true, new HandheldChiselAdapter(true)));
+            }
+            if (ModList.get().isLoaded("chisel")) {
+                MultiblockAdapterRegistry.register(new AdapterRegistration(AdapterIds.CHISEL, 120,
+                        () -> true, new HandheldChiselAdapter(false)));
             }
 
             var packagedBlock = PPBlocks.PACKAGED_PATTERN_PROVIDER.get();

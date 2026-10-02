@@ -13,9 +13,8 @@ item_ids:
 **Packaged Core:** <ItemLink id="ae2ltpp:occultism_spirit_fire_packaged_core" />
 **Mod:** Occultism
 
-Place the provider against a **Spirit Fire** block and encode the corresponding **processing pattern**.
+Insert the Spirit Fire Packaged Core first. Place a regular provider against a **Spirit Fire** block,
+or use the connector to link a wireless provider to the fire. Encode the corresponding **processing pattern**.
 
-No additional setup is required. The provider automatically recognizes the recipe and retrieves the crafted result.
-
-**Note: Due to unavoidable limitations, Spirit Fire crafting does not support the Wireless Packaged Pattern Provider. Use a regular Packaged Pattern Provider instead.**
-`Surely nobody needs wireless providers to parallelize something that crafts instantly at no additional cost, right?`
+The core recognizes the real fire block even though it has no block entity. No additional setup is required.
+The provider returns the crafted result automatically. Removing the fire stops crafting and invalidates its link.
