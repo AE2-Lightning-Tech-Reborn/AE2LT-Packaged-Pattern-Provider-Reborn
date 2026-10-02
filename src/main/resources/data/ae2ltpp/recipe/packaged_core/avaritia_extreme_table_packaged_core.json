@@ -8,28 +8,16 @@
   "type": "avaritia:shaped_table",
   "tier": 4,
   "pattern": [
-    "MIMIMIMIM",
-    "IIIIIIIII",
-    "MIMMMMMIM",
-    "IIMGSGMII",
-    "MIMGCGMIM",
-    "IIMGSGMII",
-    "MIMMMMMIM",
-    "IIIIIIIII",
-    "MIMIMIMIM"
+    "ABA",
+    "BCB",
+    "ABA"
   ],
   "key": {
-    "M": {
-      "item": "avaritia:crystal_matrix_ingot"
+    "A": {
+      "item": "avaritia:diamond_lattice"
     },
-    "I": {
-      "item": "avaritia:neutron_ingot"
-    },
-    "G": {
-      "item": "avaritia:neutron_gear"
-    },
-    "S": {
-      "item": "minecraft:nether_star"
+    "B": {
+      "item": "ae2:engineering_processor"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

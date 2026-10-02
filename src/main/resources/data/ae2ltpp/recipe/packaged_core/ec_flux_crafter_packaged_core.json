@@ -6,7 +6,7 @@
     }
   ],
   "type": "extendedcrafting:shaped_flux_crafter",
-  "power_required": 500000,
+  "power_required": 50000,
   "power_rate": 1000,
   "pattern": [
     "RFR",
@@ -15,10 +15,10 @@
   ],
   "key": {
     "R": {
-      "item": "extendedcrafting:enhanced_redstone_ingot"
+      "item": "extendedcrafting:redstone_ingot"
     },
     "F": {
-      "item": "extendedcrafting:flux_star"
+      "item": "ae2:certus_quartz_crystal"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

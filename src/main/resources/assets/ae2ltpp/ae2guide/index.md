@@ -15,6 +15,16 @@ The **Packaged Pattern Provider** (and its wireless version) lets AE2 autocrafti
 ~~`Although it seems you still need a thorough understanding of these crafting structures...`~~
 Insert the corresponding **Packaged Core** into the provider to select the type of machine it will control.
 
+## Making specialized cores
+
+Craft a **Basic Packaged Core**, then process it in the target mod's corresponding machine to make a specialized core. This second step mainly uses materials readily available at that machine's progression stage. Check your recipe viewer for the exact layout and energy requirements.
+
+* The AA Empowerer core uses regular crystals. The Draconic Evolution Fusion core uses Draconium-tier fusion crafting, a Draconium Core, and Draconium Ingots.
+* EC table cores use components of their own tier, Black Iron Ingots, and Luminessence. Ender, Flux, and Combination cores also use common materials.
+* Avaritia table cores use materials available at their respective stages. Although EC and Avaritia table recipes occupy only a 3×3 area, they still require the corresponding table tier.
+* The Avaritia Extreme Smithing core uses an Engineering Processor as its template and one Diamond Lattice in each of the three addition slots.
+* The Mystical Agriculture Infusion core uses Prosperity Shards and Inferium Essence. The Occultism Ritual core uses a Foliot crafting ritual.
+
 ## General usage
 
 1. For a regular Packaged Pattern Provider, place it **touching the target machine's main block / core**.
