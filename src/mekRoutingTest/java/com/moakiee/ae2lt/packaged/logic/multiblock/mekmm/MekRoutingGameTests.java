@@ -23,6 +23,78 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder("ae2ltpp")
 @PrefixGameTestTemplate(false)
 public final class MekRoutingGameTests {
+    @GameTest(template = "mek_routing_test", timeoutTicks = 100)
+    public static void sodiumRecipeRatios(GameTestHelper helper) throws Exception {
+        var level = helper.getLevel();
+        var rotaryPos = helper.absolutePos(new BlockPos(2, 2, 2));
+        var separatorPos = helper.absolutePos(new BlockPos(8, 2, 2));
+        place(helper, rotaryPos, "large_rotary_condensentrator");
+        place(helper, separatorPos, "large_electrolytic_separator");
+        var rotary = level.getBlockEntity(rotaryPos);
+        var mode = rotary.getClass().getDeclaredField("mode");
+        mode.setAccessible(true);
+        mode.setBoolean(rotary, true);
+        var brine = AEFluidKey.of(BuiltInRegistries.FLUID.get(ResourceLocation.parse("mekanism:brine")));
+        var adapter = new MekanismMoreMachinesAdapter();
+        // CDP2 adds 1 brine -> 1 sodium; native electrolysis uses 10 brine -> 1 sodium + 1 chlorine.
+        for (long copies : new long[] {1, 10, 64}) {
+            var sodium = chemical(MekanismChemicals.SODIUM.asStack(copies));
+            var chlorine = chemical(MekanismChemicals.CHLORINE.asStack(copies));
+            var rotaryInput = new GenericStack(brine, copies);
+            var separatorInput = new GenericStack(brine, 10 * copies);
+            var evaporating = pattern(helper, new GenericStack[] {rotaryInput}, new GenericStack[] {sodium});
+            var separating = pattern(helper, new GenericStack[] {separatorInput}, new GenericStack[] {sodium, chlorine});
+            var sodiumOnly = pattern(helper, new GenericStack[] {separatorInput}, new GenericStack[] {sodium});
+            var rotaryBinding = adapter.bind(level, rotaryPos, evaporating);
+            var separatorBinding = adapter.bind(level, separatorPos, separating);
+            helper.assertTrue(rotaryBinding != null && separatorBinding != null, "both sodium recipes bind at scale " + copies);
+            helper.assertTrue(adapter.bind(level, separatorPos, evaporating) == null,
+                    "1:1 brine-to-sodium pattern must not bind 10:1 electrolysis at scale " + copies);
+            helper.assertTrue(adapter.bind(level, rotaryPos, separating) == null, "rotary cannot supply chlorine");
+            helper.assertTrue(adapter.bind(level, separatorPos, sodiumOnly) != null,
+                    "correctly proportioned electrolysis can still leave its byproduct native");
+            helper.assertTrue(adapter.bind(level, rotaryPos, sodiumOnly) == null,
+                    "10:1 sodium-only pattern must not bind 1:1 rotary at scale " + copies);
+            helper.assertTrue(adapter.planWithBinding(level, rotaryPos, evaporating, inputs(rotaryInput),
+                    rotaryBinding.handle(), null) != null, "matching rotary recipe dispatches");
+            helper.assertTrue(adapter.planWithBinding(level, separatorPos, separating, inputs(separatorInput),
+                    separatorBinding.handle(), null) != null, "matching electrolysis recipe dispatches");
+            helper.assertTrue(adapter.planWithBinding(level, separatorPos, separating, inputs(rotaryInput),
+                    separatorBinding.handle(), null) == null, "runtime quantities cannot bypass the binding ratio");
+        }
+        var wrongInput = pattern(helper, new GenericStack[] {new GenericStack(AEFluidKey.of(Fluids.WATER), 1)},
+                new GenericStack[] {chemical(MekanismChemicals.SODIUM.asStack(1))});
+        helper.assertTrue(adapter.bind(level, rotaryPos, wrongInput) == null, "same output cannot hide a wrong input at bind time");
+        helper.succeed();
+    }
+
+    @GameTest(template = "mek_routing_test", timeoutTicks = 100)
+    public static void chemicalRecipeRatios(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        place(helper, pos, "large_chemical_infuser");
+        var oxygen = chemical(MekanismChemicals.OXYGEN.asStack(32));
+        var chlorine = chemical(MekanismChemicals.CHLORINE.asStack(32));
+        var acid = chemical(MekanismChemicals.SULFURIC_ACID.asStack(64));
+        var adapter = new MekanismMoreMachinesAdapter();
+        var valid = pattern(helper, new GenericStack[] {chlorine, oxygen}, new GenericStack[] {acid});
+        var bound = adapter.bind(level, pos, valid);
+        helper.assertTrue(bound != null, "scaled, reordered chemical recipe binds");
+        var unequal = chemical(MekanismChemicals.CHLORINE.asStack(16));
+        var unbalanced = pattern(helper, new GenericStack[] {oxygen, unequal}, new GenericStack[] {acid});
+        helper.assertTrue(adapter.bind(level, pos, unbalanced) == null, "all input ports must use the same recipe multiplier");
+        helper.assertTrue(adapter.planWithBinding(level, pos, valid, inputs(oxygen, unequal), bound.handle(), null) == null,
+                "runtime input ratios are rechecked");
+        var tooMuchOutput = pattern(helper, new GenericStack[] {oxygen, chlorine},
+                new GenericStack[] {chemical(MekanismChemicals.SULFURIC_ACID.asStack(65))});
+        helper.assertTrue(adapter.bind(level, pos, tooMuchOutput) == null, "output quantity must agree with recipe multiplier");
+        var huge = pattern(helper, new GenericStack[] {chemical(MekanismChemicals.OXYGEN.asStack(Long.MAX_VALUE)),
+                chemical(MekanismChemicals.CHLORINE.asStack(Long.MAX_VALUE))},
+                new GenericStack[] {chemical(MekanismChemicals.SULFURIC_ACID.asStack(Long.MAX_VALUE))});
+        helper.assertTrue(adapter.bind(level, pos, huge) == null, "scaled outputs cannot overflow into a positive match");
+        helper.succeed();
+    }
+
     @GameTest(template = "mek_routing_test", timeoutTicks = 120)
     public static void sameInputsDifferentOutputs(GameTestHelper helper) {
         var level = helper.getLevel();
@@ -118,6 +190,14 @@ public final class MekRoutingGameTests {
         helper.assertTrue(nuclearBinding != null && adapter.planWithBinding(level, nuclearPos, nuclear,
                 inputs(itemInput, chemical(gas)), nuclearBinding.handle(), null) != null,
                 "native nucleosynthesizer item-and-chemical recipes still dispatch");
+        var timedItem = new GenericStack(AEItemKey.of(Items.COBBLESTONE), 8);
+        var timedGas = chemical(MekanismChemicals.ANTIMATTER.asStack(80));
+        var perTick = pattern(helper, new GenericStack[] {timedItem, timedGas},
+                new GenericStack[] {new GenericStack(AEItemKey.of(Items.DIAMOND), 8)});
+        var timedBinding = adapter.bind(level, nuclearPos, perTick);
+        helper.assertTrue(timedBinding != null && adapter.planWithBinding(level, nuclearPos, perTick,
+                inputs(timedItem, timedGas), timedBinding.handle(), null) != null,
+                "per-tick chemical supply must not be mistaken for a fixed recipe amount");
         helper.succeed();
     }
 
