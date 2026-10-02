@@ -162,6 +162,7 @@ dependencies {
     implementation "de.mari_023:ae2wtlib_api:${ae2wtlib_version}"
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testImplementation "org.mockito:mockito-core:5.12.0"
 
     if (thunderboltMavenNotation != null && !thunderboltMavenNotation.isBlank()) {
         compileOnly thunderboltMavenNotation
@@ -248,6 +249,11 @@ dependencies {
 // so reuse the generated Minecraft/NeoForge classpath already available to main.
 sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
 sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+// The standalone harness stubs must not shadow the real AE2 types in Gradle tests.
+sourceSets.test.java.exclude('appeng/api/crafting/IPatternDetails.java',
+        'appeng/api/networking/security/IActionSource.java',
+        'appeng/api/stacks/GenericStack.java', 'appeng/api/stacks/KeyCounter.java')
 
 test {
     useJUnitPlatform()

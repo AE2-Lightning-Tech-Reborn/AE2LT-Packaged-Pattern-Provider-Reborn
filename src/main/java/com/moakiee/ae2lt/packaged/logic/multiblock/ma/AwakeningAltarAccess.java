@@ -1,5 +1,6 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.ma;
 
+import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchCommitException;
 import com.moakiee.ae2lt.packaged.logic.multiblock.CompatibilityDiagnostics;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -32,6 +33,7 @@ final class AwakeningAltarAccess {
     private static volatile @Nullable Class<?> recipeApiClass;
     private static volatile @Nullable Class<?> activatableClass;
     private static volatile @Nullable Method activateMethod;
+    private static volatile @Nullable Method isActiveMethod;
     private static volatile @Nullable Method getAltarIngredientMethod;
     private static volatile @Nullable Method getEssencesMethod;
     private static volatile @Nullable Field progressField;
@@ -64,19 +66,39 @@ final class AwakeningAltarAccess {
         }
     }
 
-    static void activate(ServerLevel level, BlockPos pos) {
+    static void activateOrThrow(ServerLevel level, BlockPos pos) {
         ensureLookup();
-        if (activateMethod == null) {
-            return;
-        }
         var be = level.getBlockEntity(pos);
-        if (be == null || activatableClass == null || !activatableClass.isInstance(be)) {
-            return;
+        if (activateMethod == null
+                || isActiveMethod == null
+                || activatableClass == null
+                || be == null
+                || !activatableClass.isInstance(be)) {
+            throw new DispatchCommitException("MA awakening activation API is unavailable");
         }
         try {
             activateMethod.invoke(be);
+            if (!Boolean.TRUE.equals(isActiveMethod.invoke(be))) {
+                throw new DispatchCommitException("MA awakening altar remained inactive");
+            }
+        } catch (DispatchCommitException e) {
+            throw e;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            throw new DispatchCommitException("MA awakening activation failed: " + e);
+        }
+    }
+
+    static boolean isDefinitelyInactive(BlockEntity be) {
+        ensureLookup();
+        if (isActiveMethod == null
+                || activatableClass == null
+                || !activatableClass.isInstance(be)) {
+            return false;
+        }
+        try {
+            return Boolean.FALSE.equals(isActiveMethod.invoke(be));
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-            CompatibilityDiagnostics.failure(AwakeningAltarAccess.class, "activate", ignored);
+            return false;
         }
     }
 
@@ -176,6 +198,7 @@ final class AwakeningAltarAccess {
         activatableClass = Class.forName(ACTIVATABLE_CLASS);
 
         activateMethod = activatableClass.getMethod("activate");
+        isActiveMethod = activatableClass.getMethod("isActive");
         getAltarIngredientMethod = recipeApiClass.getMethod("getAltarIngredient");
         getEssencesMethod = recipeApiClass.getMethod("getEssences");
 

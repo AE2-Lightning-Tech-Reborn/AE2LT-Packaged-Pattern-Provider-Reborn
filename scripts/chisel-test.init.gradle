@@ -2,6 +2,10 @@
 allprojects {
     afterEvaluate {
         configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        // The EC regression suite uses real upstream classes, independently of the native chisel profile.
+        configurations.runtimeOnly.dependencies.findAll {
+            it.group == 'maven.modrinth' && it.name in ['extended-crafting', 'cucumber']
+        }.each { dependencies.add('testRuntimeOnly', it.copy()) }
         configurations.runtimeOnly.dependencies.removeIf { dep ->
             !(dep.group == 'org.appliedenergistics'
                 || dep.group == 'top.theillusivec4.curios'
