@@ -32,3 +32,4 @@ Build the machine, place the provider against it, install the Packaged Core, and
 ## Notes
 
 * The machine still needs its own **energy**. Keep it adequately powered.
+* With blocking mode disabled, inputs can be supplied while the machine is running, and blocked requests can retry on the next tick. Auto-return polls output ports every 1–20 ticks, returning to fast polling after collecting output or accepting new input.

@@ -1,6 +1,13 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.mekmm;
 
 import java.util.List;
+import appeng.core.definitions.AEBlocks;
+import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
+import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ProviderMode;
+import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ReturnMode;
+import com.moakiee.ae2lt.packaged.registry.PPBlocks;
+import com.moakiee.ae2lt.packaged.registry.PPItems;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEFluidKey;
@@ -199,6 +206,135 @@ public final class MekRoutingGameTests {
                 inputs(timedItem, timedGas), timedBinding.handle(), null) != null,
                 "per-tick chemical supply must not be mistaken for a fixed recipe amount");
         helper.succeed();
+    }
+
+    @GameTest(template = "mek_routing_test", timeoutTicks = 100)
+    public static void runningSeparatorReturnsBothOutputsAndPreservesFilter(GameTestHelper helper) throws Exception {
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(new BlockPos(5, 2, 5));
+        place(helper, pos, "large_electrolytic_separator");
+        var machine = level.getBlockEntity(pos);
+        var spec = MekmmMachines.ALL.stream().filter(s -> s.block().getPath().equals("large_electrolytic_separator")).findFirst().orElseThrow();
+        var facing = MekReflection.getFacing(machine);
+        for (var port : spec.activeMode(machine).outputs()) {
+            var offset = port.spec();
+            var portPos = pos.relative(facing.getOpposite(), offset.backSteps())
+                    .relative(facing.getClockWise(), offset.leftSteps()).above(offset.y());
+            level.setBlockAndUpdate(portPos, BuiltInRegistries.BLOCK.get(ResourceLocation.parse("mekanism:bounding_block")).defaultBlockState());
+            ((mekanism.common.tile.TileEntityBoundingBlock) level.getBlockEntity(portPos)).setMainLocation(pos, false);
+        }
+        var left = (mekanism.api.chemical.IChemicalTank) machine.getClass().getField("leftTank").get(machine);
+        var right = (mekanism.api.chemical.IChemicalTank) machine.getClass().getField("rightTank").get(machine);
+        left.setStack(MekanismChemicals.SODIUM.asStack(left.getCapacity()));
+        right.setStack(MekanismChemicals.CHLORINE.asStack(right.getCapacity()));
+        ((mekanism.common.tile.base.TileEntityMekanism) machine).setActive(true);
+        helper.assertTrue(MekReflection.isActive(machine), "separator is active before collection");
+        var filter = new com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter();
+        filter.allowStrict(chemical(MekanismChemicals.SODIUM.asStack(1)).what());
+        var adapter = new MekanismMoreMachinesAdapter();
+        var first = adapter.extractOutputs(level, pos, filter, null);
+        helper.assertTrue(first.size() == 1 && left.getStored() == 0 && right.getStored() == right.getCapacity(),
+                "active collection empties permitted output and preserves excluded byproduct");
+        filter.allowStrict(chemical(MekanismChemicals.CHLORINE.asStack(1)).what());
+        var second = adapter.extractOutputs(level, pos, filter, null);
+        helper.assertTrue(second.size() == 1 && right.getStored() == 0, "second full output can be drained while active");
+        helper.succeed();
+    }
+
+    @GameTest(template = "mek_routing_test", timeoutTicks = 160)
+    public static void normalProviderUsesAdaptiveReturnDeadlines(GameTestHelper helper) throws Exception {
+        checkProviderReturnSchedule(helper, false);
+    }
+
+    @GameTest(template = "mek_routing_test", timeoutTicks = 160)
+    public static void wirelessProviderUsesAdaptiveReturnDeadlines(GameTestHelper helper) throws Exception {
+        checkProviderReturnSchedule(helper, true);
+    }
+
+    private static void checkProviderReturnSchedule(GameTestHelper helper, boolean wireless) throws Exception {
+        var level = helper.getLevel();
+        var main = helper.absolutePos(new BlockPos(5, 2, 5));
+        place(helper, main, "large_electrolytic_separator");
+        var machine = level.getBlockEntity(main);
+        var spec = MekmmMachines.ALL.stream().filter(s -> s.block().getPath().equals("large_electrolytic_separator"))
+                .findFirst().orElseThrow();
+        var facing = MekReflection.getFacing(machine);
+        var ports = new java.util.ArrayList<BlockPos>();
+        for (var port : spec.activeMode(machine).outputs()) {
+            var portPos = main.relative(facing.getOpposite(), port.spec().backSteps())
+                    .relative(facing.getClockWise(), port.spec().leftSteps()).above(port.spec().y());
+            level.setBlockAndUpdate(portPos, BuiltInRegistries.BLOCK.get(ResourceLocation.parse("mekanism:bounding_block"))
+                    .defaultBlockState());
+            ((mekanism.common.tile.TileEntityBoundingBlock) level.getBlockEntity(portPos)).setMainLocation(main, false);
+            ports.add(portPos);
+        }
+        var providerPos = wireless ? main.north(3) : main.north();
+        net.minecraft.world.level.block.Block providerBlock = wireless
+                ? PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get() : PPBlocks.PACKAGED_PATTERN_PROVIDER.get();
+        level.setBlockAndUpdate(providerPos, providerBlock.defaultBlockState());
+        level.setBlockAndUpdate(providerPos.north(), AEBlocks.CREATIVE_ENERGY_CELL.block().defaultBlockState());
+        var provider = (PackagedPatternProviderBlockEntity) level.getBlockEntity(providerPos);
+        provider.getAdapterInv().setItemDirect(0, PPItems.MEKMM_ADAPTER.toStack());
+        var logic = (PackagedPatternProviderLogic) provider.getLogic();
+        var sodium = chemical(MekanismChemicals.SODIUM.asStack(16));
+        logic.getPatternInv().setItemDirect(0, PatternDetailsHelper.encodeProcessingPattern(
+                List.of(new GenericStack(AEFluidKey.of(BuiltInRegistries.FLUID.get(ResourceLocation.parse("mekanism:brine"))), 160)),
+                List.of(sodium)));
+        if (wireless) {
+            helper.assertTrue(provider.getProviderMode() == ProviderMode.WIRELESS, "wireless provider variant placed");
+            helper.assertTrue(provider.addOrUpdateConnection(level.dimension(), main, facing), "controller connection added");
+            for (var port : ports) {
+                helper.assertTrue(provider.addOrUpdateConnection(level.dimension(), port, facing), "bounding port connection added");
+            }
+        }
+        var output = (mekanism.api.chemical.IChemicalTank) machine.getClass().getField("leftTank").get(machine);
+        helper.runAfterDelay(50, () -> {
+            helper.assertTrue(provider.getMainNode().isActive(), "provider is powered");
+            output.setStack(MekanismChemicals.SODIUM.asStack(16));
+            logic.tickAutoReturn();
+            helper.assertTrue(output.getStored() == 16, "OFF leaves outputs in the machine");
+            provider.setReturnMode(ReturnMode.AUTO);
+            logic.tickAutoReturn();
+            helper.assertTrue(output.getStored() == 0, "AUTO collects immediately on activation");
+            output.setStack(MekanismChemicals.SODIUM.asStack(16));
+            logic.tickAutoReturn();
+            helper.assertTrue(output.getStored() == 16, "repeated same-tick calls do not scan the controller again");
+            helper.runAfterDelay(1, () -> {
+                logic.tickAutoReturn();
+                helper.assertTrue(output.getStored() == 0, "active output is collected on the next tick");
+            });
+            // After the successful poll at +1, empty polls at +2,+3,+5,+9,+17 back off to +37.
+            helper.runAfterDelay(20, () -> {
+                output.setStack(MekanismChemicals.SODIUM.asStack(16));
+                logic.tickAutoReturn();
+                helper.assertTrue(output.getStored() == 16, "regular discovery does not override the idle deadline");
+            });
+            helper.runAfterDelay(36, () -> {
+                logic.tickAutoReturn();
+                helper.assertTrue(output.getStored() == 16, "idle target remains asleep until its deadline");
+            });
+            helper.runAfterDelay(37, () -> {
+                logic.tickAutoReturn();
+                helper.assertTrue(output.getStored() == 0, "idle poll collects within the 20-tick ceiling");
+                provider.setReturnMode(ReturnMode.OFF);
+                output.setStack(MekanismChemicals.SODIUM.asStack(16));
+                logic.tickAutoReturn();
+                helper.assertTrue(output.getStored() == 16, "OFF cancels the fast return schedule");
+                provider.setReturnMode(ReturnMode.AUTO);
+                logic.tickAutoReturn();
+                helper.assertTrue(output.getStored() == 0, "reenabling AUTO discovers the target again");
+                if (wireless) {
+                    provider.removeConnection(level.dimension(), main);
+                    for (var port : ports) provider.removeConnection(level.dimension(), port);
+                    output.setStack(MekanismChemicals.SODIUM.asStack(16));
+                    helper.runAfterDelay(1, () -> {
+                        logic.tickAutoReturn();
+                        helper.assertTrue(output.getStored() == 16, "removed connections cannot use cached fast return targets");
+                        helper.succeed();
+                    });
+                } else helper.succeed();
+            });
+        });
     }
 
     private static void place(GameTestHelper helper, BlockPos pos, String id) {

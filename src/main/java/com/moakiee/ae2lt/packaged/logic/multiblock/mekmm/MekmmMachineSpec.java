@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
  *
  * <p>One spec covers all behaviour that previously required a hand-written
  * adapter per machine: which block id is the controller, which tile class
- * to identity-check, whether dispatch is gated on the machine being idle,
+ * to identity-check,
  * and the input/output port layouts relative to the controller's facing.
  *
  * <p>Most machines run in a single mode (one {@code PortGroup}). Machines
@@ -26,7 +26,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 public record MekmmMachineSpec(
         ResourceLocation block,
         String tileClass,
-        boolean idleGated,
         List<PortGroup> modes,
         @Nullable ToIntFunction<BlockEntity> modeSelector
 ) {

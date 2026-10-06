@@ -44,7 +44,6 @@ final class MekmmMachines {
         return new MekmmMachineSpec(
                 id("large_antiprotonic_nucleosynthesizer"),
                 "com.jerry.meklm.common.tile.machine.TileEntityLargeAntiprotonicNucleosynthesizer",
-                true,
                 List.of(new PortGroup(
                         List.of(
                                 new PortDef(new MekPortSpec(1, 0, 0, BACK), ITEM),
@@ -61,7 +60,6 @@ final class MekmmMachines {
         return new MekmmMachineSpec(
                 id("large_chemical_infuser"),
                 "com.jerry.meklm.common.tile.machine.TileEntityLargeChemicalInfuser",
-                true,
                 List.of(new PortGroup(
                         List.of(
                                 new PortDef(new MekPortSpec(1, 1, 0, LEFT), CHEMICAL),
@@ -78,7 +76,6 @@ final class MekmmMachines {
         return new MekmmMachineSpec(
                 id("large_electrolytic_separator"),
                 "com.jerry.meklm.common.tile.machine.TileEntityLargeElectrolyticSeparator",
-                true,
                 List.of(new PortGroup(
                         List.of(new PortDef(new MekPortSpec(1, 1, 0, BACK), FLUID)),
                         List.of(
@@ -97,7 +94,6 @@ final class MekmmMachines {
         return new MekmmMachineSpec(
                 id("large_rotary_condensentrator"),
                 "com.jerry.meklm.common.tile.machine.TileEntityLargeRotaryCondensentrator",
-                true,
                 List.of(
                         new PortGroup(
                                 List.of(new PortDef(new MekPortSpec(1, 1, 0, BACK), CHEMICAL)),
@@ -126,12 +122,11 @@ final class MekmmMachines {
         };
     }
 
-    // === Large Solar Neutron Activator (3×3×3, never idle-gates dispatch) ===
+    // === Large Solar Neutron Activator (3×3×3) ===
     private static MekmmMachineSpec solarNeutronActivator() {
         return new MekmmMachineSpec(
                 id("large_solar_neutron_activator"),
                 "com.jerry.meklm.common.tile.machine.TileEntityLargeSolarNeutronActivator",
-                false,
                 List.of(new PortGroup(
                         List.of(new PortDef(new MekPortSpec(1, 1, 0, LEFT), CHEMICAL)),
                         List.of(new PortDef(new MekPortSpec(1, -1, 0, BACK), CHEMICAL))
@@ -145,7 +140,6 @@ final class MekmmMachines {
         return new MekmmMachineSpec(
                 id("large_pigment_mixer"),
                 "com.jerry.meklm.common.tile.machine.TileEntityLargePigmentMixer",
-                true,
                 List.of(new PortGroup(
                         List.of(
                                 new PortDef(new MekPortSpec(1, 1, 0, LEFT), CHEMICAL),
