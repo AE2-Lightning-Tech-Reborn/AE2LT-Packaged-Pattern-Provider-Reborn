@@ -1,0 +1,29 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "chisel:chisel",
+      "required": false
+    },
+    {
+      "id": "chisel:iron_chisel",
+      "required": false
+    },
+    {
+      "id": "chisel:diamond_chisel",
+      "required": false
+    },
+    {
+      "id": "chisel:hitech_chisel",
+      "required": false
+    },
+    {
+      "id": "chipped:chisel",
+      "required": false
+    },
+    {
+      "id": "rechiseled:chisel",
+      "required": false
+    }
+  ]
+}

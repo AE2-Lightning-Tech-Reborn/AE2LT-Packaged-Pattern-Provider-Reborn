@@ -10,7 +10,10 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -35,6 +38,7 @@ import com.moakiee.ae2lt.api.pattern.PatternProviderUiProfile;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
+import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
 import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
 import com.moakiee.ae2lt.packaged.registry.PPBlockEntities;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
@@ -59,6 +63,33 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     private final ProviderMode fixedProviderMode;
     private final FrequencyBindingAccess frequencyBinding = FrequencyApi.createBinding(this);
+
+    @Override
+    public boolean acceptsWirelessTarget(Level targetLevel, BlockPos pos) {
+        if (!isWirelessProvider() || !(targetLevel instanceof ServerLevel serverLevel)
+                || !targetLevel.isLoaded(pos)) return false;
+        var core = adapterInv.getStackInSlot(0);
+        if (!(core.getItem() instanceof MultiblockAdapterItem)) return false;
+        var adapter = MultiblockAdapterRegistry.find(serverLevel, pos, serverLevel.getBlockEntity(pos));
+        return adapter != null && MultiblockAdapterItem.stackCovers(core, adapter.requiredAdapterId(serverLevel, pos));
+    }
+
+    @Override
+    public Component getWirelessTargetRejectionMessage() {
+        return Component.translatable(adapterInv.getStackInSlot(0).isEmpty()
+                ? "ae2ltpp.connector.core_required" : "ae2ltpp.connector.core_mismatch");
+    }
+
+    @Override
+    public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
+        return level != null && level.dimension().equals(dimension) && acceptsWirelessTarget(level, pos)
+                && super.addOrUpdateConnection(dimension, pos, boundFace);
+    }
+
+    @Override
+    protected boolean isWirelessTargetPresent(ServerLevel targetLevel, BlockPos pos) {
+        return MultiblockAdapterRegistry.find(targetLevel, pos, targetLevel.getBlockEntity(pos)) != null;
+    }
 
     /**
      * Single-slot inventory holding the {@link MultiblockAdapterItem} packaged core

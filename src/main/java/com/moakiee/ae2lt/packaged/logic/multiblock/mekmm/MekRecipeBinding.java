@@ -28,6 +28,8 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<RecipeHolder<
     @Nullable
     static MekRecipeBinding find(ServerLevel level, BlockEntity machine, MekmmMachineSpec spec,
             IPatternDetails pattern) {
+        var inputs = patternInputs(pattern);
+        if (inputs == null) return null;
         Object provider = invoke(machine, "getRecipeType");
         if (provider == null) return null;
         var method = ReflectionSupport.findMethodCached(provider.getClass(), "getRecipes", Level.class).orElse(null);
@@ -39,9 +41,7 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<RecipeHolder<
             var candidates = new ArrayList<RecipeHolder<?>>();
             for (Object entry : holders) {
                 if (!(entry instanceof RecipeHolder<?> holder)) continue;
-                Object definitions = invoke(holder.value(), outputMethod(mode, true));
-                if (!(definitions instanceof List<?> outputs)) continue;
-                if (outputs.stream().anyMatch(output -> matchesOutputs(pattern, stacks(output)))) {
+                if (arrange(holder.value(), mode, pattern, inputs) != null) {
                     candidates.add(holder);
                 }
             }
@@ -57,10 +57,13 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<RecipeHolder<
     /** Returns inputs in the recipe's port order, or rejects before any material is inserted. */
     @Nullable
     List<GenericStack> arrange(ServerLevel level, PortGroup mode, IPatternDetails pattern, KeyCounter[] inputs) {
-        var available = new ArrayList<GenericStack>();
+        var available = new ArrayList<List<GenericStack>>();
         for (var counter : inputs) {
             for (var entry : counter) {
-                if (entry.getLongValue() > 0) available.add(new GenericStack(entry.getKey(), entry.getLongValue()));
+                if (entry.getLongValue() < 0) return null;
+                if (entry.getLongValue() > 0) {
+                    available.add(List.of(new GenericStack(entry.getKey(), entry.getLongValue())));
+                }
             }
         }
         if (available.size() != mode.inputs().size()) return null;
@@ -68,39 +71,78 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<RecipeHolder<
             // Reject an old cached recipe after datapack reload, even before provider cache invalidation.
             var live = level.getRecipeManager().byKey(holder.id()).orElse(null);
             if (live == null || live.value() != holder.value()) continue;
-            var arranged = arrange(holder.value(), mode, available);
-            if (arranged == null) continue;
-            Object[] stacks = arranged.stream().map(MekRecipeBinding::stack).toArray();
-            Object output = invoke(holder.value(), outputMethod(mode, false), stacks);
-            if (matchesOutputs(pattern, stacks(output))) return arranged;
+            var arranged = arrange(holder.value(), mode, pattern, available);
+            if (arranged != null) return arranged;
         }
         return null;
     }
 
     @Nullable
-    private static List<GenericStack> arrange(Object recipe, PortGroup mode, List<GenericStack> available) {
+    private static List<List<GenericStack>> patternInputs(IPatternDetails pattern) {
+        var result = new ArrayList<List<GenericStack>>();
+        for (var input : pattern.getInputs()) {
+            if (input.getMultiplier() <= 0) return null;
+            var choices = new ArrayList<GenericStack>();
+            for (var possible : input.getPossibleInputs()) {
+                if (possible.amount() <= 0 || possible.amount() > Long.MAX_VALUE / input.getMultiplier()) continue;
+                choices.add(new GenericStack(possible.what(), possible.amount() * input.getMultiplier()));
+            }
+            if (choices.isEmpty()) return null;
+            result.add(List.copyOf(choices));
+        }
+        return result;
+    }
+
+    @Nullable
+    private static List<GenericStack> arrange(Object recipe, PortGroup mode, IPatternDetails pattern,
+            List<List<GenericStack>> available) {
+        if (available.size() != mode.inputs().size()) return null;
         String[] ingredients = ingredientMethods(mode);
         var result = new ArrayList<GenericStack>();
-        if (assign(recipe, mode, ingredients, available, new boolean[available.size()], result)) return List.copyOf(result);
+        if (assign(recipe, mode, pattern, ingredients, available, new boolean[available.size()], result, 0)) {
+            return List.copyOf(result);
+        }
         return null;
     }
 
-    private static boolean assign(Object recipe, PortGroup mode, String[] ingredients,
-            List<GenericStack> available, boolean[] used, List<GenericStack> result) {
+    private static boolean assign(Object recipe, PortGroup mode, IPatternDetails pattern, String[] ingredients,
+            List<List<GenericStack>> available, boolean[] used, List<GenericStack> result, long copies) {
         int slot = result.size();
-        if (slot == ingredients.length) return true;
+        if (slot == ingredients.length) {
+            Object[] stacks = result.stream().map(MekRecipeBinding::stack).toArray();
+            Object output = invoke(recipe, outputMethod(mode), stacks);
+            return matchesOutputs(pattern, stacks(output), copies);
+        }
         Object ingredient = invoke(recipe, ingredients[slot]);
         if (ingredient == null) return false;
         for (int i = 0; i < available.size(); i++) {
-            var input = available.get(i);
-            if (used[i] || type(input.what()) != mode.inputs().get(slot).type()) continue;
-            // Native ingredient predicates preserve tags/components even for an ID_ONLY pattern.
-            if (!Boolean.TRUE.equals(invoke(ingredient, "testType", stack(input)))) continue;
-            used[i] = true;
-            result.add(input);
-            if (assign(recipe, mode, ingredients, available, used, result)) return true;
-            result.removeLast();
-            used[i] = false;
+            if (used[i]) continue;
+            for (var input : available.get(i)) {
+                if (type(input.what()) != mode.inputs().get(slot).type()) continue;
+                // Native predicates preserve tags/components even for an ID_ONLY pattern.
+                Object stack = stack(input);
+                if (!Boolean.TRUE.equals(invoke(ingredient, "testType", stack))) continue;
+                Object needed = invoke(ingredient, "getNeededAmount", stack);
+                if (!(needed instanceof Number amount) || amount.longValue() <= 0) continue;
+                long perRecipe = amount.longValue();
+                long inputCopies;
+                if (slot > 0 && mode.inputs().get(slot).type() == PortType.CHEMICAL
+                        && Boolean.TRUE.equals(invoke(recipe, "perTickUsage"))) {
+                    // Per-tick nucleosynthesis consumes a chemical supply over time. Its item
+                    // input determines the recipe count; the chemical stack is not a fixed total.
+                    if (copies <= 0 || input.amount() / perRecipe < copies) continue;
+                    inputCopies = copies;
+                } else {
+                    if (input.amount() % perRecipe != 0) continue;
+                    inputCopies = input.amount() / perRecipe;
+                    if (inputCopies <= 0 || (copies != 0 && inputCopies != copies)) continue;
+                }
+                used[i] = true;
+                result.add(input);
+                if (assign(recipe, mode, pattern, ingredients, available, used, result, inputCopies)) return true;
+                result.removeLast();
+                used[i] = false;
+            }
         }
         return false;
     }
@@ -123,22 +165,22 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<RecipeHolder<
                 && mode.inputs().getFirst().type() != mode.outputs().getFirst().type();
     }
 
-    private static String outputMethod(PortGroup mode, boolean definition) {
-        String method = rotary(mode)
+    private static String outputMethod(PortGroup mode) {
+        return rotary(mode)
                 ? (mode.outputs().getFirst().type() == PortType.FLUID ? "getFluidOutput" : "getChemicalOutput")
                 : "getOutput";
-        return definition ? method + "Definition" : method;
     }
 
-    /** The machine must actually produce each declared key. Undeclared byproducts remain native. */
-    static boolean matchesOutputs(IPatternDetails pattern, List<GenericStack> actual) {
+    /** Declared amounts must agree with the input multiplier. Undeclared byproducts remain native. */
+    private static boolean matchesOutputs(IPatternDetails pattern, List<GenericStack> actual, long copies) {
         var expected = pattern.getOutputs();
-        if (expected.isEmpty() || actual.isEmpty()) return false;
+        if (copies <= 0 || expected.isEmpty() || actual.isEmpty()) return false;
         for (int i = 0; i < expected.size(); i++) {
             var output = expected.get(i);
-            if (output.amount() <= 0L) return false;
+            if (output.amount() <= 0L || output.amount() % copies != 0) return false;
             boolean idOnly = OverloadPatternSemantics.isIdOnlyOutput(pattern, i);
-            boolean found = actual.stream().anyMatch(candidate -> candidate.amount() > 0L && (idOnly
+            // Divide instead of multiplying native output amounts, which may overflow for chemical batches.
+            boolean found = actual.stream().anyMatch(candidate -> candidate.amount() == output.amount() / copies && (idOnly
                     ? output.what().dropSecondary().equals(candidate.what().dropSecondary())
                     : output.what().equals(candidate.what())));
             if (!found) return false;

@@ -62,7 +62,8 @@ public record PackagedCoreDefinition(
             core("astral_resonance_packaged_core", "astralsorcery", "altar_resonance"),
             core("astral_luminance_packaged_core", "astralsorcery", "altar_luminance"),
             core("astral_radiance_packaged_core", "astralsorcery", "altar_radiance"),
-            core("astral_infuser_packaged_core", "astralsorcery", "infuser"));
+            core("astral_infuser_packaged_core", "astralsorcery", "infuser"),
+            core("chiseling_packaged_core", "chisel", "chisel"));
 
     public static List<PackagedCoreDefinition> all() {
         return ALL;
@@ -70,7 +71,9 @@ public record PackagedCoreDefinition(
 
     public static List<PackagedCoreDefinition> visibleWhen(Predicate<String> isModLoaded) {
         return ALL.stream()
-                .filter(definition -> isModLoaded.test(definition.targetModId()))
+                .filter(definition -> definition.itemId().equals("chiseling_packaged_core")
+                        ? isModLoaded.test("chipped") || isModLoaded.test("rechiseled") || isModLoaded.test("chisel")
+                        : isModLoaded.test(definition.targetModId()))
                 .toList();
     }
 
@@ -110,8 +113,20 @@ public record PackagedCoreDefinition(
             case "astral_luminance_packaged_core" -> PPItems.ASTRAL_LUMINANCE_ADAPTER;
             case "astral_radiance_packaged_core" -> PPItems.ASTRAL_RADIANCE_ADAPTER;
             case "astral_infuser_packaged_core" -> PPItems.ASTRAL_INFUSER_ADAPTER;
+            case "chiseling_packaged_core" -> PPItems.CHISELING_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };
+    }
+
+    /** Display the portable tool provided by the installed Chisel implementation. */
+    public ResourceLocation displayItemId() {
+        if (itemId.equals("chiseling_packaged_core")) {
+            for (var id : List.of("chisel:chisel", "chisel:iron_chisel", "rechiseled:chisel", "chipped:chisel")) {
+                var candidate = ResourceLocation.parse(id);
+                if (net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(candidate)) return candidate;
+            }
+        }
+        return targetItemId;
     }
 
     private static PackagedCoreDefinition core(

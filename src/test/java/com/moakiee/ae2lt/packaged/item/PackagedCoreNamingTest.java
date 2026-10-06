@@ -52,7 +52,8 @@ class PackagedCoreNamingTest {
             "astral_resonance_packaged_core",
             "astral_luminance_packaged_core",
             "astral_radiance_packaged_core",
-            "astral_infuser_packaged_core");
+            "astral_infuser_packaged_core",
+            "chiseling_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
             "basic_packaged_core");
