@@ -77,6 +77,42 @@ public final class TableCraftingSupport {
                 (ingredient, key) -> ingredientAcceptsItemId(ingredient, key.getItem())) != null;
     }
 
+    /**
+     * Bind each declared input using its own match mode. Output matching cannot grant an input
+     * permission to ignore components. Actual delivery is still checked by the recipe itself.
+     */
+    public static boolean canAssignPatternIngredients(NonNullList<Ingredient> ingredients,
+                                                       IPatternDetails pattern, long craftRatio) {
+        var provided = new LinkedHashMap<DeclaredInput, Long>();
+        var patternInputs = pattern.getInputs();
+        try {
+            for (int slot = 0; slot < patternInputs.length; slot++) {
+                var input = patternInputs[slot];
+                var possible = input.getPossibleInputs();
+                if (possible.length == 0 || !(possible[0].what() instanceof AEItemKey key)) return false;
+                long amount = Math.multiplyExact(Math.max(1L, possible[0].amount()),
+                        Math.max(1L, input.getMultiplier()));
+                var declared = new DeclaredInput(key, OverloadPatternSemantics.isIdOnlyInput(pattern, slot));
+                provided.merge(declared, amount, Math::addExact);
+            }
+        } catch (ArithmeticException ignored) {
+            return false;
+        }
+        var nonEmpty = new ArrayList<Ingredient>();
+        for (var ingredient : ingredients) if (!ingredient.isEmpty()) nonEmpty.add(ingredient);
+        if (nonEmpty.isEmpty()) return false;
+        var inputs = new ArrayList<IngredientAssignment.Input<DeclaredInput>>(provided.size());
+        provided.forEach((key, amount) -> inputs.add(new IngredientAssignment.Input<>(key, amount)));
+        return IngredientAssignment.assign(nonEmpty, inputs, craftRatio, (ingredient, declared) ->
+                declared.idOnly() ? ingredientAcceptsItemId(ingredient, declared.key().getItem())
+                        : ingredient.test(declared.key().toStack(1))) != null;
+    }
+
+    private record DeclaredInput(AEItemKey key, boolean idOnly) {}
+
+    /** A recipe candidate retained until the concrete input components are known. */
+    public record BoundRecipe(Object recipe, int craftRatio) {}
+
     @Nullable
     public static List<ItemStack> assignIngredientsStrict(NonNullList<Ingredient> ingredients,
                                                            LinkedHashMap<AEItemKey, Long> available,

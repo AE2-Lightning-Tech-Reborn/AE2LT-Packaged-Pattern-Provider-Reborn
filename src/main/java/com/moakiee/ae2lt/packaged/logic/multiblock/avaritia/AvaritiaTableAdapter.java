@@ -4,8 +4,7 @@ import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSu
 import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.assemble;
 import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.assignIngredientsStrict;
 import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.canApplyRemaining;
-import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.canAssignIngredientsByItemId;
-import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.canAssignIngredientsStrict;
+import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.canAssignPatternIngredients;
 import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.countNonEmpty;
 import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.currentStacks;
 import static com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.gridIsEmpty;
@@ -23,13 +22,15 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
-import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport;
+import com.moakiee.ae2lt.packaged.logic.multiblock.shared.TableCraftingSupport.BoundRecipe;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -49,7 +50,7 @@ import org.jetbrains.annotations.Nullable;
  * Runtime adapter for Re-Avaritia's tiered crafting tables.
  * Pure reflection: Re-Avaritia is not a compile dependency.
  */
-public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter {
+public final class AvaritiaTableAdapter implements UnboundedVirtualCraftingAdapter {
 
     private static final String MOD_ID = "avaritia";
     private static final ResourceLocation SCULK_TABLE_BLOCK = avaritiaId("sculk_crafting_table");
@@ -140,15 +141,6 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
             return null;
         }
 
-        var ingredients = ingredients(bind.recipe());
-        if (ingredients == null) {
-            return null;
-        }
-        int nonEmpty = countNonEmpty(ingredients);
-        if (nonEmpty == 0 || nonEmpty > spec.slots()) {
-            return null;
-        }
-
         var available = new LinkedHashMap<AEItemKey, Long>();
         for (var counter : inputs) {
             for (var entry : counter) {
@@ -166,24 +158,43 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
             return null;
         }
 
-        int k = bind.craftRatio();
+        for (var candidate : bind.recipes()) {
+            var result = planRecipe(level, pattern, available, spec, candidate);
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    @Nullable
+    private static VirtualCraftingResult planRecipe(ServerLevel level, IPatternDetails pattern,
+            LinkedHashMap<AEItemKey, Long> available, TableSpec spec, BoundRecipe candidate) {
+        var ingredients = ingredients(candidate.recipe());
+        if (ingredients == null) {
+            return null;
+        }
+        int nonEmpty = countNonEmpty(ingredients);
+        if (nonEmpty == 0 || nonEmpty > spec.slots()) {
+            return null;
+        }
+
+        int k = candidate.craftRatio();
         var perCraftStacks = assignIngredientsStrict(ingredients, available, k);
         if (perCraftStacks == null) {
             return null;
         }
 
-        var planned = layoutGridFromIngredients(bind.recipe(), perCraftStacks, spec);
+        var planned = layoutGridFromIngredients(candidate.recipe(), perCraftStacks, spec);
         if (planned == null) {
             return null;
         }
 
         var input = AvaritiaTableAccess.createTierInput(
                 spec.gridSize(), planned, spec.tier());
-        if (input == null || !recipeMatches(bind.recipe(), input, level)) {
+        if (input == null || !recipeMatches(candidate.recipe(), input, level)) {
             return null;
         }
 
-        var result = assemble(bind.recipe(), input, level);
+        var result = assemble(candidate.recipe(), input, level);
         if (result == null || result.isEmpty()) {
             return null;
         }
@@ -195,7 +206,7 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
             return null;
         }
 
-        var remaining = remainingItems(bind.recipe(), input);
+        var remaining = remainingItems(candidate.recipe(), input);
         if (remaining == null) {
             return null;
         }
@@ -261,27 +272,8 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
         }
         long patternOutAmount = patternOut.amount();
 
-        var provided = new LinkedHashMap<AEItemKey, Long>();
-        for (var input : pattern.getInputs()) {
-            var possible = input.getPossibleInputs();
-            if (possible.length == 0 || !(possible[0].what() instanceof AEItemKey itemKey)) {
-                return null;
-            }
-            long stackAmount = Math.max(1L, possible[0].amount());
-            long multiplier = Math.max(1L, input.getMultiplier());
-            long amount;
-            try {
-                amount = Math.multiplyExact(stackAmount, multiplier);
-            } catch (ArithmeticException ignored) {
-                return null;
-            }
-            provided.merge(itemKey, amount, Long::sum);
-        }
-        if (provided.isEmpty()) {
-            return null;
-        }
-
-        boolean overload = OverloadPatternSemantics.isIdOnlyOutput(pattern, 0);
+        boolean idOnlyOutput = OverloadPatternSemantics.isIdOnlyOutput(pattern, 0);
+        var candidates = new ArrayList<BoundRecipe>();
 
         for (var holder : recipes(level)) {
             var recipe = holder.value();
@@ -295,7 +287,7 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
             if (resultPreview.getItem() != patternOutKey.getItem()) {
                 continue;
             }
-            if (!overload && !patternOutKey.equals(AEItemKey.of(resultPreview))) {
+            if (!idOnlyOutput && !patternOutKey.equals(AEItemKey.of(resultPreview))) {
                 continue;
             }
 
@@ -317,16 +309,13 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
                 continue;
             }
 
-            boolean ok = overload
-                    ? canAssignIngredientsByItemId(ingredients, provided, k)
-                    : canAssignIngredientsStrict(ingredients, provided, k);
-            if (!ok) {
+            if (!canAssignPatternIngredients(ingredients, pattern, k)) {
                 continue;
             }
 
-            return new TableBindHandle(spec, recipe, (int) k);
+            candidates.add(new BoundRecipe(recipe, (int) k));
         }
-        return null;
+        return candidates.isEmpty() ? null : new TableBindHandle(spec, List.copyOf(candidates));
     }
 
     private static boolean tableCanCraftRecipe(TableSpec spec, Object recipe) {
@@ -408,7 +397,7 @@ public final class AvaritiaTableAdapter implements LinearVirtualCraftingAdapter 
         }
     }
 
-    private record TableBindHandle(TableSpec spec, Object recipe, int craftRatio) {
+    private record TableBindHandle(TableSpec spec, List<BoundRecipe> recipes) {
     }
 
 }

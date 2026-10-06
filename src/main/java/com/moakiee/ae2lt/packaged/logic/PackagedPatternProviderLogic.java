@@ -1,6 +1,7 @@
 package com.moakiee.ae2lt.packaged.logic;
 
 import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ProviderInternalCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BatchCopies;
@@ -67,7 +68,8 @@ import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderLogic;
  *   <li><b>Virtual batch accumulation.</b> Virtual adapters (no in-world delay)
  *       deposit outputs into {@link PendingOutputBuffer}; the buffer
  *       flushes every {@value PendingOutputBuffer#FLUSH_INTERVAL_TICKS} ticks.
- *       A {@link LaneRateLimiter} caps each lane at 64 pushes per tick.</li>
+ *       Workbench lanes follow the CPU copy budget; other virtual lanes use
+ *       a {@link LaneRateLimiter} capped at 64 pushes per tick.</li>
  *   <li><b>Real dispatch.</b> Per push: optionally return outputs, then run
  *       {@link MultiblockAdapter#canDispatch} &rarr; {@code planWithBinding}.
  *       Failures route the lane through {@link LaneCooldownTable}'s retry
@@ -205,6 +207,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         boolean ordinary = false;
         for (var candidate : binding.candidates()) {
             if (candidate.mode() == BindingMode.VIRTUAL && candidate.adapter() instanceof LinearVirtualCraftingAdapter) {
+                if (candidate.adapter() instanceof UnboundedVirtualCraftingAdapter) return Long.MAX_VALUE;
                 capacity += virtualPushLimiter.remaining(candidate.lane(), tick);
             } else if (candidate.mode() == BindingMode.REAL && candidate.adapter() instanceof InputBatchCraftingAdapter) {
                 var env = resolveLaneEnv(level, candidate);
@@ -235,22 +238,26 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                 if (remaining <= 0 || pendingBatchInputs.hasPending()) break;
                 var env = resolveLaneEnv(level, candidate);
                 if (env == null) continue;
-                int accepted = 0;
+                long accepted = 0;
                 if (candidate.mode() == BindingMode.VIRTUAL
                         && candidate.adapter() instanceof LinearVirtualCraftingAdapter adapter) {
-                    int maximum = (int) Math.min(remaining, virtualPushLimiter.remaining(candidate.lane(), tick));
-                    int copies = BatchCopies.fitting(maximum,
-                            n -> PatternProviderPowerCost.canAfford(grid, oneCopyCost * n));
-                    if (copies <= 0) continue;
+                    boolean unbounded = adapter instanceof UnboundedVirtualCraftingAdapter;
+                    long maximum = unbounded ? remaining
+                            : Math.min(remaining, virtualPushLimiter.remaining(candidate.lane(), tick));
+                    if (maximum <= 0 || !PatternProviderPowerCost.canAfford(grid, oneCopyCost)) continue;
                     // Only adapters explicitly promising pure, linear evaluation enter this path.
                     var result = adapter.planVirtualWithBinding(env.level(), env.pos(), pattern,
                             BatchCopies.copy(oneCopyTemplate), candidate.handle(), getActionSource());
                     if (result == null || result.outputs().isEmpty()) continue;
+                    maximum = Math.min(maximum, BatchCopies.maxScalableCopies(result.outputs()));
+                    long copies = BatchCopies.fittingLong(maximum,
+                            n -> PatternProviderPowerCost.canAfford(grid, oneCopyCost * n));
+                    if (copies <= 0) continue;
                     List<GenericStack> outputs;
                     try { outputs = BatchCopies.scale(result.outputs(), copies); }
                     catch (ArithmeticException | IllegalArgumentException overflow) { continue; }
                     var soundId = adapter.flushSoundId();
-                    if (!virtualPushLimiter.tryAcquire(candidate.lane(), tick, copies)) continue;
+                    if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
                     pendingOutputs.enqueue(outputs);
                     remaining -= copies;
                     pendingFlushSoundId = soundId;
@@ -423,7 +430,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
             if (candidate.mode() != BindingMode.VIRTUAL) {
                 continue;
             }
-            if (!virtualPushLimiter.hasCapacity(candidate.lane(), gameTick)) {
+            boolean unbounded = candidate.adapter() instanceof UnboundedVirtualCraftingAdapter;
+            if (!unbounded && !virtualPushLimiter.hasCapacity(candidate.lane(), gameTick)) {
                 continue;
             }
 
@@ -442,7 +450,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                 continue;
             }
 
-            if (!virtualPushLimiter.tryAcquire(candidate.lane(), gameTick)) {
+            if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), gameTick)) {
                 continue;
             }
             enqueuePendingOutputs(result.outputs());

@@ -1,0 +1,19 @@
+{
+  "type": "extendedcrafting:shaped_table",
+  "tier": 3,
+  "pattern": [
+    "MI"
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:milk_bucket"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    }
+  },
+  "result": {
+    "id": "minecraft:redstone",
+    "count": 1
+  }
+}

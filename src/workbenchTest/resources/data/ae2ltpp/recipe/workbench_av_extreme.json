@@ -1,0 +1,19 @@
+{
+  "type": "avaritia:shaped_table",
+  "tier": 4,
+  "pattern": [
+    "MI"
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:milk_bucket"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    }
+  },
+  "result": {
+    "id": "minecraft:prismarine_crystals",
+    "count": 1
+  }
+}

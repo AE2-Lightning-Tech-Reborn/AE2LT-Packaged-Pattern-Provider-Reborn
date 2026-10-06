@@ -1,0 +1,28 @@
+// Native workbench batch tests against locally supplied target-mod JARs.
+// Usage: -I scripts/workbench-test.init.gradle -PppWorkbenchModsDir=/path/to/mods
+allprojects {
+    afterEvaluate {
+        def modsDir = providers.gradleProperty('ppWorkbenchModsDir').orNull
+        if (modsDir == null || !file(modsDir).isDirectory()) {
+            throw new GradleException('Set -PppWorkbenchModsDir to a directory containing ExtendedCrafting, Cucumber and Re-Avaritia JARs')
+        }
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics' || dep.group == 'com.moakiee.thunderbolt'
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') || it.name.startsWith('curseforge-downloaded-') }))
+        }
+        dependencies.add('runtimeOnly', files(fileTree(modsDir) {
+            include 'ExtendedCrafting-*.jar', 'Cucumber-*.jar', 'Re-Avaritia-neoforge-*.jar'
+        }))
+        sourceSets.create('workbenchTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.workbenchTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.workbenchTest
+            gameDirectory = project.layout.buildDirectory.dir('workbench-native').get().asFile
+        }
+    }
+}
