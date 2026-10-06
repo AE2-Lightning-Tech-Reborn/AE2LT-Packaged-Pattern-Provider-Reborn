@@ -48,8 +48,8 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
- * Runtime adapter for Re-Avaritia's tiered crafting tables.
- * Pure reflection: Re-Avaritia is not a compile dependency.
+ * Runtime adapter for Re-Avaritia's tiered tables and AvaritiaNeo's extreme table.
+ * Pure reflection: neither Avaritia implementation is a compile dependency.
  */
 public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
 
@@ -173,6 +173,9 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
         if (be == null || !recognizesMain(level, mainPos, be) || !spec.matches(be.getBlockState())) {
             return null;
         }
+        if (AvaritiaNeoSupport.isSupportedTable(be) && !AvaritiaNeoSupport.resultIsEmpty(be)) {
+            return null;
+        }
 
         var handler = AvaritiaReflection.getHandler(be);
         if (handler == null || !hasExactSlots(handler, spec) || !gridIsEmpty(handler, spec.slots())) {
@@ -250,6 +253,9 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
                                              AllowedOutputFilter filter,
                                              IActionSource source) {
         var be = level.getBlockEntity(mainPos);
+        if (be != null && AvaritiaNeoSupport.isSupportedTable(be)) {
+            return List.of();
+        }
         if (be == null || !recognizesMain(level, mainPos, be)) {
             return List.of();
         }
@@ -790,10 +796,10 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
                 handler == null ? "unresolved" : handler.getClass().getName(),
                 handler == null ? -1 : handler.getSlots(), spec.slots(),
                 effectiveSpec == null ? "rejected" : effectiveSpec.gridSize() + "x" + effectiveSpec.gridSize(),
-                RECIPE_TYPE_ID, recipeType == null ? "no" : recipeType.getClass().getName(), recipeCount,
+                recipeTypeId(), recipeType == null ? "no" : recipeType.getClass().getName(), recipeCount,
                 AvaritiaReflection.shapedWidthMethodName(), AvaritiaReflection.tierMethodNames()
         };
-        String message = "[ae2ltpp] Re-Avaritia table diagnostic: version={}, block={}, blockEntity={}, "
+        String message = "[ae2ltpp] Avaritia table diagnostic: version={}, block={}, blockEntity={}, "
                 + "matchedTableClass={}, inventoryMethod={}, handler={}, slots={}, declaredSlots={}, "
                 + "layoutProfile={}, recipeType={} (resolved={}), recipes={}, shapedWidthMethod={}, tierMethods={}";
         if (handler == null || effectiveSpec == null || !hasExactSlots(handler, effectiveSpec)) {
@@ -958,7 +964,7 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
     private static List<Recipe<?>> recipes(ServerLevel level) {
         var type = recipeType();
         if (type == null) {
-            LOG.debug("recipes: recipe type {} is not registered yet", RECIPE_TYPE_ID);
+            LOG.debug("recipes: recipe type {} is not registered yet", recipeTypeId());
             return List.of();
         }
         return (List<Recipe<?>>) (List<?>) level.getRecipeManager().getAllRecipesFor((RecipeType) type);
@@ -971,7 +977,7 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
             synchronized (AvaritiaTableAdapter.class) {
                 type = cachedRecipeType;
                 if (type == null) {
-                    type = AdapterRecipeTypes.find(RECIPE_TYPE_ID);
+                    type = AdapterRecipeTypes.find(recipeTypeId());
                     if (type != null) {
                         cachedRecipeType = type;
                     }
@@ -979,6 +985,10 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
             }
         }
         return type;
+    }
+
+    private static ResourceLocation recipeTypeId() {
+        return AvaritiaNeoSupport.isAvailable() ? avaritiaId("extreme_crafting") : RECIPE_TYPE_ID;
     }
 
     @Nullable
@@ -1091,11 +1101,15 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
 
         static boolean isSupportedTable(Object value) {
             ensureLookup();
-            return tableClass != null && tableClass.isInstance(value);
+            return (tableClass != null && tableClass.isInstance(value))
+                    || AvaritiaNeoSupport.isSupportedTable(value);
         }
 
         @Nullable
         static IItemHandler getHandler(BlockEntity be) {
+            if (AvaritiaNeoSupport.isSupportedTable(be)) {
+                return AvaritiaNeoSupport.getHandler(be);
+            }
             ensureLookup();
             if (getInventoryMethod == null) {
                 return null;
@@ -1155,7 +1169,7 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
         @Nullable
         static CraftingContainer createGridInput(int size, List<ItemStack> stacks) {
             ensureLookup();
-            if (tableClass == null || stacks.size() != size * size) {
+            if ((tableClass == null && !AvaritiaNeoSupport.isAvailable()) || stacks.size() != size * size) {
                 return null;
             }
             try {
@@ -1175,12 +1189,14 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
         @Nullable
         static Integer recipeWidth(Object recipe) {
             ensureLookup();
-            return invokeDimension(shapedRecipeWidthMethod, recipe);
+            var dimension = invokeDimension(shapedRecipeWidthMethod, recipe);
+            return dimension != null ? dimension : AvaritiaNeoSupport.recipeDimension(recipe, "getWidth");
         }
 
         static Integer recipeHeight(Object recipe) {
             ensureLookup();
-            return invokeDimension(shapedRecipeHeightMethod, recipe);
+            var dimension = invokeDimension(shapedRecipeHeightMethod, recipe);
+            return dimension != null ? dimension : AvaritiaNeoSupport.recipeDimension(recipe, "getHeight");
         }
 
         @Nullable
@@ -1240,16 +1256,25 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
 
         static String matchedTableClassName() {
             ensureLookup();
+            if (AvaritiaNeoSupport.isAvailable()) {
+                return "net.byAqua3.avaritia.tile.TileExtremeCraftingTable";
+            }
             return tableClass == null ? "unresolved" : tableClass.getName();
         }
 
         static String inventoryMethodName() {
             ensureLookup();
+            if (AvaritiaNeoSupport.isAvailable()) {
+                return "net.byAqua3.avaritia.tile.TileExtremeCraftingTable#matrix";
+            }
             return methodName(getInventoryMethod);
         }
 
         static String shapedWidthMethodName() {
             ensureLookup();
+            if (AvaritiaNeoSupport.isAvailable()) {
+                return "net.byAqua3.avaritia.recipe.RecipeExtremeShaped#getWidth";
+            }
             return methodName(shapedRecipeWidthMethod);
         }
 
@@ -1278,6 +1303,9 @@ public final class AvaritiaTableAdapter implements VirtualCraftingAdapter {
         }
 
         private static void doLookup() {
+            if (AvaritiaNeoSupport.isAvailable()) {
+                return;
+            }
             for (String candidate : TABLE_CLASSES) {
                 try {
                     tableClass = Class.forName(candidate);

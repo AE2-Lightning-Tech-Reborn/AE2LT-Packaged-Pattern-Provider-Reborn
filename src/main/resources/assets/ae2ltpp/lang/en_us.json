@@ -1,4 +1,6 @@
 {
+  "ae2ltpp.connector.missing_core": "Install a packaged core before connecting machines.",
+  "ae2ltpp.connector.incompatible_target": "This machine is not supported by the installed packaged core.",
   "itemGroup.ae2ltpp": "AE2LT Packaged Pattern Provider Reborn",
   "ae2ltpp.guide.title": "AE2LT Packaged Pattern Provider Reborn",
   "block.ae2ltpp.packaged_pattern_provider": "Packaged Pattern Provider",
@@ -39,5 +41,10 @@
   "item.ae2ltpp.avaritia_end_table_packaged_core": "End Crafting Table Packaged Core",
   "item.ae2ltpp.avaritia_extreme_table_packaged_core": "Extreme Crafting Table Packaged Core",
   "item.ae2ltpp.avaritia_extreme_smithing_packaged_core": "Extreme Smithing Table Packaged Core",
+  "item.ae2ltpp.bloodmagic_altar_packaged_core": "Blood Altar Packaged Core",
+  "item.ae2ltpp.forbidden_arcanus_clibano_packaged_core": "Clibano Packaged Core",
+  "item.ae2ltpp.forbidden_arcanus_hephaestus_forge_packaged_core": "Hephaestus Forge Packaged Core",
+  "item.ae2ltpp.hephaestus_upgrade_receipt": "Hephaestus Forge Upgrade Receipt",
+  "item.ae2ltpp.hephaestus_upgrade_receipt.tier": "Hephaestus Forge Tier %s Upgrade Receipt",
   "tooltip.ae2ltpp.packaged_core.covers": "Covers %s packaged cores"
 }

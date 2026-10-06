@@ -128,7 +128,43 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         mainPos = resolveMainPos(level, mainPos);
         MekmmMachineSpec spec = specAt(level, mainPos);
         if (spec == null) return null;
+        if (!patternFitsPorts(level, mainPos, spec, pattern)) return null;
         return new BindingResult(spec, BindingMode.REAL);
+    }
+
+    /**
+     * Bind-time gate: a pattern may only obtain a handle when every declared
+     * input classifies to a port type the machine actually exposes and the
+     * input-port type arity matches exactly. Unmatched diagnostic patterns and
+     * patterns encoded for other machines must not claim a live handle here.
+     * Per-port layout, amounts and port ambiguity are still validated at
+     * plan time where the gathered inputs are known.
+     */
+    private static boolean patternFitsPorts(ServerLevel level, BlockPos mainPos,
+                                            MekmmMachineSpec spec, IPatternDetails pattern) {
+        var be = level.getBlockEntity(mainPos);
+        if (be == null) return false;
+        PortGroup mode = spec.activeMode(be);
+        var required = new EnumMap<PortType, Integer>(PortType.class);
+        for (var input : pattern.getInputs()) {
+            PortType type = null;
+            for (var possible : input.getPossibleInputs()) {
+                var candidate = classify(possible.what());
+                if (candidate == null) return false;
+                if (type == null) {
+                    type = candidate;
+                } else if (type != candidate) {
+                    return false;
+                }
+            }
+            if (type == null) return false;
+            required.merge(type, 1, Integer::sum);
+        }
+        var portCounts = new EnumMap<PortType, Integer>(PortType.class);
+        for (PortDef port : mode.inputs()) {
+            portCounts.merge(port.type(), 1, Integer::sum);
+        }
+        return portCounts.equals(required);
     }
 
     @Override

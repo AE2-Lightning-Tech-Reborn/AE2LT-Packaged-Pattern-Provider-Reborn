@@ -10,10 +10,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -36,6 +39,7 @@ import com.moakiee.ae2lt.api.pattern.PatternProviderUiProfile;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
+import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
 import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
 import com.moakiee.ae2lt.packaged.registry.PPBlockEntities;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
@@ -130,6 +134,38 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
      */
     public ItemStack getInstalledAdapterStack() {
         return adapterInv.getStackInSlot(0);
+    }
+
+    @Override
+    public boolean acceptsWirelessTarget(Level targetLevel, BlockPos pos) {
+        if (isRemoved() || !isWirelessProvider() || targetLevel != level
+                || !(targetLevel instanceof ServerLevel serverLevel) || pos == null) {
+            return false;
+        }
+        var installed = getInstalledAdapterStack();
+        if (installed.isEmpty() || !(installed.getItem() instanceof MultiblockAdapterItem)
+                || !serverLevel.isLoaded(pos)) {
+            return false;
+        }
+        var adapter = MultiblockAdapterRegistry.find(serverLevel, pos, serverLevel.getBlockEntity(pos));
+        if (adapter == null) {
+            return false;
+        }
+        var required = adapter.requiredAdapterId(serverLevel, pos);
+        return required == null || MultiblockAdapterItem.stackCovers(installed, required);
+    }
+
+    @Override
+    public Component getWirelessTargetRejectionMessage() {
+        return Component.translatable(getInstalledAdapterStack().isEmpty()
+                ? "ae2ltpp.connector.missing_core" : "ae2ltpp.connector.incompatible_target");
+    }
+
+    @Override
+    public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
+        return level != null && dimension != null && dimension.equals(level.dimension())
+                && acceptsWirelessTarget(level, pos)
+                && super.addOrUpdateConnection(dimension, pos, boundFace);
     }
 
     /**
@@ -322,6 +358,8 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         super.saveAdditional(data);
         frequencyBinding.save(data);
         adapterInv.writeToNBT(data, TAG_ADAPTER_INV);
+        data.remove(TAG_ADAPTER_FLAGS);
+        data.remove(TAG_ADAPTER_STATES);
         if (!adapterFlags.isEmpty()) {
             var flagsTag = new CompoundTag();
             for (var entry : adapterFlags.entrySet()) {

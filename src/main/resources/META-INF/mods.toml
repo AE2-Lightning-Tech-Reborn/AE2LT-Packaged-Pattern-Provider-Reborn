@@ -123,3 +123,17 @@ mandatory = false
 versionRange = "[0,)"
 ordering = "AFTER"
 side = "BOTH"
+
+[[dependencies."${mod_id}"]]
+modId = "bloodmagic"
+mandatory = false
+versionRange = "[3.3.8,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies."${mod_id}"]]
+modId = "forbidden_arcanus"
+mandatory = false
+versionRange = "[1.20.1-2.2.6,)"
+ordering = "AFTER"
+side = "BOTH"

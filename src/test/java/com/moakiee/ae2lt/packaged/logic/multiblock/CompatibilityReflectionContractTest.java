@@ -239,6 +239,54 @@ class CompatibilityReflectionContractTest {
     }
 
     @Test
+    void BloodMagicDispatchRecoversInputOnlyWhenCycleStartFailsInactive() throws IOException {
+        var source = read(
+                "src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/compat/"
+                        + "BloodMagicAltarAdapter.java");
+        var start = source.substring(source.indexOf("SlotHarvestOwnership.store"),
+                source.indexOf("});", source.indexOf("SlotHarvestOwnership.store")) + 3);
+        assertTrue(start.contains("invokeVoid(level.getBlockEntity(mainPos), \"startCycle\")"));
+        assertTrue(start.contains("(accepted, recovered) -> {"));
+        assertTrue(start.contains("Boolean.FALSE.equals(invoke(entity, \"isActive\", Boolean.class))"));
+        assertTrue(start.contains("recoverInput(handler(level, mainPos), input.stack())"));
+        assertTrue(start.contains("recovered.accept(new GenericStack(input.key, extracted.getCount()))"));
+        assertTrue(start.contains("SlotHarvestOwnership.clear(level, mainPos, scope, HARVEST_STATE)"));
+        assertTrue(start.indexOf("SlotHarvestOwnership.clear") > start.indexOf("recovered.accept"));
+        assertTrue(start.contains("Blood altar refused to start cycle"));
+    }
+
+    @Test
+    void SlotClaimsRemainHarvestableAfterCleanupTtlWhileOccupied() throws IOException {
+        var blood = read("src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/compat/BloodMagicAltarAdapter.java");
+        var clibano = read("src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/compat/ForbiddenArcanusClibanoAdapter.java");
+        var forge = read("src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/compat/ForbiddenArcanusHephaestusForgeAdapter.java");
+
+        assertTrue(!blood.contains("SlotHarvestOwnership.expired(level, ownership)"));
+        assertTrue(!clibano.contains("SlotHarvestOwnership.expired(level, ownership)"));
+        assertTrue(!forge.contains("SlotHarvestOwnership.expired(level, state)"));
+        assertTrue(clibano.indexOf("empty(output, OUTPUT_SLOTS)") < clibano.indexOf("SlotHarvestOwnership.blocksDispatch"));
+    }
+
+    @Test
+    void BloodMagicOutputComparisonRespectsIdOnlyMode() throws IOException {
+        var source = read("src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/compat/BloodMagicAltarAdapter.java");
+        assertTrue(source.contains("OverloadPatternSemantics.isIdOnlyOutput(pattern, 0)"));
+    }
+
+    @Test
+    void HephaestusStartFailurePreservesOwnershipWhenRitualAlreadyStarted() throws IOException {
+        var source = read(
+                "src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/compat/"
+                        + "ForbiddenArcanusHephaestusForgeAdapter.java");
+        var start = source.substring(source.indexOf("boolean[] started = {false};"),
+                source.indexOf("entity.setChanged();", source.indexOf("boolean[] started = {false};")));
+        assertTrue(start.contains("catch (RuntimeException failure)"));
+        assertTrue(start.contains("if (Boolean.FALSE.equals(call(manager, \"isRitualActive\")))"));
+        assertTrue(start.contains("SlotHarvestOwnership.clear(level, pos, scope, CLAIM)"));
+        assertTrue(start.contains("clearProof(level, pos, scope)"));
+    }
+
+    @Test
     void AvaritiaPhysicalAndVirtualPathsShareTierChecksAndDiagnostics() throws IOException {
         var source = read(
                 "src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/avaritia/"

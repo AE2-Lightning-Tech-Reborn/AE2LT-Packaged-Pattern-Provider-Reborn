@@ -1,0 +1,41 @@
+{
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "avaritia"
+    },
+    {
+      "type": "forge:item_exists",
+      "item": "avaritia:neutronium_ingot"
+    },
+    {
+      "type": "forge:not",
+      "value": {
+        "type": "forge:item_exists",
+        "item": "avaritia:neutron_gear"
+      }
+    }
+  ],
+  "type": "avaritia:extreme_shaped",
+  "pattern": [
+    "MIMIMIMIM",
+    "IIIIIIIII",
+    "MIMMMMMIM",
+    "IIMSSSMII",
+    "MIMSCSMIM",
+    "IIMSSSMII",
+    "MIMMMMMIM",
+    "IIIIIIIII",
+    "MIMIMIMIM"
+  ],
+  "key": {
+    "M": { "item": "avaritia:crystal_matrix_ingot" },
+    "I": { "item": "avaritia:neutronium_ingot" },
+    "S": { "item": "minecraft:nether_star" },
+    "C": { "item": "ae2ltpp:basic_packaged_core" }
+  },
+  "result": {
+    "count": 1,
+    "item": "ae2ltpp:avaritia_extreme_table_packaged_core"
+  }
+}

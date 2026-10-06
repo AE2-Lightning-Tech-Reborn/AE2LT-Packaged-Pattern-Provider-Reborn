@@ -73,27 +73,28 @@ class WirelessConnectorBlockOnlyTargetTest {
     }
 
     @Test
-    void itemIsClientOnlyAndPacketRetainsAuthoritativeCommonValidation() throws IOException {
+    void itemIsClientOnlyAndHostRetainsAuthoritativeCommonValidation() throws IOException {
         var config = JsonParser.parseString(read("src/main/resources/ae2ltpp.mixins.json")).getAsJsonObject();
         var item = new JsonPrimitive("WirelessConnectorItemMixin");
         var packet = new JsonPrimitive("WirelessConnectorPacketMixin");
         assertTrue(config.getAsJsonArray("client").contains(item));
         assertFalse(config.getAsJsonArray("mixins").contains(item));
-        assertTrue(config.getAsJsonArray("mixins").contains(packet));
+        assertFalse(config.getAsJsonArray("mixins").contains(packet));
         assertFalse(config.getAsJsonArray("client").contains(packet));
         if (config.has("server")) {
             assertFalse(config.getAsJsonArray("server").contains(item));
         }
 
-        var validator = read(MIXINS + "WirelessConnectorPacketMixin.java");
-        assertTrue(validator.contains("OverloadedWirelessConnectorItem.hasSelection(stack)"));
-        assertTrue(validator.contains("OverloadedWirelessConnectorItem.HOST_PROVIDER.equals("));
-        assertTrue(validator.contains("OverloadedWirelessConnectorItem.isSelectionInCurrentDimension(level, stack)"));
-        assertTrue(validator.contains("instanceof StablePatternProviderBlockEntity provider"));
-        assertTrue(validator.contains("!provider.isWirelessProvider()"));
-        assertTrue(validator.contains("MultiblockAdapterRegistry.find(level, pos(), null) == null"));
-        assertTrue(validator.contains("return Set.of(pos.immutable());"));
-        assertTrue(validator.contains("return WirelessConnectorTargetHelper.collectTargets(level, pos, contiguous);"));
+        assertFalse(Files.exists(Path.of(MIXINS + "WirelessConnectorPacketMixin.java")));
+        var host = read("src/main/java/com/moakiee/ae2lt/packaged/blockentity/PackagedPatternProviderBlockEntity.java");
+        assertTrue(host.contains("public boolean acceptsWirelessTarget(Level targetLevel, BlockPos pos)"));
+        assertTrue(host.contains("!isWirelessProvider()"));
+        assertTrue(host.contains("targetLevel != level"));
+        assertTrue(host.contains("!serverLevel.isLoaded(pos)"));
+        assertTrue(host.contains("MultiblockAdapterRegistry.find(serverLevel, pos, serverLevel.getBlockEntity(pos))"));
+        assertTrue(host.contains("MultiblockAdapterItem.stackCovers(installed, required)"));
+        assertTrue(host.contains("&& acceptsWirelessTarget(level, pos)"));
+        assertTrue(host.contains("super.addOrUpdateConnection(dimension, pos, boundFace)"));
     }
 
     private static ResourceLocation id(String namespace, String path) {

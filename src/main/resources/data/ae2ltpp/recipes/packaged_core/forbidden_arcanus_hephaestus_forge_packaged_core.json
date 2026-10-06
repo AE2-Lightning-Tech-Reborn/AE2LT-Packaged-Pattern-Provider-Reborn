@@ -1,0 +1,10 @@
+{
+  "conditions": [{"type": "forge:mod_loaded", "modid": "forbidden_arcanus"}],
+  "type": "minecraft:crafting_shaped",
+  "pattern": [" B ", "BCB", " B "],
+  "key": {
+    "B": {"item": "forbidden_arcanus:darkstone_pedestal"},
+    "C": {"item": "ae2ltpp:basic_packaged_core"}
+  },
+  "result": {"item": "ae2ltpp:forbidden_arcanus_hephaestus_forge_packaged_core"}
+}

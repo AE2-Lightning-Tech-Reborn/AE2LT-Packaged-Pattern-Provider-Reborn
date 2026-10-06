@@ -542,12 +542,20 @@ public final class ArsNouveauEnchantingApparatusAdapter implements MultiblockAda
             if (method == null) {
                 return null;
             }
-            try {
-                Object out = method.invoke(recipe, List.of(), ItemStack.EMPTY, null);
-                return out instanceof ItemStack stack ? stack.copy() : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return null;
-            }
+            // Never hand out the shared ItemStack.EMPTY singleton and never
+            // trust recipe code not to reach it either: Ars's own
+            // getParchment() returns the singleton when no parchment is
+            // supplied and SpellCaster's constructor calls getOrCreateTag on
+            // its argument, while idle SingleItemTiles alias the singleton in
+            // their stack field, so any such write mutates live tiles.
+            return ReflectionSupport.withEmptyStackTagPreserved(() -> {
+                try {
+                    Object out = method.invoke(recipe, List.of(), ItemStack.EMPTY.copy(), null);
+                    return out instanceof ItemStack stack ? stack.copy() : null;
+                } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+                    return null;
+                }
+            });
         }
 
         /** Apparatus match against explicit pedestal stacks plus the reagent stack. */
@@ -556,12 +564,14 @@ public final class ArsNouveauEnchantingApparatusAdapter implements MultiblockAda
             if (method == null) {
                 return false;
             }
-            try {
-                Object out = method.invoke(recipe, copyStacks(pedestals), reagent.copy(), null, null);
-                return Boolean.TRUE.equals(out);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return false;
-            }
+            return ReflectionSupport.withEmptyStackTagPreserved(() -> {
+                try {
+                    Object out = method.invoke(recipe, copyStacks(pedestals), reagent.copy(), null, null);
+                    return Boolean.TRUE.equals(out);
+                } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+                    return false;
+                }
+            });
         }
 
         /**

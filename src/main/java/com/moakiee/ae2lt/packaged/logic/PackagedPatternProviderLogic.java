@@ -3,7 +3,9 @@ package com.moakiee.ae2lt.packaged.logic;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
@@ -24,6 +26,7 @@ import appeng.api.config.LockCraftingMode;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 
@@ -517,7 +520,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         // Persist the transition after a real flush so clearing a delivered
         // batch or retaining a residual cannot be lost across a crash.
         boolean hadPendingVirtualOutputs = virtualBatch.hasPending();
-        virtualBatch.tickFlush(gameTick, stacks -> {
+        long previousFlushTick = virtualBatch.getLastFlushTick();
+        boolean flushed = virtualBatch.tickFlush(gameTick, stacks -> {
             var residual = insertOutputsToReturnInv(stacks);
             if (residual.isEmpty()) {
                 runPendingFlushEffectSafely();
@@ -525,7 +529,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             }
             return residual;
         });
-        if (hadPendingVirtualOutputs) {
+        if (hadPendingVirtualOutputs && (flushed || previousFlushTick != virtualBatch.getLastFlushTick())) {
             getProviderHost().saveChanges();
         }
 
@@ -745,7 +749,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         }
         var grid = getGridNode().getGrid();
         var returnInv = getInternalReturnInv();
-        var retained = new ArrayList<GenericStack>();
+        var retained = new LinkedHashMap<AEKey, Long>();
 
         for (var stack : outputs) {
             if (stack == null || stack.what() == null || stack.amount() <= 0) {
@@ -797,29 +801,31 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
                 LOG.warn("Could not wake provider for retained virtual outputs", e);
             }
         }
-        return List.copyOf(retained);
+        var residuals = new ArrayList<GenericStack>(retained.size());
+        for (var entry : retained.entrySet()) {
+            residuals.add(new GenericStack(entry.getKey(), entry.getValue()));
+        }
+        return List.copyOf(residuals);
     }
 
-    private static void addMergedResidual(List<GenericStack> residuals,
-                                          appeng.api.stacks.AEKey key,
+    private static void addMergedResidual(Map<AEKey, Long> residuals,
+                                          AEKey key,
                                           long amount) {
         if (key == null || amount <= 0) {
             return;
         }
-        for (int i = 0; i < residuals.size(); i++) {
-            var existing = residuals.get(i);
-            if (existing.what().equals(key)) {
-                long merged;
-                try {
-                    merged = Math.addExact(existing.amount(), amount);
-                } catch (ArithmeticException overflow) {
-                    merged = Long.MAX_VALUE;
-                }
-                residuals.set(i, new GenericStack(key, merged));
-                return;
-            }
+        var previous = residuals.get(key);
+        if (previous == null) {
+            residuals.put(key, amount);
+            return;
         }
-        residuals.add(new GenericStack(key, amount));
+        long merged;
+        try {
+            merged = Math.addExact(previous, amount);
+        } catch (ArithmeticException overflow) {
+            merged = Long.MAX_VALUE;
+        }
+        residuals.put(key, merged);
     }
 
     /**

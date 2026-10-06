@@ -220,8 +220,10 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
 
     protected final List<StablePatternProviderBlockEntity.WirelessConnection>
             getValidConnections(ServerLevel providerLevel, long gameTick) {
+        long elapsed = gameTick - validConnectionsCacheTick;
         if (!connectionsDirty
-                && gameTick - validConnectionsCacheTick < VALIDATE_INTERVAL) {
+                && gameTick >= validConnectionsCacheTick
+                && elapsed >= 0 && elapsed < VALIDATE_INTERVAL) {
             return validConnectionsCache;
         }
 
@@ -387,6 +389,8 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
     @Override
     public void writeToNBT(CompoundTag tag) {
         super.writeToNBT(tag);
+        tag.remove(TAG_UNLOCK_MATCH_MODE);
+        tag.remove(TAG_UNLOCK_TEMPLATE);
         if (pendingUnlockIdOnly != null) {
             tag.putString(TAG_UNLOCK_MATCH_MODE,
                     pendingUnlockIdOnly ? "ID_ONLY" : "STRICT");

@@ -170,21 +170,42 @@ public final class ConnectionDiagnosticCommand {
     }
 
     private static void finishConn38(PendingConn38 pending) {
+        boolean scanPassed = false;
+        boolean harvestPassed = false;
+        boolean restored = false;
         try {
             boolean ok = AdapterConnectionCheck.scanColocated(pending.level, pending.state, pending.sink);
             if (ok) {
-                pending.sink.pass("conn38_all_adapters_colocated", pending.machines
-                        + " machines co-located and routed correctly (100 rounds + post-tick)");
-                if (AdapterConnectionCheck.runDispatchHarvestColocated(
-                        pending.level, pending.state, pending.sink)) {
-                    pending.sink.pass("conn41_idle_dispatch_harvest", pending.machines
-                            + " idle machines refused unmatched bind/plan "
-                            + "and did not vacuum unowned outputs");
-                }
+                harvestPassed = AdapterConnectionCheck.runDispatchHarvestColocated(
+                        pending.level, pending.state, pending.sink);
+                scanPassed = true;
             }
+        } catch (RuntimeException | LinkageError e) {
+            // A throw here must never reach the server tick loop — report it
+            // through the sink so the tally (and the follow-up message) fail.
+            LOG.error("[ae2ltpp-conn] conn38 delayed scan threw", e);
+            pending.sink.fail("conn38_all_adapters_colocated", "delayed scan threw "
+                    + e.getClass().getSimpleName() + ": " + e.getMessage());
         } finally {
-            AdapterConnectionCheck.removeColocated(pending.level, pending.state);
+            try {
+                AdapterConnectionCheck.removeColocated(pending.level, pending.state);
+                restored = true;
+            } catch (RuntimeException | LinkageError e) {
+                LOG.error("[ae2ltpp-conn] conn38 restore threw", e);
+                pending.sink.fail("conn38_all_adapters_colocated", "restore threw "
+                        + e.getClass().getSimpleName() + ": " + e.getMessage());
+            }
             CONN38_PENDING.set(false);
+        }
+        if (restored && scanPassed) {
+            pending.sink.pass("conn38_all_adapters_colocated", pending.machines
+                    + " machines co-located and routed correctly (" + AdapterConnectionCheck.colocatedExpectedRounds()
+                    + " rounds + post-tick)");
+        }
+        if (restored && harvestPassed) {
+            pending.sink.pass("conn41_idle_dispatch_harvest", pending.machines
+                    + " idle machines refused unmatched bind/plan "
+                    + "and did not vacuum unowned outputs");
         }
         String followUp = "ae2ltdiag finished: " + pending.tally.passed + " passed, "
                 + pending.tally.failed + " failed";

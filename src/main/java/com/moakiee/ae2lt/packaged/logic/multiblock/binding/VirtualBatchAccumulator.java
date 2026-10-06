@@ -15,6 +15,8 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 
 /**
@@ -34,6 +36,9 @@ public final class VirtualBatchAccumulator {
     private static final Logger LOG = LoggerFactory.getLogger(VirtualBatchAccumulator.class);
     private static final String TAG_PENDING = "pending";
     private static final String TAG_LAST_FLUSH_TICK = "last_flush_tick";
+    private static final String TAG_AMOUNT = "a";
+    private static final String TAG_KIND = "k";
+    private static final String TAG_VALUE = "v";
 
     public static final int FLUSH_INTERVAL_TICKS = 10;
 
@@ -46,7 +51,7 @@ public final class VirtualBatchAccumulator {
             return;
         }
         for (var stack : outputs) {
-            if (stack.amount() <= 0) {
+            if (stack == null || stack.what() == null || stack.amount() <= 0) {
                 continue;
             }
             mergePending(stack.what(), stack.amount());
@@ -117,9 +122,11 @@ public final class VirtualBatchAccumulator {
     }
 
     public void writeToNBT(CompoundTag tag) {
+        tag.remove(TAG_PENDING);
+        tag.remove(TAG_LAST_FLUSH_TICK);
         var entries = new ListTag();
-        for (var stack : snapshotStacks()) {
-            entries.add(GenericStack.writeTag(stack));
+        for (var entry : pending.entrySet()) {
+            entries.add(writeStack(entry.getKey(), entry.getValue()));
         }
         if (!entries.isEmpty()) {
             tag.put(TAG_PENDING, entries);
@@ -140,14 +147,56 @@ public final class VirtualBatchAccumulator {
         var entries = tag.getList(TAG_PENDING, Tag.TAG_COMPOUND);
         for (int i = 0; i < entries.size(); i++) {
             try {
-                var stack = GenericStack.readTag(entries.getCompound(i));
+                var stack = readStack(entries.getCompound(i));
                 if (stack != null && stack.what() != null && stack.amount() > 0) {
                     mergePending(stack.what(), stack.amount());
                 }
-            } catch (RuntimeException | LinkageError ignored) {
-                LOG.warn("Ignoring malformed virtual batch entry");
+            } catch (RuntimeException | LinkageError exception) {
+                LOG.warn("Ignoring malformed virtual batch entry at index {}", i, exception);
             }
         }
+    }
+
+    private static CompoundTag writeStack(AEKey key, long amount) {
+        var tag = new CompoundTag();
+        tag.putLong(TAG_AMOUNT, amount);
+        if (key instanceof AEItemKey item) {
+            tag.putString(TAG_KIND, "i");
+            tag.put(TAG_VALUE, item.toTag());
+        } else if (key instanceof AEFluidKey fluid) {
+            tag.putString(TAG_KIND, "f");
+            tag.put(TAG_VALUE, fluid.toTag());
+        } else {
+            tag.putString(TAG_KIND, "g");
+            tag.put(TAG_VALUE, GenericStack.writeTag(new GenericStack(key, amount)));
+        }
+        return tag;
+    }
+
+    private static GenericStack readStack(CompoundTag tag) {
+        if (!tag.contains(TAG_KIND, Tag.TAG_STRING)) {
+            return GenericStack.readTag(tag);
+        }
+        var amount = tag.getLong(TAG_AMOUNT);
+        if (amount <= 0 || !tag.contains(TAG_VALUE, Tag.TAG_COMPOUND)) {
+            return null;
+        }
+        var value = tag.getCompound(TAG_VALUE);
+        return switch (tag.getString(TAG_KIND)) {
+            case "i" -> {
+                var key = AEItemKey.fromTag(value);
+                yield key == null ? null : new GenericStack(key, amount);
+            }
+            case "f" -> {
+                var key = AEFluidKey.fromTag(value);
+                yield key == null ? null : new GenericStack(key, amount);
+            }
+            case "g" -> {
+                var stack = GenericStack.readTag(value);
+                yield stack == null ? null : new GenericStack(stack.what(), amount);
+            }
+            default -> null;
+        };
     }
 
     private void mergePending(AEKey key, long amount) {
@@ -177,6 +226,10 @@ public final class VirtualBatchAccumulator {
 
     public boolean hasPending() {
         return !pending.isEmpty();
+    }
+
+    public long getLastFlushTick() {
+        return lastFlushTick;
     }
 
     public void clear() {

@@ -11,6 +11,7 @@ import net.minecraftforge.registries.RegistryObject;
 
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
+import com.moakiee.ae2lt.packaged.item.HephaestusUpgradeReceiptItem;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.item.PackagedCoreBaseItem;
 
@@ -21,8 +22,8 @@ public final class PPItems {
     // ===== Packaged cores (1 per slot, max-stack 1) =====
     //
     // Each provider holds exactly one core and is locked to that machine family.
-    // EC tiers form a covers-down chain (ultimate ⊇ elite ⊇ advanced ⊇ basic) so
-    // higher cores work on lower tables, matching the user's "向下兼容" requirement.
+    // EC tiers form a covers-down chain (ultimate 鈯?elite 鈯?advanced 鈯?basic) so
+    // higher cores work on lower tables, matching the user's "鍚戜笅鍏煎" requirement.
 
     public static final RegistryObject<MultiblockAdapterItem> AA_RECONSTRUCTOR_ADAPTER =
             registerPackagedCore("aa_reconstructor_packaged_core",
@@ -172,6 +173,21 @@ public final class PPItems {
                     AdapterIds.AVARITIA_EXTREME_SMITHING,
                     Set.of(AdapterIds.AVARITIA_EXTREME_SMITHING));
 
+    public static final RegistryObject<MultiblockAdapterItem> BLOOD_MAGIC_ALTAR_ADAPTER =
+            registerPackagedCore("bloodmagic_altar_packaged_core",
+                    AdapterIds.BLOOD_MAGIC_ALTAR,
+                    Set.of(AdapterIds.BLOOD_MAGIC_ALTAR));
+
+    public static final RegistryObject<MultiblockAdapterItem> FORBIDDEN_ARCANUS_CLIBANO_ADAPTER =
+            registerPackagedCore("forbidden_arcanus_clibano_packaged_core",
+                    AdapterIds.FORBIDDEN_ARCANUS_CLIBANO,
+                    Set.of(AdapterIds.FORBIDDEN_ARCANUS_CLIBANO));
+    public static final RegistryObject<MultiblockAdapterItem> FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE_ADAPTER =
+            registerPackagedCore("forbidden_arcanus_hephaestus_forge_packaged_core",
+                    AdapterIds.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE,
+                    Set.of(AdapterIds.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE));
+    public static final RegistryObject<HephaestusUpgradeReceiptItem> HEPHAESTUS_UPGRADE_RECEIPT =
+            ITEMS.register("hephaestus_upgrade_receipt", () -> new HephaestusUpgradeReceiptItem(new Item.Properties()));
     // ===== Crafting intermediates =====
 
     /** Generic crafting base for the per-machine packaged cores. */

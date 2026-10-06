@@ -47,7 +47,10 @@ class PackagedCoreNamingTest {
             "avaritia_nether_table_packaged_core",
             "avaritia_end_table_packaged_core",
             "avaritia_extreme_table_packaged_core",
-            "avaritia_extreme_smithing_packaged_core");
+            "avaritia_extreme_smithing_packaged_core",
+            "bloodmagic_altar_packaged_core",
+            "forbidden_arcanus_clibano_packaged_core",
+            "forbidden_arcanus_hephaestus_forge_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
             "basic_packaged_core");
@@ -122,16 +125,6 @@ class PackagedCoreNamingTest {
         assertTrue(mainSources.contains("basic_packaged_core"));
         assertFalse(mainSources.contains("blank_packaged_core"));
         assertFalse(mainSources.contains("BLANK_PACKAGED_CORE"));
-    }
-
-    @Test
-    void forbiddenArcanusIntegrationStaysRemoved() throws IOException {
-        var mainSources = readTextTree("src/main");
-
-        assertFalse(mainSources.contains("forbidden_arcanus"));
-        assertFalse(mainSources.contains("ForbiddenArcanus"));
-        assertFalse(mainSources.contains("fa_clibano_packaged_core"));
-        assertFalse(mainSources.contains("fa_hephaestus_forge_packaged_core"));
     }
 
     @Test

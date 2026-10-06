@@ -26,10 +26,6 @@ class AE2LTDependencyBoundaryTest {
             "com/moakiee/ae2lt/packaged/mixin/WirelessConnectorItemMixin.java", Set.of(
                     "com.moakiee.ae2lt.item.OverloadedWirelessConnectorItem",
                     "com.moakiee.ae2lt.network.NetworkInit",
-                    "com.moakiee.ae2lt.network.WirelessConnectorUsePacket"),
-            "com/moakiee/ae2lt/packaged/mixin/WirelessConnectorPacketMixin.java", Set.of(
-                    "com.moakiee.ae2lt.item.OverloadedWirelessConnectorItem",
-                    "com.moakiee.ae2lt.logic.WirelessConnectorTargetHelper",
                     "com.moakiee.ae2lt.network.WirelessConnectorUsePacket"));
 
     @Test

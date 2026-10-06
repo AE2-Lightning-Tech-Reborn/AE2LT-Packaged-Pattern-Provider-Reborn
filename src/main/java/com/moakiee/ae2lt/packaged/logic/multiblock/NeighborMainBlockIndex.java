@@ -1,6 +1,5 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock;
 
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 
@@ -16,6 +15,7 @@ public final class NeighborMainBlockIndex {
 
     private final BlockPos origin;
     private final EnumMap<Direction, MultiblockAdapter> cache = new EnumMap<>(Direction.class);
+    private List<Direction> cachedFaces = List.of();
     private long lastScanTick = -1;
     private boolean dirty = true;
 
@@ -29,10 +29,11 @@ public final class NeighborMainBlockIndex {
 
     public List<Direction> adapterFaces(ServerLevel level) {
         long tick = level.getGameTime();
-        if (dirty || tick - lastScanTick >= TTL_TICKS) {
+        long elapsed = tick - lastScanTick;
+        if (dirty || tick < lastScanTick || elapsed < 0 || elapsed >= TTL_TICKS) {
             rebuild(level, tick);
         }
-        return new ArrayList<>(cache.keySet());
+        return cachedFaces;
     }
 
     @Nullable
@@ -55,6 +56,7 @@ public final class NeighborMainBlockIndex {
                 cache.put(dir, adapter);
             }
         }
+        cachedFaces = List.copyOf(cache.keySet());
         dirty = false;
         lastScanTick = tick;
     }

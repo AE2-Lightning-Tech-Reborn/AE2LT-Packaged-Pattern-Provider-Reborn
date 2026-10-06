@@ -1,6 +1,7 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.malum;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -578,9 +579,22 @@ final class MalumReflection {
         }
         if (infusionGetOutputMethod != null) {
             try {
-                var value = infusionGetOutputMethod.invoke(recipe, level, input);
+                // Pass a copy: getOutput is third-party code that may write
+                // tags through the input stack. The guard additionally
+                // restores the shared ItemStack.EMPTY singleton's tag in case
+                // the recipe reaches the singleton through its own fallbacks
+                // (idle Ars-style tiles may alias it).
+                var value = ReflectionSupport.withEmptyStackTagPreserved(() -> {
+                    try {
+                        return (Object) infusionGetOutputMethod.invoke(recipe, level, input.copy());
+                    } catch (IllegalAccessException e) {
+                        throw new IllegalStateException(e);
+                    } catch (InvocationTargetException e) {
+                        throw new IllegalStateException(e);
+                    }
+                });
                 return value instanceof ItemStack stack ? stack.copy() : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+            } catch (RuntimeException | LinkageError ignored) {
                 // Fall through to the output field, also used when 1.20.1 has no getOutput method.
             }
         }

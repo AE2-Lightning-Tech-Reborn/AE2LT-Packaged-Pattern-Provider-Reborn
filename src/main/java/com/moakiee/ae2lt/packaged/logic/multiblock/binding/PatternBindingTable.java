@@ -68,7 +68,14 @@ public final class PatternBindingTable {
             long ttl = binding.isMatched()
                     ? POSITIVE_BINDING_TTL_TICKS
                     : NEGATIVE_BINDING_TTL_TICKS;
-            if (gameTick - binding.computedAtTick() >= ttl) {
+            long elapsed;
+            try {
+                elapsed = Math.subtractExact(gameTick, binding.computedAtTick());
+            } catch (ArithmeticException overflow) {
+                bindings.remove(pattern);
+                return null;
+            }
+            if (elapsed < 0 || elapsed >= ttl) {
                 bindings.remove(pattern);
                 return null;
             }
