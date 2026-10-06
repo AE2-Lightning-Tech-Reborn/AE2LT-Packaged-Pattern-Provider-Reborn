@@ -148,11 +148,13 @@ Integration code currently exists for:
 - Botania
 - Astral Sorcery 1.21.1 development branch: four crafting altar tiers and Starlight Infuser
 
-Astral version pin, native test commands and supported recipe rules: [compatibility notes](ASTRAL_SORCERY_COMPATIBILITY.zh-CN.md).
+Astral version pin, native test commands and supported recipe rules: [compatibility notes](docs/ASTRAL_SORCERY_COMPATIBILITY.zh-CN.md).
 
 These entries reflect source code present in the repository, not a blanket statement that every target has already been runtime-validated in every environment.
 
 ## How to Add a New Multiblock Adapter
+
+See the [development documentation](docs/README.md) for adapter architecture, material ownership, dispatch compensation, and integration notes.
 
 1. Add a new adapter package under `logic/multiblock`.
 2. Implement the existing `MultiblockAdapter` interface, returning a binding result that identifies whether the target should run virtually or through real dispatch.

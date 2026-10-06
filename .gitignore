@@ -21,7 +21,6 @@ hs_err_pid*
 run
 /logs/
 .vscode/
-docs/
 .claude/
 
 # Eclipse IDE compiled output
