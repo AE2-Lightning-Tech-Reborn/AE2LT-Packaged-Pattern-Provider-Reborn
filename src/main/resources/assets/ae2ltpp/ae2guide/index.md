@@ -15,12 +15,22 @@ The **Packaged Pattern Provider** (and its wireless version) lets AE2 autocrafti
 ~~`Although it seems you still need a thorough understanding of these crafting structures...`~~
 Insert the corresponding **Packaged Core** into the provider to select the type of machine it will control.
 
+## Making specialized cores
+
+Craft a **Basic Packaged Core**, then process it in the target mod's corresponding machine to make a specialized core. The shared Chiseling core uses a crafting-grid recipe with any supported chisel. This second step mainly uses materials readily available at that machine's progression stage. Check your recipe viewer for the exact layout and energy requirements.
+
+* The AA Empowerer core uses regular crystals. The Draconic Evolution Fusion core uses Draconium-tier fusion crafting, a Draconium Core, and Draconium Ingots.
+* EC table cores use components of their own tier, Black Iron Ingots, and Luminessence. Ender, Flux, and Combination cores also use common materials.
+* Avaritia table cores use materials available at their respective stages. Although EC and Avaritia table recipes occupy only a 3×3 area, they still require the corresponding table tier.
+* The Avaritia Extreme Smithing core uses an Engineering Processor as its template and one Diamond Lattice in each of the three addition slots.
+* The Mystical Agriculture Infusion core uses Prosperity Shards and Inferium Essence. The Occultism Ritual core uses a Foliot crafting ritual.
+
 ## General usage
 
-1. For a regular Packaged Pattern Provider, place it **touching the target machine's main block / core**.
-   For a Wireless Packaged Pattern Provider, set its wireless connection target to that block; it does not
-   need to touch the machine.
-2. Put the matching Packaged Core into the provider's **Packaged Core slot**. Each provider can serve only one type of machine at a time.
+1. Put the matching Packaged Core into the provider's **Packaged Core slot** first.
+2. Place a regular provider against the target machine's **main block / core**, or use the wireless connector
+   to link a wireless provider to it. The installed core must support the target; missing or
+   mismatched cores are rejected. Portable chiseling conversions do not need a target.
 3. As with a normal Pattern Provider, encode the recipe as a **processing pattern** and insert it.
 4. When AE2 requests the output, the provider reads the machine recipe (including custom recipes), sends the ingredients to the machine, and automatically returns the completed result to your ME network.
 
@@ -31,7 +41,8 @@ Insert the corresponding **Packaged Core** into the provider to select the type 
 >
 > If a craft cannot be dispatched correctly, check that the machine structure is complete, the machine contains no leftover items, and the correct Packaged Core is installed.
 >
-> A very small number of recipes, such as Occultism Spirit Fire crafting, cannot use the Wireless Packaged Pattern Provider. If a recipe does not work, try a regular Packaged Pattern Provider.
+> Block-only targets such as Occultism Spirit Fire and Chipped workbenches support wireless connections.
+> Removing a core stops its recipes without erasing saved links; removing the target invalidates the link.
 >
 > If materials are not returned correctly, check that automatic return is enabled on the provider.
 >
@@ -84,3 +95,6 @@ Insert the corresponding **Packaged Core** into the provider to select the type 
 
 ### Astral Sorcery
 * [Astral Sorcery Altars and Infuser](astral-sorcery.md) ⚠
+
+### Chiseling
+* [Chipped, Rechiseled and Chisel](chiseling.md)

@@ -192,6 +192,9 @@ public final class PPItems {
             registerPackagedCore("astral_infuser_packaged_core", AdapterIds.ASTRAL_INFUSER,
                     Set.of(AdapterIds.ASTRAL_INFUSER));
 
+    public static final DeferredItem<MultiblockAdapterItem> CHISELING_ADAPTER =
+            registerPackagedCore("chiseling_packaged_core", AdapterIds.CHISELING, Set.of(AdapterIds.CHISELING));
+
     // ===== Crafting intermediates =====
 
     /** Generic crafting base for the per-machine packaged cores. */

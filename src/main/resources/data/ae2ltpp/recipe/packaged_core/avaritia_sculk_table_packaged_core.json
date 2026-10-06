@@ -8,16 +8,16 @@
   "type": "avaritia:shaped_table",
   "tier": 1,
   "pattern": [
-    "NPN",
-    "PCP",
-    "NPN"
+    "ABA",
+    "BCB",
+    "ABA"
   ],
   "key": {
-    "N": {
-      "item": "avaritia:neutron_nugget"
+    "A": {
+      "item": "minecraft:sculk"
     },
-    "P": {
-      "item": "avaritia:neutron_pile"
+    "B": {
+      "item": "ae2:certus_quartz_crystal"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

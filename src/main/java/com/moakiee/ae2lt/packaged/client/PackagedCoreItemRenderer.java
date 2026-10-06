@@ -47,7 +47,7 @@ public final class PackagedCoreItemRenderer extends BlockEntityWithoutLevelRende
                 continue;
             }
 
-            var id = definition.targetItemId();
+            var id = definition.displayItemId();
             if (!BuiltInRegistries.ITEM.containsKey(id)) {
                 return Optional.empty();
             }

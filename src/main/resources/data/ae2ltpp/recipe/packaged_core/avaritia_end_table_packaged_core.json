@@ -8,26 +8,16 @@
   "type": "avaritia:shaped_table",
   "tier": 3,
   "pattern": [
-    "IMIMIMI",
-    "MPPPPPM",
-    "IPIWIPI",
-    "MPWCWPM",
-    "IPIWIPI",
-    "MPPPPPM",
-    "IMIMIMI"
+    "ABA",
+    "BCB",
+    "ABA"
   ],
   "key": {
-    "M": {
-      "item": "avaritia:crystal_matrix_ingot"
+    "A": {
+      "item": "minecraft:end_stone"
     },
-    "I": {
-      "item": "avaritia:neutron_ingot"
-    },
-    "P": {
-      "item": "avaritia:neutron_pile"
-    },
-    "W": {
-      "item": "minecraft:netherite_ingot"
+    "B": {
+      "item": "minecraft:ender_pearl"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

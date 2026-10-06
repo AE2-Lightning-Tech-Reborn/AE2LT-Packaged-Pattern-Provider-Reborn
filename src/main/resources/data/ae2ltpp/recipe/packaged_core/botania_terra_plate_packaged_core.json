@@ -11,7 +11,7 @@
       "item": "ae2ltpp:basic_packaged_core"
     },
     {
-      "item": "botania:terrasteel_ingot"
+      "item": "botania:manasteel_ingot"
     },
     {
       "tag": "c:gems/mana_pearl"
@@ -20,7 +20,7 @@
       "tag": "c:gems/mana_diamond"
     }
   ],
-  "mana": 500000,
+  "mana": 100000,
   "result": {
     "id": "ae2ltpp:botania_terra_plate_packaged_core",
     "count": 1
