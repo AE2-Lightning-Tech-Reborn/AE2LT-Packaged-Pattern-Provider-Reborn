@@ -35,3 +35,5 @@ bin/
 
 # Local-only dependency drops (SNAPSHOT jars resolved out-of-band, see build.gradle comments)
 libs/
+
+[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]
