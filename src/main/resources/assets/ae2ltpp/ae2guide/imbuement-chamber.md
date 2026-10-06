@@ -22,7 +22,15 @@ Ars does **not** consume the pedestal items for an Imbuement recipe — it only 
 present. So this provider treats them as **reusable catalysts**: it places them on the pedestals for
 the craft, then **pulls them back into your ME network together with the finished product**.
 
-You still need the catalyst items in stock so they can be placed, but they are not lost. You must therefore include these catalysts as **byproducts** in the encoded outputs of the pattern.
+Encode one craft in a **processing pattern**:
+
+* **Inputs:** the Chamber ingredient and every pedestal catalyst, with the quantities needed for one craft.
+* **First output:** the recipe's finished product, with its actual quantity.
+* **Other outputs:** all pedestal catalysts, with exactly the same quantities and components as their inputs. Repeated catalysts may share an output slot with their total quantity. If the product and a catalyst have the same item and components, combine their quantities in the first output.
+
+For example, if one craft consumes A × 1 and needs B × 2 and C × 1 on the pedestals, encode inputs A × 1, B × 2, C × 1 and outputs product × 1, B × 2, C × 1. A request for 64 products can then reuse B × 2 and C × 1 as they return; A is still consumed 64 times. You need the initial catalyst set in stock or a separate recipe to produce it. More simultaneous crafts require more physical sets.
+
+When declaring catalyst returns, include the complete set. Missing, extra, or mismatched returns prevent binding. Existing product-only patterns still work, but do not tell AE2 to reuse catalysts, so large requests can require many sets. The provider does not edit your patterns; manually re-encode them to declare catalyst returns. Each craft still places and retrieves the real catalysts.
 
 Before starting, the Chamber and every Arcane Pedestal within 1 block must be empty; any occupied pedestal in that range blocks the craft.
 `Like a clam, a delicate imbuement ritual cannot tolerate even a grain of sand.`

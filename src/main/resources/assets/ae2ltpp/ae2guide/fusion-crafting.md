@@ -30,3 +30,4 @@ result back when it finishes.
 * The injectors must meet the recipe's **tier** (Basic / Wyvern / Draconic / Chaotic). Lower-tier injectors are
   skipped, so make sure you have enough injectors of the required tier.
 * Before starting, the core catalyst slot and the injectors used for this craft must be empty.
+* The core's "catalyst" is a recipe input and is not necessarily returned unchanged. Packaged Fusion Crafting currently accepts product-only outputs and does not retrieve injector ingredients marked as non-consuming in custom recipes. Use another automation method for those recipes, and do not declare their ingredients as returned outputs.

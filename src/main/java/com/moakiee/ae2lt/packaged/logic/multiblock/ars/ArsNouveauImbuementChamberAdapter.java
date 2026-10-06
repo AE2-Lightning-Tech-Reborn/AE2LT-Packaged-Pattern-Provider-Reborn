@@ -16,6 +16,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -81,9 +82,6 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
         if (be == null || !recognizesMain(level, mainPos, be)) {
             return null;
         }
-        if (!hasSingleItemOutput(pattern)) {
-            return null;
-        }
         var recipe = findCandidateRecipe(level, pattern);
         if (recipe == null) {
             return null;
@@ -143,7 +141,8 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
             return null;
         }
 
-        var match = assignInputsToRecipe(units, inputIngredient, pedestalIngredients);
+        var match = assignInputsToRecipe(units, inputIngredient, pedestalIngredients,
+                pattern, resultItem(bind.recipe(), level));
         if (match == null) {
             return null;
         }
@@ -234,7 +233,7 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
         for (var holder : recipes(level)) {
             var recipe = holder.value();
             var result = resultItem(recipe, level);
-            if (result.isEmpty() || !outputMatches(pattern, result)) {
+            if (result.isEmpty()) {
                 continue;
             }
             var inputIngredient = ArsNouveauImbuementChamberAccess.getInput(recipe);
@@ -242,7 +241,7 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
             if (inputIngredient == null || pedestalIngredients == null) {
                 continue;
             }
-            if (!patternInputsMatchRecipe(pattern, inputIngredient, pedestalIngredients)) {
+            if (!patternInputsMatchRecipe(pattern, result, inputIngredient, pedestalIngredients)) {
                 continue;
             }
             return recipe;
@@ -251,16 +250,19 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
     }
 
     private static boolean patternInputsMatchRecipe(IPatternDetails pattern,
+                                                    ItemStack result,
                                                     Ingredient inputIngredient,
                                                     List<Ingredient> pedestalIngredients) {
         var units = patternInputUnits(pattern);
-        return units != null && assignInputsToRecipe(units, inputIngredient, pedestalIngredients) != null;
+        return units != null
+                && assignInputsToRecipe(units, inputIngredient, pedestalIngredients, pattern, result) != null;
     }
 
     @Nullable
     private static RecipeMatch assignInputsToRecipe(List<PlannedUnit> units,
                                                     Ingredient inputIngredient,
-                                                    List<Ingredient> pedestalIngredients) {
+                                                    List<Ingredient> pedestalIngredients,
+                                                    IPatternDetails pattern, ItemStack result) {
         List<Predicate<PlannedUnit>> pedestalPredicates = pedestalIngredients.stream()
                 .<Predicate<PlannedUnit>>map(ingredient -> unit -> ingredient.test(unit.stack()))
                 .toList();
@@ -268,7 +270,9 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
         var match = ArsImbuementInputMatcher.match(
                 units,
                 unit -> inputIngredient.test(unit.stack()),
-                pedestalPredicates);
+                pedestalPredicates,
+                candidate -> outputsMatch(pattern, result,
+                        candidate.pedestals().stream().map(PlannedUnit::key).toList()));
         if (match == null) {
             return null;
         }
@@ -482,10 +486,10 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
                 if (amount <= 0) {
                     continue;
                 }
-                total += amount;
-                if (total > MAX_INPUT_UNITS) {
+                if (amount > MAX_INPUT_UNITS - total) {
                     return null;
                 }
+                total += amount;
                 for (long i = 0; i < amount; i++) {
                     units.add(new PlannedUnit(itemKey));
                 }
@@ -511,10 +515,10 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
             } catch (ArithmeticException ignored) {
                 return null;
             }
-            total += amount;
-            if (total > MAX_INPUT_UNITS) {
+            if (amount > MAX_INPUT_UNITS - total) {
                 return null;
             }
+            total += amount;
             for (long i = 0; i < amount; i++) {
                 units.add(new PlannedUnit(itemKey));
             }
@@ -540,26 +544,47 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
         return AEItemKey.of(left).equals(AEItemKey.of(right));
     }
 
-    private static boolean outputMatches(IPatternDetails pattern, ItemStack result) {
+    /** Catalyst returns must match the actual pedestal inputs, including components and multiplicity. */
+    static boolean outputsMatch(IPatternDetails pattern, ItemStack result, List<AEItemKey> catalysts) {
         var outputs = pattern.getOutputs();
-        if (outputs.size() != 1) {
+        if (result.isEmpty() || outputs.isEmpty()) {
             return false;
         }
 
-        var expected = outputs.getFirst();
-        if (!(expected.what() instanceof AEItemKey expectedKey) || expected.amount() != result.getCount()) {
+        var primary = outputs.getFirst();
+        if (!(primary.what() instanceof AEItemKey primaryKey)) {
             return false;
         }
 
         var actual = AEItemKey.of(result);
-        return OverloadPatternSemantics.isIdOnlyOutput(pattern, 0)
-                ? expectedKey.dropSecondary().equals(actual.dropSecondary())
-                : expectedKey.equals(actual);
-    }
+        boolean primaryMatches = OverloadPatternSemantics.isIdOnlyOutput(pattern, 0)
+                ? primaryKey.dropSecondary().equals(actual.dropSecondary())
+                : primaryKey.equals(actual);
+        if (!primaryMatches) {
+            return false;
+        }
 
-    private static boolean hasSingleItemOutput(IPatternDetails pattern) {
-        var outputs = pattern.getOutputs();
-        return outputs.size() == 1 && outputs.getFirst().what() instanceof AEItemKey;
+        // Preserve existing product-only patterns; they do not advertise catalyst reuse to AE2.
+        if (outputs.size() == 1 && primary.amount() == result.getCount()) {
+            return true;
+        }
+
+        var remaining = new HashMap<AEItemKey, Long>();
+        remaining.put(primaryKey, (long) result.getCount());
+        for (var catalyst : catalysts) {
+            remaining.merge(catalyst, 1L, Long::sum);
+        }
+        for (var output : outputs) {
+            if (!(output.what() instanceof AEItemKey key) || output.amount() <= 0) {
+                return false;
+            }
+            long available = remaining.getOrDefault(key, 0L);
+            if (output.amount() > available) {
+                return false;
+            }
+            remaining.put(key, available - output.amount());
+        }
+        return remaining.values().stream().allMatch(amount -> amount == 0L);
     }
 
     private static boolean matchesPlannedStack(GenericStack stack, PlannedUnit unit) {
