@@ -134,7 +134,7 @@ repositories {
         ivy {
             name = 'LocalThunderboltBuild'
             url = uri(findProperty('thunderbolt_build_libs') ?: '../Thunderbolt-Core-main/build/libs')
-            patternLayout { artifact '[artifact]-forge-1.20.1-[revision].jar' }
+            patternLayout { artifact 'thunderbolt-forge-1.20.1-[revision].jar' }
             metadataSources { artifact() }
             content { includeGroup 'com.moakiee.thunderbolt' }
         }
@@ -218,10 +218,10 @@ dependencies {
     }
 
     // Thunderbolt Core owns the host-neutral overload pattern contract.
-    compileOnly(fg.deobf("com.moakiee.thunderbolt:thunderbolt:${thunderbolt_version}")) {
+    compileOnly(fg.deobf("com.moakiee.thunderbolt:${thunderbolt_artifact_id}:${thunderbolt_version}")) {
         transitive = false
     }
-    runtimeOnly(fg.deobf("com.moakiee.thunderbolt:thunderbolt:${thunderbolt_version}")) {
+    runtimeOnly(fg.deobf("com.moakiee.thunderbolt:${thunderbolt_artifact_id}:${thunderbolt_version}")) {
         transitive = false
     }
 
@@ -255,7 +255,7 @@ dependencies {
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly(fg.deobf("com.moakiee.thunderbolt:thunderbolt:${thunderbolt_version}")) {
+    testRuntimeOnly(fg.deobf("com.moakiee.thunderbolt:${thunderbolt_artifact_id}:${thunderbolt_version}")) {
         transitive = false
     }
 
