@@ -1,0 +1,10 @@
+{
+  "type": "ars_nouveau:imbuement",
+  "input": { "item": "minecraft:iron_ingot" },
+  "pedestalItems": [
+    { "item": "minecraft:diamond" },
+    { "item": "minecraft:diamond" }
+  ],
+  "source": 0,
+  "output": { "id": "minecraft:gold_ingot", "count": 1 }
+}

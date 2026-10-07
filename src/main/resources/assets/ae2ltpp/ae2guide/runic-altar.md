@@ -18,4 +18,4 @@ Automatically performs Runic Altar recipes. Place the provider against the Runic
 ## ⚠ Mana & recycled rune catalysts
 
 * The altar needs **mana** from your mana spreaders — keep it supplied.
-* In general, runes used as Runic Altar inputs act as catalysts. In addition to encoding the pattern normally, add those runes to the pattern's byproduct outputs. Otherwise, large crafting requests may cause AE2 to craft large numbers of the catalyst runes as well.
+* Put the recipe's returned catalyst runes in both the inputs and the byproduct outputs, with the product first. Each catalyst output slot must contain 1 rune matching the corresponding input's item and components; consumed ingredients and livingrock must not be declared as returns. The provider validates the complete outputs, so missing or extra returns prevent binding. You still need the initial catalyst runes in stock before they can cycle through subsequent crafts.

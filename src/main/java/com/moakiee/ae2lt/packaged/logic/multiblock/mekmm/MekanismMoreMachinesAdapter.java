@@ -110,7 +110,7 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
         return null;
     }
 
-    private static BlockPos resolveMainPos(ServerLevel level, BlockPos pos) {
+    public static BlockPos resolveMainPos(ServerLevel level, BlockPos pos) {
         var be = level.getBlockEntity(pos);
         if (be != null && MekReflection.isBoundingBlock(be)) {
             BlockPos resolved = MekReflection.getMainPos(be);
@@ -143,7 +143,53 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
         mainPos = resolveMainPos(level, mainPos);
         var be = level.getBlockEntity(mainPos);
         if (be == null || !spec.equals(findSpec(level, be)) || !binding.supports(spec.activeMode(be))) return false;
-        return !spec.idleGated() || !MekReflection.isActive(be);
+        return true;
+    }
+
+    public Object dispatchMode(ServerLevel level, BlockPos pos) {
+        var be = level.getBlockEntity(resolveMainPos(level, pos));
+        var spec = be == null ? null : findSpec(level, be);
+        return spec == null ? null : spec.activeMode(be);
+    }
+
+    /** Match AE2 blocking semantics against inputs exposed by the selected machine mode. */
+    public boolean containsPatternInput(ServerLevel level, BlockPos pos, java.util.Set<AEKey> inputs) {
+        pos = resolveMainPos(level, pos);
+        var be = level.getBlockEntity(pos);
+        var spec = be == null ? null : findSpec(level, be);
+        if (spec == null) return true;
+        var facing = MekReflection.getFacing(be);
+        for (var port : spec.activeMode(be).inputs()) {
+            var portPos = portPos(pos, facing, port.spec());
+            var side = portSide(facing, port.spec());
+            if (!level.isLoaded(portPos)) return true;
+            switch (port.type()) {
+                case ITEM -> {
+                    var handler = level.getCapability(Capabilities.ItemHandler.BLOCK, portPos, side);
+                    if (handler != null) for (int i = 0; i < handler.getSlots(); i++) {
+                        var stack = handler.getStackInSlot(i);
+                        if (!stack.isEmpty() && inputs.contains(AEItemKey.of(stack).dropSecondary())) return true;
+                    }
+                }
+                case FLUID -> {
+                    var handler = level.getCapability(Capabilities.FluidHandler.BLOCK, portPos, side);
+                    if (handler != null) for (int i = 0; i < handler.getTanks(); i++) {
+                        var stack = handler.getFluidInTank(i);
+                        if (!stack.isEmpty() && inputs.contains(AEFluidKey.of(stack).dropSecondary())) return true;
+                    }
+                }
+                case CHEMICAL -> {
+                    var handler = MekReflection.getChemicalHandler(level, portPos, side);
+                    if (handler != null) for (int i = 0; i < MekReflection.getChemicalTanks(handler); i++) {
+                        var stack = MekReflection.getChemicalInTank(handler, i);
+                        if (MekReflection.isChemicalEmpty(stack)) continue;
+                        var key = AppmekReflection.fromChemicalStack(stack);
+                        if (key != null && inputs.contains(key.dropSecondary())) return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @Override
@@ -156,7 +202,6 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
         mainPos = resolveMainPos(level, mainPos);
         var be = level.getBlockEntity(mainPos);
         if (be == null || !spec.equals(findSpec(level, be))) return null;
-        if (spec.idleGated() && MekReflection.isActive(be)) return null;
 
         PortGroup mode = spec.activeMode(be);
         var arranged = binding.arrange(level, mode, pattern, inputs);
@@ -185,7 +230,6 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
         if (be == null) return List.of();
         MekmmMachineSpec spec = findSpec(level, be);
         if (spec == null) return List.of();
-        if (spec.idleGated() && MekReflection.isActive(be)) return List.of();
 
         Direction facing = MekReflection.getFacing(be);
         PortGroup mode = spec.activeMode(be);

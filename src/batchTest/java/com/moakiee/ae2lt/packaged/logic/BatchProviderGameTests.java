@@ -217,6 +217,8 @@ public final class BatchProviderGameTests {
                 var right = (mekanism.api.chemical.IChemicalTank)machine.getClass().getField("rightTank").get(machine);
                 left.setStack(mekanism.common.registries.MekanismChemicals.OXYGEN.asStack(left.getCapacity()-96));
                 right.setStack(mekanism.common.registries.MekanismChemicals.CHLORINE.asStack(right.getCapacity()-160));
+                ((mekanism.common.tile.base.TileEntityMekanism) machine).setActive(true);
+                helper.assertTrue(((mekanism.common.tile.base.TileEntityMekanism) machine).getActive(), "machine is active during dispatch");
                 long leftBefore=left.getStored(), rightBefore=right.getStored();
                 helper.assertTrue(logic.getBatchCapacity(pattern)>1,"Mek lane advertises batch dispatch");
                 long remaining=logic.pushBatch(pattern,template,8);
@@ -224,8 +226,17 @@ public final class BatchProviderGameTests {
                 helper.assertTrue(left.getStored()-leftBefore==96 && right.getStored()-rightBefore==96,"native chemical ports receive equal three-copy quantities");
                 helper.assertTrue(template[0].get(chlorine.what())==32 && template[1].get(oxygen.what())==32,"Mek borrowed template is unchanged");
                 helper.assertTrue(logic.pushBatch(pattern,template,8)==8,"full input tank rejects further copies without consuming anything");
-                System.out.println("PP_BATCH_MEK_PASS requested=8 accepted=3 leftover=5 oxygen=96 chlorine=96");
-                helper.succeed();
+                left.setStack(mekanism.common.registries.MekanismChemicals.OXYGEN.asStack(left.getCapacity()-96));
+                helper.assertTrue(!logic.pushPattern(pattern,template), "single path shares same-tick failed batch suppression");
+                helper.runAfterDelay(1, () -> {
+                    ((mekanism.common.tile.base.TileEntityMekanism) machine).setActive(true);
+                    helper.assertTrue(logic.pushPattern(pattern,template), "single dispatch recovers on the next tick while active");
+                    helper.assertTrue(left.getStored()==left.getCapacity()-64, "single delivery inserts exactly one copy");
+                    logic.getConfigManager().putSetting(Settings.BLOCKING_MODE, YesNo.YES);
+                    helper.assertTrue(!logic.pushPattern(pattern,template), "blocking mode still waits for existing inputs");
+                    System.out.println("PP_BATCH_MEK_PASS active=true retry=next_tick single=exact blocking=respected");
+                    helper.succeed();
+                });
             } catch (ReflectiveOperationException exception) {throw new RuntimeException(exception);}
         });
     }
