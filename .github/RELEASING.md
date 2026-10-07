@@ -17,6 +17,8 @@ AE2LT 和样板供应器通过 GitHub Release 下载构建依赖。若依赖仓�
 
 依赖版本取自发布标签对应的 `gradle.properties`，不替换成 latest。先发布该版本的 Thunderbolt，再发布 AE2LT，最后发布样板供应器；依赖 Release 必须已有对应加载器的 JAR。
 
+样板供应器应显式填写 `ae2lt_version` 和 `thunderbolt_version`，并与上游已有 Release 标签及 JAR 内版本一致。本地开发的 `ae2lt_jar` 路径只作为开发依赖，不用来决定发布版本。调整依赖后，发布标签也必须指向包含该配置的提交。
+
 依赖下载优先使用直接版本号标签；找不到对应产物时兼容历史 `v<版本>` 和 Forge 的 `forge-1.20.1-v<版本>` 标签。
 
 发布前的工作流检查运行 `.github/scripts/test_release.py` 和 actionlint，不需要平台 Token，也不执行发布。发布流程保留原有 `build -x check` 打包策略；功能测试应在创建发布标签前完成。发布流程验证 JAR 入口、版本、加载器元数据路径和 SHA-256。实际平台上传需发布 Release 后查看 Release 工作流的结果。
