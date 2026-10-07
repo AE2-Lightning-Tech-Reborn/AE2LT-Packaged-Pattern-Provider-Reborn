@@ -197,13 +197,15 @@ public final class RefactorIntegrationGameTests {
             var pattern = logic.getAvailablePatterns().getFirst();
             var counters = new KeyCounter[inputs.size()];
             for (int i = 0; i < inputs.size(); i++) { counters[i] = new KeyCounter(); counters[i].add(inputs.get(i).what(), inputs.get(i).amount()); }
-            helper.assertTrue(logic.getBatchCapacity(pattern) == 64, "batch lane recognized: " + target);
-            helper.assertTrue(logic.pushBatch(pattern, counters, 70) == 6, "64 copies accepted on " + target);
+            boolean workbench = target.startsWith("avaritia:");
+            long accepted = workbench ? 70 : 64;
+            helper.assertTrue(logic.getBatchCapacity(pattern) == (workbench ? Long.MAX_VALUE : 64), "batch lane recognized: " + target);
+            helper.assertTrue(logic.pushBatch(pattern, counters, 70) == 70 - accepted, "expected copies accepted on " + target);
             for (int i = 0; i < counters.length; i++) helper.assertTrue(counters[i].get(inputs.get(i).what()) == inputs.get(i).amount(), "borrowed template unchanged");
             var owned = pendingOutputs(logic).snapshot();
-            helper.assertTrue(owned.contains(new GenericStack(output.what(), 64 * output.amount())), "exact batch output for " + target);
-            if (buckets) helper.assertTrue(owned.contains(item("minecraft:bucket", 64)), "Avaritia returns 64 native container remainders");
-            System.out.println("PP_REFACTOR_VIRTUAL_PASS target=" + target + " accepted=64 leftover=6 containers=" + buckets);
+            helper.assertTrue(owned.contains(new GenericStack(output.what(), accepted * output.amount())), "exact batch output for " + target);
+            if (buckets) helper.assertTrue(owned.contains(item("minecraft:bucket", accepted)), "Avaritia returns exact native container remainders");
+            System.out.println("PP_REFACTOR_VIRTUAL_PASS target=" + target + " accepted=" + accepted + " leftover=" + (70 - accepted) + " containers=" + buckets);
             helper.succeed();
         });
     }

@@ -1,0 +1,33 @@
+{
+  "type": "extendedcrafting:shaped_table",
+  "tier": 4,
+  "pattern": [
+    "MI"
+  ],
+  "key": {
+    "M": {
+      "type": "neoforge:components",
+      "items": "minecraft:milk_bucket",
+      "components": {
+        "minecraft:custom_data": {
+          "pp_overload": "required"
+        }
+      },
+      "strict": false
+    },
+    "I": {
+      "type": "neoforge:components",
+      "items": "minecraft:iron_ingot",
+      "components": {
+        "minecraft:custom_data": {
+          "pp_overload": "required"
+        }
+      },
+      "strict": false
+    }
+  },
+  "result": {
+    "id": "minecraft:heart_of_the_sea",
+    "count": 1
+  }
+}
