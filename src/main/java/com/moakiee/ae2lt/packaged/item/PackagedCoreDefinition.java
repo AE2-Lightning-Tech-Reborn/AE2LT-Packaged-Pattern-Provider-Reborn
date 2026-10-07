@@ -27,6 +27,8 @@ public record PackagedCoreDefinition(
     private static final String MEKANISM_MORE_MACHINE = "mekmm";
     private static final String BOTANIA = "botania";
     private static final String AVARITIA = "avaritia";
+    private static final String BLOOD_MAGIC = "bloodmagic";
+    private static final String FORBIDDEN_ARCANUS = "forbidden_arcanus";
 
     private static final List<PackagedCoreDefinition> ALL = List.of(
             core("aa_reconstructor_packaged_core", ACTUALLY_ADDITIONS, "atomic_reconstructor"),
@@ -57,7 +59,10 @@ public record PackagedCoreDefinition(
             core("avaritia_nether_table_packaged_core", AVARITIA, "nether_crafting_table"),
             core("avaritia_end_table_packaged_core", AVARITIA, "end_crafting_table"),
             core("avaritia_extreme_table_packaged_core", AVARITIA, "extreme_crafting_table"),
-            core("avaritia_extreme_smithing_packaged_core", AVARITIA, "extreme_smithing_table"));
+            core("avaritia_extreme_smithing_packaged_core", AVARITIA, "extreme_smithing_table"),
+            core("bloodmagic_altar_packaged_core", BLOOD_MAGIC, "altar"),
+            core("forbidden_arcanus_clibano_packaged_core", FORBIDDEN_ARCANUS, "clibano_main_part"),
+            core("forbidden_arcanus_hephaestus_forge_packaged_core", FORBIDDEN_ARCANUS, "hephaestus_forge"));
 
     public static List<PackagedCoreDefinition> all() {
         return ALL;
@@ -100,6 +105,9 @@ public record PackagedCoreDefinition(
             case "avaritia_end_table_packaged_core" -> PPItems.AVARITIA_END_TABLE_ADAPTER;
             case "avaritia_extreme_table_packaged_core" -> PPItems.AVARITIA_EXTREME_TABLE_ADAPTER;
             case "avaritia_extreme_smithing_packaged_core" -> PPItems.AVARITIA_EXTREME_SMITHING_ADAPTER;
+            case "bloodmagic_altar_packaged_core" -> PPItems.BLOOD_MAGIC_ALTAR_ADAPTER;
+            case "forbidden_arcanus_clibano_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_CLIBANO_ADAPTER;
+            case "forbidden_arcanus_hephaestus_forge_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };
     }

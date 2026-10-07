@@ -1,0 +1,25 @@
+{
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "bloodmagic"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " B ",
+    "BCB",
+    " B "
+  ],
+  "key": {
+    "B": {
+      "item": "bloodmagic:blankrune"
+    },
+    "C": {
+      "item": "ae2ltpp:basic_packaged_core"
+    }
+  },
+  "result": {
+    "item": "ae2ltpp:bloodmagic_altar_packaged_core"
+  }
+}

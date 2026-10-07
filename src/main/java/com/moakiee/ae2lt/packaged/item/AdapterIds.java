@@ -97,6 +97,9 @@ public final class AdapterIds {
             id("avaritia/crafting_table_tier4_packaged_core");
     public static final ResourceLocation AVARITIA_EXTREME_SMITHING =
             id("avaritia/extreme_smithing_packaged_core");
+    public static final ResourceLocation BLOOD_MAGIC_ALTAR = id("bloodmagic/altar_packaged_core");
+    public static final ResourceLocation FORBIDDEN_ARCANUS_CLIBANO = id("forbidden_arcanus/clibano_packaged_core");
+    public static final ResourceLocation FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE = id("forbidden_arcanus/hephaestus_forge_packaged_core");
 
     private static ResourceLocation id(String path) {
         return new ResourceLocation(AE2LTPackagedProvider.MODID, path);

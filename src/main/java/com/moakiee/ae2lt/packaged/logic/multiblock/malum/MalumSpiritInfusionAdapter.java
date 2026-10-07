@@ -84,7 +84,7 @@ public final class MalumSpiritInfusionAdapter implements MultiblockAdapter {
         if (!hasSingleItemOutput(pattern)) {
             return null;
         }
-        var recipes = findCandidateRecipes(level);
+        var recipes = findCandidateRecipes(level, pattern);
         return recipes.isEmpty()
                 ? null
                 : new BindingResult(new InfusionBindHandle(recipes), BindingMode.REAL);
@@ -426,9 +426,20 @@ public final class MalumSpiritInfusionAdapter implements MultiblockAdapter {
         return null;
     }
 
-    private static List<Object> findCandidateRecipes(ServerLevel level) {
+    private static List<Object> findCandidateRecipes(ServerLevel level, IPatternDetails pattern) {
         var matches = new ArrayList<Object>();
         for (var recipe : recipes(level)) {
+            // Bind-time gate: the recipe's declared output item must be the
+            // pattern's output item, so unmatched diagnostic patterns and
+            // patterns for other machines never obtain a handle. Recipes that
+            // donate the input's NBT to the result are compared by item
+            // identity here; planWithBinding re-checks the exact output with
+            // the real matched input.
+            var declaredOutput = MalumReflection.infusionOutput(recipe, level, ItemStack.EMPTY);
+            if (declaredOutput == null || declaredOutput.isEmpty()
+                    || !MalumAdapterSupport.outputItemMatches(pattern, declaredOutput)) {
+                continue;
+            }
             var mainInput = MalumReflection.infusionInput(recipe);
             var spiritStacks = MalumReflection.infusionSpirits(recipe);
             var extraInputs = MalumReflection.infusionExtras(recipe);

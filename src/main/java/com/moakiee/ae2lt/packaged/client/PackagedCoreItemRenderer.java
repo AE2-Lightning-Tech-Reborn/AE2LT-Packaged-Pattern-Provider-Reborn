@@ -1,5 +1,7 @@
 package com.moakiee.ae2lt.packaged.client;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -8,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -41,24 +44,44 @@ public final class PackagedCoreItemRenderer extends BlockEntityWithoutLevelRende
                 renderTarget(target, poseStack, bufferSource, packedLight, packedOverlay));
     }
 
-    private static Optional<ItemStack> targetStack(ItemStack stack) {
-        for (var definition : PackagedCoreDefinition.all()) {
-            if (!stack.is(definition.runtimeItem().get())) {
-                continue;
-            }
+    // Registries are frozen before the first render pass, so the display
+    // stacks are resolved once instead of per frame per rendered stack. A
+    // concurrent first use builds equivalent maps; the last publish wins.
+    private static volatile Map<Item, ItemStack> targetStacks;
+    private static volatile ItemStack baseStack;
 
+    private static ItemStack baseStack() {
+        var local = baseStack;
+        if (local == null) {
+            local = new ItemStack(PPItems.BASIC_PACKAGED_CORE.get());
+            baseStack = local;
+        }
+        return local;
+    }
+
+    private static Optional<ItemStack> targetStack(ItemStack stack) {
+        var local = targetStacks;
+        if (local == null) {
+            local = buildTargetStacks();
+            targetStacks = local;
+        }
+        return Optional.ofNullable(local.get(stack.getItem()));
+    }
+
+    private static Map<Item, ItemStack> buildTargetStacks() {
+        var map = new HashMap<Item, ItemStack>();
+        for (var definition : PackagedCoreDefinition.all()) {
             var id = definition.targetItemId();
             if (!BuiltInRegistries.ITEM.containsKey(id)) {
-                return Optional.empty();
+                continue;
             }
-
             var item = BuiltInRegistries.ITEM.get(id);
             if (item == null || item == Items.AIR) {
-                return Optional.empty();
+                continue;
             }
-            return Optional.of(new ItemStack(item));
+            map.put(definition.runtimeItem().get(), new ItemStack(item));
         }
-        return Optional.empty();
+        return Map.copyOf(map);
     }
 
     private static void renderBase(
@@ -69,7 +92,7 @@ public final class PackagedCoreItemRenderer extends BlockEntityWithoutLevelRende
         poseStack.pushPose();
         poseStack.translate(0.5f, 0.5f, 0.5f);
         Minecraft.getInstance().getItemRenderer().renderStatic(
-                new ItemStack(PPItems.BASIC_PACKAGED_CORE.get()),
+                baseStack(),
                 ItemDisplayContext.NONE,
                 packedLight,
                 packedOverlay,

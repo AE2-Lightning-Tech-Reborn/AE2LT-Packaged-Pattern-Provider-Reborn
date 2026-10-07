@@ -17,6 +17,9 @@ public final class SlotHarvestOwnership {
 
     static final long STATE_TTL_TICKS = 20L * 60L * 60L * 6L;
 
+    /** Marker tick of pre-TTL (three-part) payloads; never stored going forward. */
+    static final long LEGACY_CREATED_TICK = Long.MIN_VALUE;
+
     private SlotHarvestOwnership() {
     }
 
@@ -32,10 +35,32 @@ public final class SlotHarvestOwnership {
     @Nullable
     public static State load(ServerLevel level, BlockPos mainPos,
                              AdapterPersistentScope scope, String stateKey) {
-        var encoded = scope.getState(mainPos, qualifiedKey(level, stateKey));
-        return encoded == null || encoded.isBlank()
-                ? null
-                : decode(encoded, level.dimension().location());
+        return loadStored(scope, mainPos, qualifiedKey(level, stateKey),
+                level.dimension().location(), level.getGameTime());
+    }
+
+    /**
+     * Decodes one payload and upgrades pre-TTL (three-part) payloads in place.
+     * Their true creation tick is unknowable, so the clock restarts at the
+     * first evaluation after this change instead of freezing the claim (and
+     * with it the machine's dispatch) forever; from then on the normal TTL and
+     * the idle-and-empty cleanup in {@link #blocksDispatch} apply.
+     */
+    @Nullable
+    static State loadStored(AdapterPersistentScope scope, BlockPos mainPos, String storageKey,
+                            ResourceLocation dimension, long gameTime) {
+        var encoded = scope.getState(mainPos, storageKey);
+        if (encoded == null || encoded.isBlank()) {
+            return null;
+        }
+        var state = decode(encoded, dimension);
+        if (state == null || state.createdTick() != LEGACY_CREATED_TICK) {
+            return state;
+        }
+        var migrated = new State(state.recipeId(), state.expectedOutput(), Math.max(0L, gameTime));
+        scope.setState(mainPos, storageKey, encode(dimension, migrated.createdTick(),
+                migrated.expectedOutput(), migrated.recipeId()));
+        return migrated;
     }
 
     public static void clear(ServerLevel level, BlockPos mainPos,
@@ -53,6 +78,9 @@ public final class SlotHarvestOwnership {
     }
 
     static boolean expired(long gameTime, State state) {
+        // Legacy-marker payloads stay unexpired here on purpose: they are
+        // upgraded to a real clock by load/blocksDispatch before any caller
+        // can reach this with a negative tick.
         if (state.createdTick() < 0L) {
             return false;
         }
@@ -68,7 +96,8 @@ public final class SlotHarvestOwnership {
     public static boolean blocksDispatch(ServerLevel level, BlockPos mainPos,
                                          AdapterPersistentScope scope, String stateKey,
                                          boolean machineIdleEmpty) {
-        var encoded = scope.getState(mainPos, qualifiedKey(level, stateKey));
+        var qualified = qualifiedKey(level, stateKey);
+        var encoded = scope.getState(mainPos, qualified);
         if (encoded == null || encoded.isBlank()) {
             if (scope.getState(mainPos, stateKey) == null) {
                 return false;
@@ -79,7 +108,8 @@ public final class SlotHarvestOwnership {
             clear(level, mainPos, scope, stateKey);
             return false;
         }
-        var state = decode(encoded, level.dimension().location());
+        var state = loadStored(scope, mainPos, qualified,
+                level.dimension().location(), level.getGameTime());
         if (state == null) {
             return true;
         }
@@ -122,7 +152,7 @@ public final class SlotHarvestOwnership {
                     return null;
                 }
             } else {
-                createdTick = Long.MIN_VALUE;
+                createdTick = LEGACY_CREATED_TICK;
                 stackPart = parts[2];
             }
             var nbt = new String(Base64.getUrlDecoder().decode(stackPart), StandardCharsets.UTF_8);

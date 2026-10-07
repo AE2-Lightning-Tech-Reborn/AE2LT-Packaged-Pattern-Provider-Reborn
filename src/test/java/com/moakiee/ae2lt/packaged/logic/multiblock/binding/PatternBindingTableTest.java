@@ -1,9 +1,16 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.binding;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +29,58 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 
 class PatternBindingTableTest {
+    @Test
+    void concurrentLookupsAndRecipeReloadsDoNotCorruptBindings() throws Exception {
+        var table = new PatternBindingTable();
+        var start = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(9);
+        var futures = new ArrayList<Future<?>>();
+        try {
+            for (int worker = 0; worker < 8; worker++) {
+                var pattern = (IPatternDetails) java.lang.reflect.Proxy.newProxyInstance(
+                        IPatternDetails.class.getClassLoader(), new Class<?>[] {IPatternDetails.class},
+                        (proxy, method, args) -> null);
+                futures.add(executor.submit(() -> {
+                    start.await();
+                    for (int operation = 0; operation < 10000; operation++) {
+                        var binding = PatternBinding.unmatched(operation);
+                        table.put(pattern, binding);
+                        var observed = table.getFresh(pattern, operation);
+                        assertTrue(observed == null || observed == binding,
+                                "reload may evict a binding but cannot replace it with another worker's value");
+                        table.invalidate(pattern);
+                    }
+                    return null;
+                }));
+            }
+            futures.add(executor.submit(() -> {
+                start.await();
+                for (int reload = 0; reload < 10000; reload++) {
+                    PatternBindingTable.invalidateAllForRecipeReload();
+                    table.size();
+                    if (reload % 100 == 0) {
+                        table.snapshot();
+                    }
+                }
+                return null;
+            }));
+            start.countDown();
+            for (var future : futures) {
+                future.get(60, TimeUnit.SECONDS);
+            }
+            table.invalidateAll();
+            assertEquals(0, table.size());
+            var fresh = PatternBinding.unmatched(10001);
+            table.put(null, fresh);
+            assertSame(fresh, table.getFresh(null, 10001));
+            System.out.println("STRESS PASS binding cache: 8 workers x 10000 cycles, 10000 recipe reloads");
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+        }
+    }
+
     @Test
     void writingAfterReloadDoesNotKeepOlderBindings() {
         var table = new PatternBindingTable();
@@ -44,6 +103,20 @@ class PatternBindingTableTest {
         table.put(pattern, binding);
         assertSame(binding, table.getFresh(pattern, 39));
         assertNull(table.getFresh(pattern, 40));
+    }
+
+    @Test
+    void discardsBindingsWhenGameClockMovesBackwards() {
+        var table = new PatternBindingTable();
+        table.put(null, PatternBinding.unmatched(1000));
+        assertNull(table.getFresh(null, 900));
+    }
+
+    @Test
+    void discardsBindingsWhenElapsedTimeOverflows() {
+        var table = new PatternBindingTable();
+        table.put(null, PatternBinding.unmatched(-1));
+        assertNull(table.getFresh(null, Long.MAX_VALUE));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.binding;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -16,10 +17,19 @@ class VirtualBatchAccumulatorNbtTest {
                         + "VirtualBatchAccumulator.java"));
         assertTrue(source.contains("writeToNBT(CompoundTag tag)"));
         assertTrue(source.contains("readFromNBT(CompoundTag tag)"));
+        assertTrue(source.contains("private static CompoundTag writeStack(AEKey key, long amount)"));
+        assertTrue(source.contains("private static GenericStack readStack(CompoundTag tag)"));
+        assertTrue(source.contains("if (!tag.contains(TAG_KIND, Tag.TAG_STRING))"));
+        assertTrue(source.contains("case \"i\""));
+        assertTrue(source.contains("case \"f\""));
+        assertTrue(source.contains("case \"g\""));
         assertTrue(source.contains("mergePending(stack.what(), stack.amount())"));
         assertTrue(source.contains("Math.addExact(previous, amount)"));
         assertTrue(source.contains("Math.subtractExact(gameTick, lastFlushTick)"));
         assertTrue(source.contains("elapsed = Long.MAX_VALUE"));
         assertTrue(source.contains("Virtual batch flush failed; retaining"));
+        var writer = source.substring(source.indexOf("public void writeToNBT("), source.indexOf("public void readFromNBT("));
+        assertFalse(writer.contains("snapshotStacks()"));
+        assertTrue(writer.contains("pending.entrySet()"));
     }
 }

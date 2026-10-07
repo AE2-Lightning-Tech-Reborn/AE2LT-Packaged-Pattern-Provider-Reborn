@@ -8,10 +8,10 @@ AE2LT Packaged Pattern Provider Reborn is an AE2 Lightning Tech Reborn addon for
 
 - Minecraft: 1.20.1
 - Java: 17
-- Forge: 47.1.x (development baseline: 47.1.47)
+- Forge: 47.4.10 (loader range `[47,)`)
 - Applied Energistics 2: 15.4.10 (range `[15.4.10,16)`)
-- AE2 Lightning Tech Reborn: 2.1.0-beta.1 (`refactor/thunderbolt-three-layer-clean-1.20.1`)
-- Thunderbolt Core Reborn: 2.0.0-beta.1 (`refactor/thunderbolt-three-layer-clean-1.20.1`)
+- AE2 Lightning Tech Reborn: 2.1.0
+- Thunderbolt Core Reborn: 2.0.1
 - AE2WTLib: 15.3.3-forge
 - Curios: 5.14.1+1.20.1
 - Gradle Wrapper: 8.8
@@ -46,22 +46,24 @@ You need:
 - The included Gradle Wrapper
 - A Minecraft 1.20.1 Forge mod development environment
 
-Both AE2 Lightning Tech Reborn and Thunderbolt Core Reborn have to be present in Maven Local
-before this branch will resolve. Build each from its
-`refactor/thunderbolt-three-layer-clean-1.20.1` branch:
+Both AE2 Lightning Tech Reborn and Thunderbolt Core Reborn must be available
+through Maven Local or the local upstream build option. Build matching 1.20.1 artifacts first:
 
 ```powershell
 # Thunderbolt Core Reborn publishes itself
 .\gradlew.bat publishToMavenLocal
 
 # AE2 Lightning Tech Reborn has no publishing block; build the jar and install it as
-# com.moakiee.ae2lt:ae2lt:2.1.0-beta.1
+# com.moakiee.ae2lt:ae2lt:2.1.0
 .\gradlew.bat jarJar
 ```
 
-Then place `build/libs/ae2lt-forge-1.20.1-2.1.0-beta.1.jar` in
-`~/.m2/repository/com/moakiee/ae2lt/ae2lt/2.1.0-beta.1/` as
-`ae2lt-2.1.0-beta.1.jar` alongside a minimal POM.
+Then place `build/libs/ae2lt-forge-1.20.1-2.1.0.jar` in
+`~/.m2/repository/com/moakiee/ae2lt/ae2lt/2.1.0/` as
+`ae2lt-2.1.0.jar` alongside a minimal POM. Alternatively, place both upstream
+checkouts next to this repository and pass `-Puse_local_upstream=true` to Gradle.
+Use `-Pae2lt_build_libs=<path>` and `-Pthunderbolt_build_libs=<path>` if their
+`build/libs` directories are elsewhere.
 
 Forge only applies access transformers declared by the project itself, so AE2's
 transformer is vendored at `gradle/dev/ae2-dev-accesstransformer.cfg` purely so
@@ -97,24 +99,22 @@ only needed for source-level debugging.
 
 ```powershell
 cd <path>\Thunderbolt-Core
-git checkout refactor/thunderbolt-three-layer-clean-1.20.1
 .\gradlew.bat clean publishToMavenLocal --no-daemon
 
 cd <path>\AE2-Lightning-Tech
-git checkout refactor/thunderbolt-three-layer-clean-1.20.1
 .\gradlew.bat clean jarJar --no-daemon
 ```
 
-Thunderbolt publishes itself as `com.moakiee.thunderbolt:thunderbolt:2.0.0-beta.1`.
+Thunderbolt publishes itself as `com.moakiee.thunderbolt:thunderbolt:2.0.1`.
 
 AE2 Lightning Tech Reborn has no `maven-publish` block on this line, so its reobfuscated
 `jarJar` output has to be installed by hand as
-`com.moakiee.ae2lt:ae2lt:2.1.0-beta.1`:
+`com.moakiee.ae2lt:ae2lt:2.1.0`:
 
 ```
-~/.m2/repository/com/moakiee/ae2lt/ae2lt/2.1.0-beta.1/
-    ae2lt-2.1.0-beta.1.jar   <- build/libs/ae2lt-forge-1.20.1-2.1.0-beta.1.jar
-    ae2lt-2.1.0-beta.1.pom   <- minimal POM with the same coordinates
+~/.m2/repository/com/moakiee/ae2lt/ae2lt/2.1.0/
+    ae2lt-2.1.0.jar   <- build/libs/ae2lt-forge-1.20.1-2.1.0.jar
+    ae2lt-2.1.0.pom   <- minimal POM with the same coordinates
 ```
 
 Use the reobfuscated `jarJar` artifact, not the `-slim` one: this branch consumes
@@ -126,8 +126,8 @@ Both are plain Maven coordinates resolved from `mavenLocal()`, pinned by
 `gradle.properties`:
 
 ```properties
-ae2lt_version=2.1.0-beta.1
-thunderbolt_version=2.0.0-beta.1
+ae2lt_version=2.1.0
+thunderbolt_version=2.0.1
 ```
 
 AE2LT is resolved non-transitively, because this addon declares its own
@@ -169,6 +169,9 @@ Integration code currently exists for:
 - Mekanism More Machines
 - Malum
 - Botania
+- AvaritiaNeo (virtual extreme crafting table)
+- Blood Magic (altar)
+- Forbidden Arcanus (Clibano and Hephaestus Forge)
 
 These entries reflect source code present in the repository, not a blanket statement that every target has already been runtime-validated in every environment.
 
@@ -183,16 +186,16 @@ These entries reflect source code present in the repository, not a blanket state
 
 ## Known Limitations
 
-- This branch targets AE2LT `2.1.0-beta.1` and Thunderbolt `2.0.0-beta.1`; it is not load-compatible with the pre-refactor dependency line.
-- **Third-party integration targets are not yet re-verified for 1.20.1.** Every
-  adapter under `logic/multiblock/<mod>/` reaches its target mod purely by
-  reflection and degrades to a no-op when a class, method or field is absent, so
-  the port loads and runs safely. The reflection target names, and the recipe
-  JSON under `data/ae2ltpp/recipes/packaged_core/`, still describe the 1.21.1
-  builds of those mods. Each of the twelve integrations needs to be re-checked
-  against its actual 1.20.1 jar before it can be called supported; until then
-  assume an adapter is inactive rather than working.
-- `PackagedPatternProviderLogic` dispatch fallback and registry hardening are in place, but test coverage is still focused on targeted regression paths rather than broad integration scenarios.
+- This branch targets AE2LT `2.1.0` and Thunderbolt `2.0.1`; earlier releases are outside the declared dependency range.
+- AE2LT must include `WirelessPatternProviderHost.acceptsWirelessTarget` and `getWirelessTargetRejectionMessage` (the updated 2.1.0 build). Older 2.1.0 jars with the same version number do not provide this connector integration. Wireless targets require a matching installed packaged core; existing connections are retained while a core is swapped or removed.
+- Optional-mod access is reflection-based and fail-closed. If a target class,
+  method, field, capability, or recipe type cannot be verified, that adapter
+  remains inactive instead of consuming inputs.
+- Avaritia implementations are intentionally split: AvaritiaNeo is supported
+  as a virtual extreme crafting table, while the Re-Avaritia-style tiered table
+  adapter is only active when its own block-entity classes are present.
+- The automated connection suite checks recognition and idle harvest behavior;
+  it does not replace a real ME-network dispatch test for every recipe family.
 - Optional-mod reflection handling is still mixed, but the cached lookup helper now covers several hot-path adapters. New optional-mod hot paths should prefer cached lookup helpers first, and only move to `MethodHandle` / `VarHandle` when profiling shows a real win.
 - A clean machine or CI runner must provide matching AE2LT and Thunderbolt refactor artifacts through the documented local-jar or Maven overrides.
 
@@ -215,15 +218,39 @@ These entries reflect source code present in the repository, not a blanket state
 
 Verified locally on this branch:
 
-- `gradlew build` succeeds against Forge `47.1.47` / AE2 `15.4.10` on JDK 17.
-- All 57 unit tests pass, including the AE2LT dependency-boundary test that keeps
-  main sources on `com.moakiee.ae2lt.api.*` plus the documented wireless support
-  contract.
-- `gradlew runGameTestServer` reaches a started server and shuts down cleanly.
-  The mod initializes, all three mixins apply to their AE2 targets, registration
-  completes, and no datapack or recipe parse errors are reported.
+- `gradlew build -Puse_local_upstream=true -Penable_avaritia_tests=true
+  --no-daemon --max-workers=1` runs the full build and optional AvaritiaNeo tests
+  on JDK 17; the verified local run passed all 271 unit tests. The migration test
+  requiring a deobfuscated AE2LT development jar is excluded from this suite.
+  Add `--offline` only after all dependencies are cached.
+- `gradlew runGameTestServer -Penable_integration_runtime=true --offline --no-daemon`
+  passes all 66 required GameTests with the checked-in integration runtime set.
+- Powered ME-network recovery tests cover both provider variants: output amounts
+  remain unchanged while storage is unavailable, then reach a real ME chest
+  exactly once after installing its cell, including reloads before and after delivery.
+- A powered ME CPU executes real Clibano orders for one and then three items,
+  with exact ingredient consumption and product delivery, provider reloads, and
+  rejection when ingredients run out. Extra residue products stay outside ME
+  and require separate extraction to keep subsequent crafts moving.
+- A powered ME CPU executes two Blood Magic tier-one altar crafts, verifies exact
+  LP-backed input and output delivery across a provider reload, and rejects a
+  follow-up order after the stone supply is exhausted.
+- A powered ME CPU executes two Hephaestus Forge ferrognetic-mixture rituals,
+  waits for missing essences, and checks all five ingredient amounts, essence
+  consumption, pedestal cleanup, and exact output delivery across provider
+  reloads during and after each ritual. A depleted-ingredient order is rejected.
+- The full integration-runtime client reaches the main menu with 36 loaded mods
+  and exits normally. This verifies startup; it does not verify in-world dispatch.
+- A separate client with fresh configuration also reaches the main menu with
+  all 36 mods. The earlier GuideME config-loading failure did not recur in this
+  run; one successful fresh start does not establish that the race is fixed.
+- Repeated packaging preserves the Mixin refmap in the production jar.
+- `git diff --check` passes for the verified worktree.
 
 Not yet verified:
 
 - In-game behaviour of the provider blocks (a `runClient` session).
-- Any of the twelve third-party multiblock integrations — see Known Limitations.
+- The cause and permanent resolution of the intermittent GuideME 20.1.15
+  config-loading failure.
+- Full interactive ME-network dispatch for every optional-mod recipe family;
+  use `MANUAL_TESTING.md` for that release check.

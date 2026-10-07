@@ -27,6 +27,12 @@ Place the provider against a table and encode the corresponding **processing pat
 The cores form a chain: a higher-tier core also unlocks every lower tier. An Extreme Crafting Table core
 works on Extreme / End / Nether / Sculk, an End Table core works on End / Nether / Sculk, and so on.
 
+## AvaritiaNeo (Forge 1.20.1)
+
+AvaritiaNeo 1.1.6 is also supported: use the Extreme Crafting Table core with its 9×9 Extreme Crafting Table. Both shaped and shapeless `avaritia:extreme_crafting` recipes use virtual crafting, including batch outputs and crafting remainders. A separate `avaritia:extreme_shaped` recipe makes the same core using AvaritiaNeo's neutronium ingots.
+
+The real crafting grid and result slot must be empty. The provider never takes manually placed ingredients or the table's preview result. Compressed crafting tables, the compressor, and Re-Avaritia-only tiered tables and extreme smithing are not part of this AvaritiaNeo integration.
+
 ## Notes
 
 * The table's crafting grid must be empty while the provider is crafting.

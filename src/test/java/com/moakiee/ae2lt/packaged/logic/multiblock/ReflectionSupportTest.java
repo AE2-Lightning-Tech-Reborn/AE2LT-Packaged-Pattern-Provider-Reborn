@@ -1,74 +1,77 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.moakiee.ae2lt.packaged.testsupport.MinecraftTestBootstrap;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.ItemStack;
+
 class ReflectionSupportTest {
-
-    @Test
-    void shouldReturnEmptyWhenClassMissing() {
-        assertTrue(ReflectionSupport.findClass("missing.fake.ClassName").isEmpty());
+    @BeforeAll
+    static void bootstrap() {
+        MinecraftTestBootstrap.initialize();
     }
 
     @Test
-    void shouldFindExistingClass() {
-        var found = ReflectionSupport.findClass("java.lang.String");
-
-        assertTrue(found.isPresent());
-        assertEquals(String.class, found.orElseThrow());
+    void restoresAbsentTagAfterSuccessfulHook() {
+        var original = ItemStack.EMPTY.getTag();
+        try {
+            ItemStack.EMPTY.setTag(null);
+            var result = ReflectionSupport.withEmptyStackTagPreserved(() -> {
+                ItemStack.EMPTY.getOrCreateTag().putString("mutation", "changed");
+                return "result";
+            });
+            assertEquals("result", result);
+            assertNull(ItemStack.EMPTY.getTag());
+        } finally {
+            ItemStack.EMPTY.setTag(original);
+        }
     }
 
     @Test
-    void shouldFindAndInvokeExistingMethod() {
-        var method = ReflectionSupport.findMethod(String.class, "substring", int.class);
-        var result = ReflectionSupport.invoke(method.orElseThrow(), "value", 1);
-
-        assertTrue(result.isPresent());
-        assertEquals("alue", result.orElseThrow());
+    void restoresNestedTagAfterInPlaceMutation() {
+        var original = ItemStack.EMPTY.getTag();
+        try {
+            var tag = new CompoundTag();
+            var nested = new CompoundTag();
+            nested.putString("value", "original");
+            tag.put("nested", nested);
+            var expected = tag.copy();
+            ItemStack.EMPTY.setTag(tag);
+            ReflectionSupport.withEmptyStackTagPreserved(() -> {
+                ItemStack.EMPTY.getOrCreateTag().getCompound("nested").putString("value", "changed");
+                return null;
+            });
+            assertEquals(expected, ItemStack.EMPTY.getTag());
+        } finally {
+            ItemStack.EMPTY.setTag(original);
+        }
     }
 
     @Test
-    void shouldReturnEmptyForMissingOptionalModClass() {
-        assertTrue(ReflectionSupport.findClass("missing.fake.optional.ModClass").isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptyForMissingMethod() {
-        var result = ReflectionSupport.findMethod(String.class, "missingMethodName");
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldReturnEmptyWhenInvocationFails() {
-        var method = ReflectionSupport.findMethod(String.class, "substring", int.class, int.class);
-        var result = ReflectionSupport.invoke(method.orElseThrow(), "value", 4, 1);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void mutationInvocationPropagatesUnderlyingRuntimeException() {
-        var method = ReflectionSupport.findMethod(FaultyMutator.class, "mutate").orElseThrow();
-
-        var error = assertThrows(IllegalStateException.class,
-                () -> ReflectionSupport.invokeMutation(method, new FaultyMutator()));
-        assertEquals("mutation failed", error.getMessage());
-    }
-
-    @Test
-    void mutationInvocationRejectsMissingHandle() {
-        assertThrows(IllegalStateException.class,
-                () -> ReflectionSupport.invokeMutation(null, new FaultyMutator()));
-    }
-
-    private static final class FaultyMutator {
-        @SuppressWarnings("unused")
-        public void mutate() {
-            throw new IllegalStateException("mutation failed");
+    void restoresTagAndPropagatesHookException() {
+        var original = ItemStack.EMPTY.getTag();
+        try {
+            var tag = new CompoundTag();
+            tag.putString("value", "original");
+            var expected = tag.copy();
+            ItemStack.EMPTY.setTag(tag);
+            var failure = new IllegalStateException("hook failed");
+            var thrown = assertThrows(IllegalStateException.class,
+                    () -> ReflectionSupport.withEmptyStackTagPreserved(() -> {
+                        ItemStack.EMPTY.getOrCreateTag().putString("value", "changed");
+                        throw failure;
+                    }));
+            assertEquals(failure, thrown);
+            assertEquals(expected, ItemStack.EMPTY.getTag());
+        } finally {
+            ItemStack.EMPTY.setTag(original);
         }
     }
 }

@@ -35,6 +35,9 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.malum.MalumSpiritFocusingAdap
 import com.moakiee.ae2lt.packaged.logic.multiblock.malum.MalumSpiritInfusionAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.occultism.OccultismRitualAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.occultism.OccultismSpiritFireAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.compat.BloodMagicAltarAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.compat.ForbiddenArcanusClibanoAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.compat.ForbiddenArcanusHephaestusForgeAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekanismMoreMachinesAdapter;
 import com.moakiee.ae2lt.packaged.registry.PPBlockEntities;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
@@ -77,6 +80,9 @@ public class AE2LTPackagedProvider {
             MultiblockAdapterRegistry.register(new AvaritiaExtremeSmithingAdapter());
             MultiblockAdapterRegistry.register(new OccultismRitualAdapter());
             MultiblockAdapterRegistry.register(new OccultismSpiritFireAdapter());
+            MultiblockAdapterRegistry.register(new BloodMagicAltarAdapter());
+            MultiblockAdapterRegistry.register(new ForbiddenArcanusClibanoAdapter());
+            MultiblockAdapterRegistry.register(new ForbiddenArcanusHephaestusForgeAdapter());
             MultiblockAdapterRegistry.register(new InfusionAltarAdapter());
             MultiblockAdapterRegistry.register(new AwakeningAltarAdapter());
             MultiblockAdapterRegistry.register(new MekanismMoreMachinesAdapter());

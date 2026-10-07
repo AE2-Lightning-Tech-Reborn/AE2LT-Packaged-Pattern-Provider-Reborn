@@ -8,8 +8,9 @@
     "MenuTypeBuilderAccessor",
     "PatternProviderLogicAccessor",
     "PatternProviderLogicMixin",
-    "AE2LightningTechCoreConfigCompatMixin",
-    "WirelessConnectorPacketMixin"
+    "ClibanoBlockEntityLoadMixin",
+    "HephaestusRitualManagerMixin",
+    "AE2LightningTechCoreConfigCompatMixin"
   ],
   "client": [
     "WirelessConnectorItemMixin"

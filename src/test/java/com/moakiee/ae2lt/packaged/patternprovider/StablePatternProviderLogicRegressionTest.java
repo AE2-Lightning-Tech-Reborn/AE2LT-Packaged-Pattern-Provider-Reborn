@@ -35,7 +35,7 @@ public final class StablePatternProviderLogicRegressionTest {
                 "src/main/java/com/moakiee/ae2lt/packaged/patternprovider/StablePatternProviderLogic.java"));
         String members = extractMembers(source);
         run(members);
-        System.out.println("PASS: production ticker and connection-cache behavior (12 scenarios)");
+        System.out.println("PASS: production ticker and connection-cache behavior with 10000 rollback cycles");
 
         // Prove the suite detects both original bugs without editing production.
         String noSave = members.replace("saveChanges();", "");
@@ -70,10 +70,21 @@ public final class StablePatternProviderLogicRegressionTest {
     }
 
     @Test
+    void pruningStaysBudgetedAndClearsOnlyRemovedOwnership() throws Exception {
+        String source = Files.readString(Path.of(
+                "src/main/java/com/moakiee/ae2lt/packaged/patternprovider/StablePatternProviderBlockEntity.java"));
+        String members = extractMembers(source, Set.of("MAX_WIRELESS_CONNECTIONS", "invalidConnectionScanCursor"),
+                Set.of("pruneInvalidConnections", "clearInvalidConnections"), Set.of())
+                .replace("com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity", "PackagedProvider");
+        run(members, PRUNING_HARNESS);
+    }
+
+    @Test
     void connectorCompatibilityIsRegisteredAndScopedToPackagedHosts() throws Exception {
         String base = "src/main/java/com/moakiee/ae2lt/packaged/mixin/";
         String item = Files.readString(Path.of(base + "WirelessConnectorItemMixin.java"));
-        String packet = Files.readString(Path.of(base + "WirelessConnectorPacketMixin.java"));
+        String host = Files.readString(Path.of(
+                "src/main/java/com/moakiee/ae2lt/packaged/blockentity/PackagedPatternProviderBlockEntity.java"));
         String config = Files.readString(Path.of("src/main/resources/ae2ltpp.mixins.json"));
         var mixinConfig = com.google.gson.JsonParser.parseString(config).getAsJsonObject();
         var itemMixin = new com.google.gson.JsonPrimitive("WirelessConnectorItemMixin");
@@ -84,8 +95,8 @@ public final class StablePatternProviderLogicRegressionTest {
                 "Screen-referencing item mixin must load only on the client");
         org.junit.jupiter.api.Assertions.assertFalse(commonMixins.contains(itemMixin),
                 "Item mixin must not be transformed on a dedicated server");
-        org.junit.jupiter.api.Assertions.assertTrue(commonMixins.contains(packetMixin),
-                "Packet validation must remain available on a dedicated server");
+        org.junit.jupiter.api.Assertions.assertFalse(commonMixins.contains(packetMixin),
+                "Target admission must use the public host API instead of a packet redirect");
         org.junit.jupiter.api.Assertions.assertFalse(clientMixins.contains(packetMixin));
         if (mixinConfig.has("server")) {
             org.junit.jupiter.api.Assertions.assertFalse(
@@ -93,12 +104,10 @@ public final class StablePatternProviderLogicRegressionTest {
         }
         org.junit.jupiter.api.Assertions.assertFalse(item.contains("getSelectedProvider("));
         org.junit.jupiter.api.Assertions.assertTrue(item.contains("WirelessConnectorBlockOnlyTarget.shouldSubmit(providerSelected,"));
-        org.junit.jupiter.api.Assertions.assertTrue(packet.contains("method = \"handleOnServer\""));
-        org.junit.jupiter.api.Assertions.assertTrue(packet.contains("method = \"handleProviderConnection\""));
-        org.junit.jupiter.api.Assertions.assertTrue(packet.contains("MultiblockAdapterRegistry.find(level, pos(), null) == null"));
-        org.junit.jupiter.api.Assertions.assertTrue(packet.contains("return WirelessConnectorTargetHelper.collectTargets(level, pos, contiguous);"));
-        org.junit.jupiter.api.Assertions.assertEquals(2,
-                packet.split("instanceof StablePatternProviderBlockEntity provider", -1).length - 1);
+        org.junit.jupiter.api.Assertions.assertTrue(host.contains("public boolean acceptsWirelessTarget("));
+        org.junit.jupiter.api.Assertions.assertTrue(host.contains("installed.isEmpty()"));
+        org.junit.jupiter.api.Assertions.assertTrue(host.contains("MultiblockAdapterItem.stackCovers(installed, required)"));
+        org.junit.jupiter.api.Assertions.assertTrue(host.contains("public Component getWirelessTargetRejectionMessage()"));
     }
 
     private static String extractMembers(String source) throws Exception {
@@ -194,6 +203,130 @@ public final class StablePatternProviderLogicRegressionTest {
             }
         }
     }
+
+    private static final String PRUNING_HARNESS = """
+        record BlockPos(int value) {}
+        record WirelessConnection(BlockPos pos, WirelessConnectionValidator.Status status) {}
+        static class ServerLevel {}
+        static class WirelessPatternProviderPolicy { static int maxDistance() { return 32; } }
+        static class WirelessConnectionValidator { enum Status { VALID, UNLOADED, REMOVE } }
+        Object level = new ServerLevel();
+        BlockPos worldPosition = new BlockPos(0);
+        final TrackingList connections = new TrackingList();
+        final List<BlockPos> checked = new ArrayList<>();
+        final List<String> events = new ArrayList<>();
+        void recomputeIdlePower() { events.add("power"); }
+        void notifyLogicStateChanged() { events.add("notify"); }
+        void saveChanges() { events.add("save"); }
+        void markForUpdate() { events.add("update"); }
+        WirelessConnectionValidator.Status validateConnection(
+                ServerLevel serverLevel, BlockPos origin, WirelessConnection connection, int distance) {
+            checked.add(connection.pos());
+            return connection.status();
+        }
+        static class TrackingList extends ArrayList<WirelessConnection> {
+            int reads, snapshots;
+            @Override public WirelessConnection get(int index) { reads++; return super.get(index); }
+            @Override public Object[] toArray() { snapshots++; return super.toArray(); }
+            @Override public <Value> Value[] toArray(Value[] array) { snapshots++; return super.toArray(array); }
+        }
+        static class PackagedProvider extends ProviderHarness {
+            final Set<BlockPos> cleared = new HashSet<>();
+            void clearFlagsForTarget(BlockPos pos) {
+                for (var remaining : connections) {
+                    check(!remaining.pos().equals(pos), "cleanup must follow connection removal");
+                }
+                check(cleared.add(pos), "removed ownership must be cleared exactly once");
+                events.add("clear");
+            }
+        }
+        static class WirelessConnectionLists {
+            record PruneResult(int removed, int nextCursor) {}
+            static PruneResult prune(List<WirelessConnection> connections, int cursor, int maxChecks,
+                    java.util.function.Predicate<WirelessConnection> remove) {
+                int remaining = Math.min(maxChecks, connections.size());
+                int index = Math.min(Math.max(cursor, 0), connections.size() - 1);
+                int removed = 0;
+                while (remaining-- > 0 && !connections.isEmpty()) {
+                    if (index >= connections.size()) index = 0;
+                    if (remove.test(connections.get(index))) { connections.remove(index); removed++; }
+                    else index++;
+                }
+                return new PruneResult(removed, connections.isEmpty() ? 0 : index % connections.size());
+            }
+            static int indexOf(List<WirelessConnection> connections, Object dimension, BlockPos pos) {
+                throw new AssertionError("pruning must not search the full list for removed targets");
+            }
+        }
+        static void check(boolean condition, String message) {
+            if (!condition) throw new AssertionError(message);
+        }
+        static void fill(ProviderHarness host, WirelessConnectionValidator.Status status) {
+            for (int index = 0; index < MAX_WIRELESS_CONNECTIONS; index++) {
+                host.connections.add(new WirelessConnection(new BlockPos(index), status));
+            }
+        }
+        public static void verify() {
+            var host = new PackagedProvider();
+            check(host.pruneInvalidConnections(64) == 0 && host.events.isEmpty(), "empty pruning has no effects");
+            fill(host, WirelessConnectionValidator.Status.VALID);
+            check(host.pruneInvalidConnections(0) == 0 && host.pruneInvalidConnections(-1) == 0,
+                    "nonpositive budgets do not prune");
+            host.level = new Object();
+            check(host.pruneInvalidConnections(64) == 0 && host.checked.isEmpty(), "no pruning on client level");
+            host.level = new ServerLevel();
+            for (int pass = 0; pass < 160; pass++) {
+                int reads = host.connections.reads;
+                check(host.pruneInvalidConnections(64) == 0, "valid targets survive periodic pruning");
+                check(host.connections.reads - reads == 64, "periodic checks stay within budget");
+                check(((ProviderHarness) host).invalidConnectionScanCursor == ((pass + 1) * 64) % MAX_WIRELESS_CONNECTIONS,
+                        "scan cursor wraps without skipping targets");
+            }
+            check(host.connections.snapshots == 0, "no full connection snapshots");
+            check(host.events.isEmpty() && host.cleared.isEmpty(), "unchanged pruning has no state notifications");
+            check(new HashSet<>(host.checked).size() == MAX_WIRELESS_CONNECTIONS, "all targets scanned fairly");
+
+            host = new PackagedProvider();
+            for (int index = 0; index < MAX_WIRELESS_CONNECTIONS; index++) {
+                var status = WirelessConnectionValidator.Status.values()[index % 3];
+                host.connections.add(new WirelessConnection(new BlockPos(index), status));
+            }
+            int removed = 0;
+            for (int pass = 0; pass < 16; pass++) {
+                int checked = host.checked.size();
+                host.events.clear();
+                int count = host.pruneInvalidConnections(64);
+                removed += count;
+                check(host.checked.size() - checked == 64, "removals do not consume additional budget");
+                if (count > 0) {
+                    var expected = new ArrayList<String>(Collections.nCopies(count, "clear"));
+                    expected.addAll(List.of("power", "notify", "save", "update"));
+                    check(host.events.equals(expected), "cleanup precedes one batched state notification");
+                } else check(host.events.isEmpty(), "unchanged batch has no effects");
+            }
+            check(removed == 341 && host.connections.size() == 683, "all and only invalid targets removed");
+            check(host.cleared.size() == removed, "ownership cleanup matches removed connections");
+            for (var target : host.connections) {
+                check(target.status() != WirelessConnectionValidator.Status.REMOVE
+                        && !host.cleared.contains(target.pos()), "valid and unloaded ownership retained");
+            }
+            check(host.connections.snapshots == 0, "removals require no full connection snapshots");
+
+            host = new PackagedProvider();
+            fill(host, WirelessConnectionValidator.Status.REMOVE);
+            ((ProviderHarness) host).invalidConnectionScanCursor = MAX_WIRELESS_CONNECTIONS - 7;
+            check(host.clearInvalidConnections() == MAX_WIRELESS_CONNECTIONS && host.connections.isEmpty(),
+                    "manual cleanup removes all invalid connections from wrapped cursor");
+            check(host.checked.size() == MAX_WIRELESS_CONNECTIONS && ((ProviderHarness) host).invalidConnectionScanCursor == 0
+                    && host.cleared.size() == MAX_WIRELESS_CONNECTIONS, "full removal resets cursor and clears ownership");
+            check(host.connections.snapshots == 0, "manual cleanup requires no full connection snapshot");
+            var plain = new ProviderHarness();
+            fill(plain, WirelessConnectionValidator.Status.REMOVE);
+            check(plain.pruneInvalidConnections(64) == 64
+                    && plain.events.equals(List.of("power", "notify", "save", "update")),
+                    "non-packaged host still batches notifications");
+        }
+        """;
 
     private static final String VALIDATION_HARNESS = """
         record BlockPos(int x) {}
@@ -422,6 +555,35 @@ public final class StablePatternProviderLogicRegressionTest {
             p.providerHost.connections.clear();
             p.invalidateConnections();
             check(p.getValidConnections(level, 121).isEmpty(), "dirty cache refreshes immediately");
+
+            p.providerHost.connections.addAll(List.of(blockOnly, machine));
+            level.loaded.add(1);
+            p.invalidateConnections();
+            for (int cycle = 0; cycle < 10000; cycle++) {
+                long forward = 1000L + cycle * 100;
+                level.loaded.add(1);
+                check(p.getValidConnections(level, forward).equals(List.of(blockOnly, machine)),
+                        "forward clock discovers reloaded candidate");
+                level.loaded.remove(1);
+                var rolledBack = p.getValidConnections(level, forward - 25);
+                check(rolledBack.equals(List.of(machine)), "clock rollback refreshes stale wireless cache");
+                int beforeHit = WirelessConnectionRange.calls;
+                check(p.getValidConnections(level, forward - 6) == rolledBack
+                        && WirelessConnectionRange.calls == beforeHit, "rollback cache keeps normal TTL");
+                level.loaded.add(1);
+                check(p.getValidConnections(level, forward - 5).equals(List.of(blockOnly, machine)),
+                        "rollback cache expires at interval boundary");
+            }
+            p.invalidateConnections();
+            check(p.getValidConnections(level, Long.MIN_VALUE + 100).contains(blockOnly),
+                    "negative game clock can populate wireless cache");
+            level.loaded.remove(1);
+            check(p.getValidConnections(level, Long.MAX_VALUE - 100).equals(List.of(machine)),
+                    "overflowed elapsed time must refresh wireless cache");
+            level.loaded.add(1);
+            check(p.getValidConnections(level, Long.MIN_VALUE + 101).equals(List.of(blockOnly, machine)),
+                    "wrapped game clock must refresh wireless cache");
+            System.out.println("STRESS PASS wireless cache rollback cycles=10000 plus overflow and wrap");
         }
         """;
 }

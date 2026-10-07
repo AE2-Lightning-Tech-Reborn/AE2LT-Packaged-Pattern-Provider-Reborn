@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Supplier;
+
+import net.minecraft.world.item.ItemStack;
 
 public final class ReflectionSupport {
     private static final ConcurrentMap<String, Optional<Class<?>>> CLASS_CACHE = new ConcurrentHashMap<>();
@@ -85,6 +88,26 @@ public final class ReflectionSupport {
             throw new IllegalStateException("Mutation failed: " + method, cause);
         } catch (IllegalAccessException | IllegalArgumentException e) {
             throw new IllegalStateException("Cannot invoke mutation: " + method, e);
+        }
+    }
+
+    /**
+     * Runs a third-party recipe hook while shielding the shared
+     * {@link ItemStack#EMPTY} singleton. Recipe code can reach the singleton
+     * through its own fallbacks (Ars Nouveau's {@code getParchment} returns it
+     * when no parchment is supplied, and the {@code SpellCaster} constructor
+     * unconditionally calls {@code getOrCreateTag} on its argument), and idle
+     * Ars {@code SingleItemTile}s alias the singleton in their stack field, so
+     * any such write mutates live tiles. The singleton's tag field is restored
+     * once the hook returns.
+     */
+    public static <T> T withEmptyStackTagPreserved(Supplier<T> action) {
+        var tag = ItemStack.EMPTY.getTag();
+        var snapshot = tag == null ? null : tag.copy();
+        try {
+            return action.get();
+        } finally {
+            ItemStack.EMPTY.setTag(snapshot);
         }
     }
 

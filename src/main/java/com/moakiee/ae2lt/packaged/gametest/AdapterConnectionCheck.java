@@ -68,7 +68,8 @@ import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 public final class AdapterConnectionCheck {
 
     /** Repetitions of the registry lookup per case. */
-    public static final int STRESS_ROUNDS = 300;
+    public static final int STRESS_ROUNDS = Math.max(1, Math.min(10000,
+            Integer.getInteger("ae2ltpp.stress.rounds", 300)));
 
     /** Ticks to wait after co-location stress before the post-tick rescan. */
     public static final int COLOCATED_SETTLE_TICKS = 40;
@@ -86,13 +87,9 @@ public final class AdapterConnectionCheck {
     public record Case(String name, String blockId, String expectedAdapter,
                        String recipeTypeId, boolean recipeTypeRequired) {
 
-        /**
-         * Recognition is gated on the target fork's classes; when only the
-         * same-modid fork (e.g. AvaritiaNeo vs. the Avaritia fork) is present
-         * the block exists but must stay inert — see {@link #AVARITIA_EXTREME_TABLE}.
-         */
-        public boolean forkGated() {
-            return this == AVARITIA_EXTREME_TABLE || this == AVARITIA_EXTREME_SMITHING;
+        public String effectiveRecipeTypeId() {
+            return this == AVARITIA_EXTREME_TABLE && !avaritiaForkClassesPresent()
+                    ? "avaritia:extreme_crafting" : recipeTypeId;
         }
 
         /**
@@ -131,6 +128,14 @@ public final class AdapterConnectionCheck {
 
     private static final Map<String, Case> CASES = new LinkedHashMap<>();
 
+    private static final Case BLOOD_MAGIC_ALTAR = addCase("conn43_bloodmagic_altar",
+            "bloodmagic:altar", "BloodMagicAltarAdapter", "bloodmagic:altar", true);
+    private static final Case FORBIDDEN_ARCANUS_CLIBANO = addCase("conn44_forbidden_arcanus_clibano",
+            "forbidden_arcanus:clibano_main_part", "ForbiddenArcanusClibanoAdapter",
+            "forbidden_arcanus:clibano_combustion", true);
+    private static final Case FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE = addCase("conn45_forbidden_arcanus_hephaestus_forge",
+            "forbidden_arcanus:hephaestus_forge", "ForbiddenArcanusHephaestusForgeAdapter", null, false);
+
     private static Case addCase(String name, String blockId, String expectedAdapter,
                                 String recipeTypeId, boolean recipeTypeRequired) {
         var c = new Case(name, blockId, expectedAdapter, recipeTypeId, recipeTypeRequired);
@@ -152,11 +157,9 @@ public final class AdapterConnectionCheck {
     private static final Case ARS_IMBUEMENT = addCase("conn04_ars_imbuement",
             "ars_nouveau:imbuement_chamber", "ArsNouveauImbuementChamberAdapter",
             "ars_nouveau:imbuement", true);
-    // Avaritia: the fork's recipe type is intentionally optional — on an
-    // AvaritiaNeo server the block exists but the fork-only recipe type does not.
     private static final Case AVARITIA_EXTREME_TABLE = addCase("conn05_avaritia_extreme_table",
             "avaritia:extreme_crafting_table", "AvaritiaTableAdapter",
-            "avaritia:crafting_table_recipe", false);
+            "avaritia:crafting_table_recipe", true);
     // Draconic Evolution (recipe type comes from DE's own API field at bind time)
     private static final Case DE_CRAFTING_CORE = addCase("conn06_de_crafting_core",
             "draconicevolution:crafting_core", "DraconicFusionCraftingAdapter",
@@ -359,11 +362,6 @@ public final class AdapterConnectionCheck {
                     break;
                 }
             }
-            if (found == null && c.forkGated() && !avaritiaForkClassesPresent()) {
-                sink.pass(c.name(), "block present but fork classes absent — correctly inert "
-                        + "(AvaritiaNeo split; recognition requires the fork's TierCraftTile)");
-                return;
-            }
             if (found == null) {
                 sink.fail(c.name(), "MultiblockAdapterRegistry.find returned null at round " + failedRound
                         + " for " + id + " — adapter does not recognize the real machine block"
@@ -376,15 +374,16 @@ public final class AdapterConnectionCheck {
                 return;
             }
             String typeSummary = "n/a";
-            if (c.recipeTypeId() != null) {
-                var type = AdapterRecipeTypes.find(new ResourceLocation(c.recipeTypeId()));
+            var recipeTypeId = c.effectiveRecipeTypeId();
+            if (recipeTypeId != null) {
+                var type = AdapterRecipeTypes.find(new ResourceLocation(recipeTypeId));
                 if (type == null && c.recipeTypeRequired()) {
-                    sink.fail(c.name(), "recipe type " + c.recipeTypeId()
+                    sink.fail(c.name(), "recipe type " + recipeTypeId
                             + " not resolvable via AdapterRecipeTypes (checked Forge + vanilla registries)");
                     return;
                 }
-                typeSummary = type == null ? c.recipeTypeId() + " absent (optional — fork split)"
-                        : c.recipeTypeId() + " present";
+                typeSummary = type == null ? recipeTypeId + " absent (optional)"
+                        : recipeTypeId + " present";
             }
             var harvest = checkIdleDispatchHarvest(level, placed.pos(), found, c.name(), sink);
             if (harvest == null) {
@@ -468,8 +467,12 @@ public final class AdapterConnectionCheck {
                     return;
                 }
             }
+            if (AdapterRecipeTypes.find(new ResourceLocation("avaritia:extreme_crafting")) == null) {
+                sink.fail("conn37_avaritia_fork_split", "AvaritiaNeo extreme_crafting recipe type missing");
+                return;
+            }
             sink.pass("conn37_avaritia_fork_split",
-                    "fork blocks and types correctly absent under AvaritiaNeo");
+                    "AvaritiaNeo extreme_crafting present; fork-only blocks and types absent");
             return;
         }
         var missingBlocks = new ArrayList<String>();
@@ -556,7 +559,7 @@ public final class AdapterConnectionCheck {
      * Blocks that pop at their first grid slot (fire-like {@code canSurvive}
      * rules over non-sturdy decorations) retry later in-bounds slots. Fork-only
      * blocks (extreme smithing) stay skipped under AvaritiaNeo; the shared
-     * extreme table is still placed so the scan can assert it stays inert.
+     * extreme table is still placed and must route to its supported adapter.
      */
     public static Colocated placeColocated(ServerLevel level, BlockPos origin, Sink sink) {
         sink.begin("conn38_all_adapters_colocated");
@@ -635,16 +638,6 @@ public final class AdapterConnectionCheck {
             var pos = state.placements().get(i).pos();
             var found = MultiblockAdapterRegistry.find(level, pos, level.getBlockEntity(pos));
             var c = state.cases().get(i);
-            boolean expectInert = c.forkGated() && !c.forkOnlyBlock() && !avaritiaForkClassesPresent();
-            if (expectInert) {
-                if (found != null) {
-                    sink.fail("conn38_all_adapters_colocated", "co-located scan at " + pos + " ("
-                            + c.blockId() + "): expected inert under AvaritiaNeo, got "
-                            + found.getClass().getSimpleName());
-                    return false;
-                }
-                continue;
-            }
             var expected = c.expectedAdapter();
             if (found == null || !found.getClass().getSimpleName().equals(expected)) {
                 sink.fail("conn38_all_adapters_colocated", "co-located scan at " + pos + " ("
@@ -663,7 +656,7 @@ public final class AdapterConnectionCheck {
     }
 
     public static int colocatedExpectedRounds() {
-        return 100;
+        return Math.max(1, Math.min(10000, Integer.getInteger("ae2ltpp.stress.rounds", 100)));
     }
 
     /**
@@ -678,15 +671,6 @@ public final class AdapterConnectionCheck {
             var pos = state.placements().get(i).pos();
             var c = state.cases().get(i);
             var found = MultiblockAdapterRegistry.find(level, pos, level.getBlockEntity(pos));
-            boolean expectInert = c.forkGated() && !c.forkOnlyBlock() && !avaritiaForkClassesPresent();
-            if (expectInert) {
-                if (found != null) {
-                    sink.fail("conn41_idle_dispatch_harvest", "expected inert under AvaritiaNeo at "
-                            + pos + " (" + c.blockId() + "), got " + found.getClass().getSimpleName());
-                    return false;
-                }
-                continue;
-            }
             if (found == null) {
                 sink.fail("conn41_idle_dispatch_harvest", "adapter vanished before idle harvest at "
                         + pos + " (" + c.blockId() + ")");
@@ -908,7 +892,8 @@ public final class AdapterConnectionCheck {
             return false;
         }
         if (!nbtEqual(before.be(), after.be())) {
-            sink.fail(name, phase + " mutated block-entity NBT at " + pos);
+            sink.fail(name, phase + " mutated block-entity NBT at " + pos
+                    + describeNbtDiff(before.be(), after.be()));
             return false;
         }
         var missing = new ArrayList<UUID>();
@@ -930,6 +915,16 @@ public final class AdapterConnectionCheck {
         }
         if (!missing.isEmpty()) {
             sink.fail(name, phase + " removed nearby ItemEntity " + missing
+                    + " around " + pos);
+            return false;
+        }
+        var appeared = after.items().stream()
+                .filter(item -> before.items().stream().noneMatch(
+                        prior -> prior.id().equals(item.id())))
+                .map(EntitySnap::id)
+                .toList();
+        if (!appeared.isEmpty()) {
+            sink.fail(name, phase + " spawned new nearby ItemEntity " + appeared
                     + " around " + pos);
             return false;
         }
@@ -957,6 +952,45 @@ public final class AdapterConnectionCheck {
             return left == right;
         }
         return left.equals(right);
+    }
+
+    /**
+     * Short top-level summary of which serialized keys differ between two
+     * block-entity snapshots, for failure diagnostics.
+     */
+    private static String describeNbtDiff(@Nullable CompoundTag before, @Nullable CompoundTag after) {
+        if (before == null || after == null) {
+            return " (before=" + (before == null ? "absent" : "present")
+                    + ", after=" + (after == null ? "absent" : "present") + ")";
+        }
+        var changed = new ArrayList<String>();
+        for (var key : before.getAllKeys()) {
+            if (!after.contains(key)) {
+                changed.add("-" + key);
+            } else if (!Objects.equals(before.get(key), after.get(key))) {
+                changed.add("~" + key);
+            }
+        }
+        for (var key : after.getAllKeys()) {
+            if (!before.contains(key)) {
+                changed.add("+" + key);
+            }
+        }
+        var preview = changed.subList(0, Math.min(changed.size(), 8));
+        var detail = new StringBuilder(" (changed keys: ").append(preview)
+                .append(changed.size() > preview.size() ? ", …" : "");
+        // Values of small changed leaves (items, counters) are the fastest
+        // way to attribute an unexpected mutation; large values truncate.
+        for (var key : preview) {
+            var name = key.substring(1);
+            var tagBefore = before.contains(name) ? String.valueOf(before.get(name)) : "absent";
+            var tagAfter = after.contains(name) ? String.valueOf(after.get(name)) : "absent";
+            if (tagBefore.length() > 160) tagBefore = tagBefore.substring(0, 160) + "…";
+            if (tagAfter.length() > 160) tagAfter = tagAfter.substring(0, 160) + "…";
+            detail.append("; ").append(key).append(": ").append(tagBefore)
+                    .append(" -> ").append(tagAfter);
+        }
+        return detail.append(")").toString();
     }
 
     private static IPatternDetails dummyUnmatchedPattern() {

@@ -114,6 +114,28 @@ final class MalumAdapterSupport {
                 : expectedKey.equals(actual);
     }
 
+    /**
+     * Bind-time variant of {@link #outputMatches}: only the output item
+     * identity and count are decidable before the craft input (and any NBT it
+     * donates to the result) is known, so secondary components are ignored.
+     * Exact matching still happens at plan time with the real input.
+     */
+    static boolean outputItemMatches(IPatternDetails pattern, ItemStack result) {
+        var outputs = pattern.getOutputs();
+        if (outputs.length != 1) {
+            return false;
+        }
+
+        var expected = outputs[0];
+        if (!(expected.what() instanceof AEItemKey expectedKey)
+                || expected.amount() != result.getCount()) {
+            return false;
+        }
+
+        var actual = AEItemKey.of(result);
+        return expectedKey.dropSecondary().equals(actual.dropSecondary());
+    }
+
     static boolean inventoryEmpty(IItemHandler inventory) {
         for (int i = 0; i < inventory.getSlots(); i++) {
             if (!inventory.getStackInSlot(i).isEmpty()) {

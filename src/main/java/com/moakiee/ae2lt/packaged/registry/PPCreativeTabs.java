@@ -10,6 +10,7 @@ import net.minecraftforge.registries.RegistryObject;
 
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.item.PackagedCoreDefinition;
+import com.moakiee.ae2lt.packaged.item.HephaestusUpgradeReceiptItem;
 
 public final class PPCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
@@ -26,6 +27,11 @@ public final class PPCreativeTabs {
                         output.accept(PPItems.BASIC_PACKAGED_CORE.get());
                         for (var core : PackagedCoreDefinition.visibleWhen(PPCreativeTabs::isLoaded)) {
                             output.accept(core.runtimeItem().get());
+                        }
+                        if (isLoaded("forbidden_arcanus")) {
+                            for (int tier = 2; tier <= 5; tier++) {
+                                output.accept(HephaestusUpgradeReceiptItem.forTier(PPItems.HEPHAESTUS_UPGRADE_RECEIPT.get(), tier));
+                            }
                         }
                     })
                     .build());

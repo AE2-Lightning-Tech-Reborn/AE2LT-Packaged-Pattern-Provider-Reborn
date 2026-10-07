@@ -405,24 +405,24 @@ public abstract class StablePatternProviderBlockEntity
             return 0;
         }
         int maxDistance = WirelessPatternProviderPolicy.maxDistance();
-        var before = List.copyOf(connections);
+        var removedConnections = new ArrayList<WirelessConnection>();
         var result = WirelessConnectionLists.prune(
                 connections,
                 invalidConnectionScanCursor,
                 maxChecks,
-                connection -> validateConnection(
-                        serverLevel,
-                        worldPosition,
-                        connection,
-                        maxDistance) == WirelessConnectionValidator.Status.REMOVE);
+                connection -> {
+                    if (validateConnection(serverLevel, worldPosition, connection, maxDistance)
+                            != WirelessConnectionValidator.Status.REMOVE) {
+                        return false;
+                    }
+                    removedConnections.add(connection);
+                    return true;
+                });
         invalidConnectionScanCursor = result.nextCursor();
         if (result.removed() > 0) {
             if (this instanceof com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity packaged) {
-                for (var previous : before) {
-                    if (WirelessConnectionLists.indexOf(
-                            connections, previous.dimension(), previous.pos()) < 0) {
-                        packaged.clearFlagsForTarget(previous.pos());
-                    }
+                for (var removed : removedConnections) {
+                    packaged.clearFlagsForTarget(removed.pos());
                 }
             }
             recomputeIdlePower();
