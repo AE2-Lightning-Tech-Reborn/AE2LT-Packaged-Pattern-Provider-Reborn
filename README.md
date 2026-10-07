@@ -130,6 +130,11 @@ For catalyst integration checks on Minecraft 1.21.1 / NeoForge, with the configu
 
 This profile verifies ordinary processing-pattern catalyst outputs with the native AE2 tree and Thunderbolt planner for 1, 64, and 1,000 crafts, plus 64 real Ars Nouveau imbuement cycles using one catalyst set. Test recipes and classes are excluded from the release JAR.
 
+For the broader native compatibility suite, use `scripts/run-compat-tests.ps1` or
+`scripts/compat-test.init.gradle`. See [the GameTest guide](docs/GAME_TESTS.zh-CN.md)
+for the mod matrix, required local JARs, isolated Chisel profiles, reports, and
+interactive `/test` usage. Test-only resources are excluded from release builds.
+
 ## Current Project Architecture
 
 - `AE2LTPackagedProvider.java`: mod entry point

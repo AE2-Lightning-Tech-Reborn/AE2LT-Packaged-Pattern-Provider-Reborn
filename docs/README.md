@@ -12,3 +12,4 @@
 
 - [星辉魔法](ASTRAL_SORCERY_COMPATIBILITY.zh-CN.md)
 - [凿子转换与无线连接](CHISELING_COMPATIBILITY.zh-CN.md)
+- [游戏环境兼容测试](GAME_TESTS.zh-CN.md)

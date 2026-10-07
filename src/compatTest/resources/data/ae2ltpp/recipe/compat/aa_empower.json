@@ -1,0 +1,9 @@
+{
+  "type": "actuallyadditions:empowering",
+  "base": {"item": "minecraft:iron_ingot"},
+  "modifiers": [{"item": "minecraft:clay_ball"}, {"item": "minecraft:clay_ball"}, {"item": "minecraft:clay_ball"}, {"item": "minecraft:clay_ball"}],
+  "result": {"id": "minecraft:amethyst_shard", "count": 1},
+  "energy": 5000,
+  "time": 50,
+  "color": 6522834
+}

@@ -1,0 +1,10 @@
+{
+  "type": "occultism:ritual",
+  "activation_item": {"item": "minecraft:apple"},
+  "duration": 1,
+  "ingredients": [{"item": "minecraft:clay_ball"}, {"item": "minecraft:clay_ball"}, {"item": "minecraft:clay_ball"}, {"item": "minecraft:clay_ball"}],
+  "pentacle_id": "occultism:craft_foliot",
+  "result": {"id": "minecraft:heart_of_the_sea", "count": 1},
+  "ritual_dummy": {"id": "minecraft:heart_of_the_sea", "count": 1},
+  "ritual_type": "occultism:craft"
+}

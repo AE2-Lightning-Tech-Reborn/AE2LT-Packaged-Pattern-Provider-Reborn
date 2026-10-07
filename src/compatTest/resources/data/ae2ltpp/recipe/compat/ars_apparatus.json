@@ -1,0 +1,8 @@
+{
+  "type": "ars_nouveau:enchanting_apparatus",
+  "reagent": {"item": "minecraft:iron_ingot"},
+  "pedestalItems": [{"item": "minecraft:diamond"}, {"item": "minecraft:diamond"}],
+  "result": {"id": "minecraft:prismarine_crystals", "count": 1},
+  "sourceCost": 0,
+  "keepNbtOfReagent": false
+}

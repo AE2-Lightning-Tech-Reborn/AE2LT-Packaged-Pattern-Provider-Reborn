@@ -224,7 +224,9 @@ public final class MalumSpiritFocusingAdapter implements MultiblockAdapter {
     }
 
     private static ItemStack extractReusableCatalyst(BlockEntity be) {
-        if (!MalumReflection.isCrucibleInactive(be)) {
+        // updateRecipe selects the job before the next native tick sets
+        // isCrafting/progress. The catalyst still belongs to that pending job.
+        if (!MalumReflection.isCrucibleIdle(be)) {
             return ItemStack.EMPTY;
         }
         var inventory = MalumReflection.crucibleInventory(be);

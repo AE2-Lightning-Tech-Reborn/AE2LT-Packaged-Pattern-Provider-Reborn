@@ -36,6 +36,7 @@ final class DraconicFusionCraftingAccess {
     private static volatile @Nullable Method isCraftingMethod;
     private static volatile @Nullable Method startCraftMethod;
     private static volatile @Nullable Method getInjectorsMethod;
+    private static volatile @Nullable Method updateInjectorsMethod;
     private static volatile @Nullable Method getInjectorStackMethod;
     private static volatile @Nullable Method setInjectorStackMethod;
     private static volatile @Nullable Method getInjectorTierMethod;
@@ -155,8 +156,12 @@ final class DraconicFusionCraftingAccess {
     @SuppressWarnings("unchecked")
     static List<InjectorInfo> getInjectors(BlockEntity core, ServerLevel level) {
         ensureLookup();
-        if (getInjectorsMethod == null) return null;
+        if (getInjectorsMethod == null || updateInjectorsMethod == null) return null;
         try {
+            // getInjectors only reads DE's cached positions. A newly built or
+            // rebuilt setup has no positions until the native scan is requested.
+            // Waiting for startCraft deadlocks the provider's pre-dispatch gate.
+            updateInjectorsMethod.invoke(core);
             var raw = getInjectorsMethod.invoke(core);
             if (!(raw instanceof List<?> list)) return null;
             var result = new ArrayList<InjectorInfo>(list.size());
@@ -317,6 +322,7 @@ final class DraconicFusionCraftingAccess {
         getOutputStackMethod = coreClass.getMethod("getOutputStack");
         setOutputStackMethod = coreClass.getMethod("setOutputStack", ItemStack.class);
         getInjectorsMethod = coreClass.getMethod("getInjectors");
+        updateInjectorsMethod = coreClass.getMethod("updateInjectors");
 
         var injectorClass = Class.forName(INJECTOR_CLASS);
         getInjectorStackMethod = injectorClass.getMethod("getInjectorStack");
