@@ -2,9 +2,12 @@ package com.moakiee.ae2lt.packaged.client;
 
 import java.util.List;
 
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
 import appeng.api.config.Settings;
 import appeng.client.gui.implementations.PatternProviderScreen;
@@ -14,10 +17,14 @@ import appeng.client.gui.widgets.UpgradesPanel;
 
 import com.moakiee.ae2lt.api.client.PatternProviderToolbarButtonHider;
 import com.moakiee.ae2lt.api.frequency.FrequencyApi;
+import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
 
 public class PackagedPatternProviderScreen
         extends PatternProviderScreen<PackagedPatternProviderMenu> {
+    private static final ResourceLocation CORE_SLOT_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            AE2LTPackagedProvider.MODID, "textures/gui/packaged_core_slot.png");
+
     private final PackagedProviderTextureButton autoReturnButton;
 
     public PackagedPatternProviderScreen(PackagedPatternProviderMenu menu, Inventory playerInventory,
@@ -44,6 +51,14 @@ public class PackagedPatternProviderScreen
         if (adapterSlot != null) {
             widgets.add("adapterCard", new UpgradesPanel(List.of(adapterSlot), List::of));
         }
+    }
+
+    @Override
+    public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
+        if (slot == menu.getAdapterSlot() && slot.isActive() && !slot.hasItem()) {
+            guiGraphics.blit(CORE_SLOT_TEXTURE, slot.x, slot.y, 0, 0, 16, 16, 16, 16);
+        }
+        super.renderSlot(guiGraphics, slot);
     }
 
     @Override
