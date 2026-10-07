@@ -1,0 +1,11 @@
+{
+  "type": "draconicevolution:fusion_crafting",
+  "catalyst": {"item": "minecraft:iron_ingot"},
+  "ingredients": [
+    {"consume": true, "ingredient": {"item": "minecraft:diamond"}},
+    {"consume": true, "ingredient": {"item": "minecraft:diamond"}}
+  ],
+  "result": {"id": "minecraft:nautilus_shell", "count": 1},
+  "techLevel": "draconium",
+  "totalEnergy": 10000
+}

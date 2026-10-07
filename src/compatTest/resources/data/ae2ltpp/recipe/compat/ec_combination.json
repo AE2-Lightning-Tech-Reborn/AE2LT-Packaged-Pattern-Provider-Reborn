@@ -1,0 +1,8 @@
+{
+  "type": "extendedcrafting:combination",
+  "input": {"item": "minecraft:iron_ingot"},
+  "ingredients": [{"item": "minecraft:diamond"}, {"item": "minecraft:diamond"}],
+  "result": {"id": "minecraft:echo_shard", "count": 1},
+  "power_cost": 10000,
+  "power_rate": 1000
+}

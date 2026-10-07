@@ -81,30 +81,36 @@ public final class RefactorIntegrationGameTests {
     }
 
     @GameTest(template = "mek_routing_test")
-    public static void laterOrdinaryInsertionExceptionRetainsEveryUnvisitedInput(GameTestHelper helper) {
+    public static void throwingInsertionNeverRefundsPossiblyAcceptedInputs(GameTestHelper helper) {
         var stacks = List.of(item("minecraft:iron_ingot", 10), item("minecraft:gold_ingot", 20), item("minecraft:diamond", 30));
         var calls = new AtomicInteger();
         var commits = new AtomicInteger();
         var retained = new ArrayList<GenericStack>();
+        var machineContents = new ArrayList<GenericStack>();
         var plan = new DispatchPlan(List.of(new TargetSlot(null, BlockPos.ZERO, null, stacks, InsertionStrategy.CUSTOM,
                 (stack, mode) -> {
                     if (mode == Actionable.SIMULATE) return stack.amount();
-                    if (calls.incrementAndGet() == 2) throw new IllegalStateException("injected insertion failure before accepting second stack");
+                    machineContents.add(stack);
+                    if (calls.incrementAndGet() == 2) throw new IllegalStateException("injected failure after accepting second stack");
                     return stack.amount();
                 })), commits::incrementAndGet);
         var result = DispatchExecutor.execute(plan, null, retained::addAll);
         helper.assertTrue(result.success(), "first accepted stack transfers dispatch ownership away from the CPU");
-        helper.assertTrue(retained.equals(stacks.subList(1, 3)) && calls.get() == 2 && commits.get() == 0,
-                "throwing and unvisited inputs are retained, without a completion callback or whole-input refund");
+        helper.assertTrue(retained.equals(stacks.subList(2, 3)) && calls.get() == 2 && commits.get() == 0,
+                "only definitely unvisited inputs are retained; throwing insertion is never refunded");
+        helper.assertTrue(machineContents.equals(stacks.subList(0, 2)), "first and throwing insertions remain in the machine exactly once");
         retained.clear();
+        machineContents.clear();
         var rejected = new DispatchPlan(List.of(new TargetSlot(null, BlockPos.ZERO, null, stacks,
                 InsertionStrategy.CUSTOM, (stack, mode) -> {
                     if (mode == Actionable.SIMULATE) return stack.amount();
-                    throw new IllegalStateException("injected failure before any input was accepted");
+                    machineContents.add(stack);
+                    throw new IllegalStateException("injected failure after accepting first stack");
                 })), commits::incrementAndGet);
-        helper.assertTrue(DispatchExecutor.execute(rejected, null, retained::addAll).failure() && retained.isEmpty(),
-                "a failure before any transfer leaves all materials with the CPU and creates no duplicate refund");
-        System.out.println("PP_REFACTOR_DISPATCH_FAILURE_PASS accepted=10 retained=20+30 commits=0");
+        helper.assertTrue(DispatchExecutor.execute(rejected, null, retained::addAll).success()
+                        && retained.equals(stacks.subList(1, 3)) && machineContents.equals(stacks.subList(0, 1)),
+                "a throwing first insertion also prevents CPU refunds while retaining every unvisited stack");
+        System.out.println("PP_REFACTOR_DISPATCH_FAILURE_PASS throwAfterWrite=first+second duplicates=0 commits=0");
         helper.succeed();
     }
 
