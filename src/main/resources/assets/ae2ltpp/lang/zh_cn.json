@@ -4,9 +4,9 @@
   "item.ae2ltpp.forbidden_arcanus_hephaestus_forge_packaged_core": "赫菲斯托斯锻造熔炉封包核心",
   "item.ae2ltpp.hephaestus_upgrade_receipt": "赫菲斯托斯锻造熔炉升级凭证",
   "item.ae2ltpp.hephaestus_upgrade_receipt.tier": "赫菲斯托斯锻造熔炉 %s 级升级凭证",
-  "fml.menu.mods.info.displayname.ae2ltpp": "AE2 闪电科技封包：重生",
-  "itemGroup.ae2ltpp": "AE2 闪电科技封包：重生",
-  "ae2ltpp.guide.title": "AE2 闪电科技封包：重生",
+  "fml.menu.mods.info.displayname.ae2ltpp": "AE2 闪电科技封包",
+  "itemGroup.ae2ltpp": "AE2 闪电科技封包",
+  "ae2ltpp.guide.title": "AE2 闪电科技封包",
   "block.ae2ltpp.packaged_pattern_provider": "封包样板供应器",
   "block.ae2ltpp.wireless_packaged_pattern_provider": "无线封包样板供应器",
   "ae2ltpp.gui.title.packaged_pattern_provider": "封包样板供应器",
@@ -47,5 +47,6 @@
   "item.ae2ltpp.avaritia_extreme_smithing_packaged_core": "终焉锻造台封包核心",
   "item.ae2ltpp.bloodmagic_altar_packaged_core": "血祭坛封包核心",
   "item.ae2ltpp.forbidden_arcanus_clibano_packaged_core": "炽炉封包核心",
-  "tooltip.ae2ltpp.packaged_core.covers": "向下兼容 %s 种封包核心"
+  "tooltip.ae2ltpp.packaged_core.covers": "向下兼容 %s 种封包核心",
+  "item.ae2ltpp.chiseling_packaged_core": "雕刻封包核心"
 }

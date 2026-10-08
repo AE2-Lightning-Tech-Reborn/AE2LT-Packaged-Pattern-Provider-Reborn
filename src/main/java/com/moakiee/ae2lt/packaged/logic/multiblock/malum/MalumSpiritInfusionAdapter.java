@@ -633,15 +633,6 @@ public final class MalumSpiritInfusionAdapter implements MultiblockAdapter {
                 stackFactory) == assignment.amount();
     }
 
-    private static List<ItemStack> copyPedestalStacks(List<MalumReflection.Pedestal> pedestals) {
-        var copy = new ArrayList<ItemStack>(pedestals.size());
-        for (var pedestal : pedestals) {
-            var inventory = pedestal.inventory();
-            copy.add(inventory.getSlots() < 1 ? ItemStack.EMPTY : inventory.getStackInSlot(0).copy());
-        }
-        return copy;
-    }
-
     private static <T> long maxPlaceableIntoSlot(
             IItemHandlerModifiable inventory,
             ItemStack existing,
@@ -669,17 +660,6 @@ public final class MalumSpiritInfusionAdapter implements MultiblockAdapter {
             }
         }
         return 0L;
-    }
-
-    private static void applyToSimulatedSlot(List<ItemStack> simulated, int slot, ItemStack stack) {
-        var existing = simulated.get(slot);
-        if (existing.isEmpty()) {
-            simulated.set(slot, stack.copy());
-            return;
-        }
-        var merged = existing.copy();
-        merged.grow(stack.getCount());
-        simulated.set(slot, merged);
     }
 
     private static AABB altarOutputAabb(BlockPos pos) {

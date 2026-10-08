@@ -10,6 +10,8 @@
     "PatternProviderLogicMixin",
     "ClibanoBlockEntityLoadMixin",
     "HephaestusRitualManagerMixin",
+    "MekmmRecipeConfigMixin",
+    "MalumRecipeAdvancementMixin",
     "AE2LightningTechCoreConfigCompatMixin"
   ],
   "client": [

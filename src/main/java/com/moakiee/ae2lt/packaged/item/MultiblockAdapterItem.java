@@ -18,53 +18,23 @@ import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import com.moakiee.ae2lt.packaged.client.PackagedCoreClientExtensions;
 
 /**
- * Packaged core item for the packaged pattern provider.
- *
- * <p>Each {@code MultiblockAdapterItem} declares one or more {@link #primaryId
- * primary adapter ids} it unlocks (e.g. {@code ae2ltpp:extendedcrafting/table_tier4_packaged_core}).
- * Higher-tier items also cover lower-tier ids in the same family (an
- * ultimate-table packaged core also unlocks elite/advanced/basic). The packaged
- * provider holds exactly one of these in its single adapter slot, so each
- * provider is locked to one machine family at a time.
- *
- * <p>Why a single class instead of 12: the only thing that differs between
- * tiers/families is the metadata (primary id + covered set + tooltip), so we
- * keep one immutable {@code Item} class and instantiate it 12 times with
- * different constructor args. That mirrors how AE2 builds its cell/upgrade
- * items.
+ * Packaged core that unlocks a machine family through its covered adapter ids.
+ * Higher tiers may also cover lower tiers; each provider holds one core.
  */
 public class MultiblockAdapterItem extends Item {
 
-    private final ResourceLocation primaryId;
     private final Set<ResourceLocation> coveredIds;
 
-    /**
-     * @param props      vanilla Item properties (use {@code stacksTo(1)} since
-     *                   only one slot exists on the provider)
-     * @param primaryId  the canonical id this item exposes (matches
-     *                   {@code MultiblockAdapter.requiredAdapterId})
-     * @param coveredIds full set of ids unlocked by holding this item;
-     *                   must include {@code primaryId}. For non-tiered adapters
-     *                   pass {@code Set.of(primaryId)}.
-     */
+    /** @param coveredIds unlocked ids, including the canonical primaryId */
     public MultiblockAdapterItem(Properties props,
                                  ResourceLocation primaryId,
                                  Set<ResourceLocation> coveredIds) {
         super(props);
-        this.primaryId = primaryId;
         this.coveredIds = Set.copyOf(coveredIds);
         if (!this.coveredIds.contains(primaryId)) {
             throw new IllegalArgumentException(
                     "coveredIds must contain primaryId: " + primaryId + " not in " + coveredIds);
         }
-    }
-
-    public ResourceLocation primaryAdapterId() {
-        return primaryId;
-    }
-
-    public Set<ResourceLocation> coveredAdapterIds() {
-        return coveredIds;
     }
 
     /** @return true if this item unlocks the given required adapter id. */

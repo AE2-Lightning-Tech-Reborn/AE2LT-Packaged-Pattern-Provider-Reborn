@@ -18,6 +18,8 @@ import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
 
 public class PackagedPatternProviderScreen
         extends PatternProviderScreen<PackagedPatternProviderMenu> {
+    private static final net.minecraft.resources.ResourceLocation CORE_SLOT_TEXTURE =
+            new net.minecraft.resources.ResourceLocation("ae2ltpp", "textures/gui/packaged_core_slot.png");
     private final PackagedProviderTextureButton autoReturnButton;
 
     public PackagedPatternProviderScreen(PackagedPatternProviderMenu menu, Inventory playerInventory,
@@ -50,6 +52,14 @@ public class PackagedPatternProviderScreen
     protected void init() {
         super.init();
         hideUnsupportedToolbarButtons();
+    }
+
+    @Override
+    public void renderSlot(net.minecraft.client.gui.GuiGraphics graphics, net.minecraft.world.inventory.Slot slot) {
+        if (slot == menu.getAdapterSlot() && slot.isActive() && !slot.hasItem()) {
+            graphics.blit(CORE_SLOT_TEXTURE, slot.x, slot.y, 0, 0, 16, 16, 16, 16);
+        }
+        super.renderSlot(graphics, slot);
     }
 
     private void hideUnsupportedToolbarButtons() {

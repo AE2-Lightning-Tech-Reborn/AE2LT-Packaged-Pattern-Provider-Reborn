@@ -1,8 +1,8 @@
-# AE2LT Packaged Pattern Provider Reborn
+# AE2LT Packaged Pattern Provider
 
 ## Overview
 
-AE2LT Packaged Pattern Provider Reborn is an AE2 Lightning Tech Reborn addon for Minecraft 1.20.1 on Forge. It adds `Packaged Pattern Provider` and `Wireless Packaged Pattern Provider` blocks and extends AE2 / AE2LT pattern dispatch into selected multiblock crafting integrations.
+AE2LT Packaged Pattern Provider is an AE2 Lightning Tech Reborn addon for Minecraft 1.20.1 on Forge. It adds `Packaged Pattern Provider` and `Wireless Packaged Pattern Provider` blocks and extends AE2 / AE2LT pattern dispatch into selected multiblock crafting integrations.
 
 ## Supported Versions
 
@@ -10,8 +10,8 @@ AE2LT Packaged Pattern Provider Reborn is an AE2 Lightning Tech Reborn addon for
 - Java: 17
 - Forge: 47.4.10 (loader range `[47,)`)
 - Applied Energistics 2: 15.4.10 (range `[15.4.10,16)`)
-- AE2 Lightning Tech Reborn: 2.1.0
-- Thunderbolt Core Reborn: 2.0.1
+- AE2 Lightning Tech Reborn: 2.1.2-beta
+- Thunderbolt Core Reborn: 2.0.3-beta
 - AE2WTLib: 15.3.3-forge
 - Curios: 5.14.1+1.20.1
 - Gradle Wrapper: 8.8
@@ -60,7 +60,10 @@ through Maven Local or the local upstream build option. Build matching 1.20.1 ar
 
 Then place `build/libs/ae2lt-forge-1.20.1-2.1.0.jar` in
 `~/.m2/repository/com/moakiee/ae2lt/ae2lt/2.1.0/` as
-`ae2lt-2.1.0.jar` alongside a minimal POM. Alternatively, place both upstream
+`ae2lt-2.1.0.jar` alongside a minimal POM. These examples describe the older local
+refactor artifacts used during development. The current release defaults are
+AE2LT `2.1.2-beta` and Thunderbolt `2.0.3-beta`; use matching artifacts or explicitly
+override the version properties when testing the older pair. Alternatively, place both upstream
 checkouts next to this repository and pass `-Puse_local_upstream=true` to Gradle.
 Use `-Pae2lt_build_libs=<path>` and `-Pthunderbolt_build_libs=<path>` if their
 `build/libs` directories are elsewhere.
@@ -105,7 +108,9 @@ cd <path>\AE2-Lightning-Tech
 .\gradlew.bat clean jarJar --no-daemon
 ```
 
-Thunderbolt publishes itself as `com.moakiee.thunderbolt:thunderbolt:2.0.1`.
+Thunderbolt's current Forge Maven coordinate is
+`com.moakiee.thunderbolt:thunderbolt-reborn-forge-1.20.1:2.0.3-beta`.
+The older local refactor artifact used `com.moakiee.thunderbolt:thunderbolt:2.0.1`.
 
 AE2 Lightning Tech Reborn has no `maven-publish` block on this line, so its reobfuscated
 `jarJar` output has to be installed by hand as
@@ -126,8 +131,9 @@ Both are plain Maven coordinates resolved from `mavenLocal()`, pinned by
 `gradle.properties`:
 
 ```properties
-ae2lt_version=2.1.0
-thunderbolt_version=2.0.1
+ae2lt_version=2.1.2-beta
+thunderbolt_version=2.0.3-beta
+thunderbolt_artifact_id=thunderbolt-reborn-forge-1.20.1
 ```
 
 AE2LT is resolved non-transitively, because this addon declares its own
@@ -172,6 +178,9 @@ Integration code currently exists for:
 - AvaritiaNeo (virtual extreme crafting table)
 - Blood Magic (altar)
 - Forbidden Arcanus (Clibano and Hephaestus Forge)
+- Chipped (native workbench conversion)
+- Rechiseled (provider-internal conversion, including native worth ratios)
+- Chisel (provider-internal conversion; native Forge runtime verification pending)
 
 These entries reflect source code present in the repository, not a blanket statement that every target has already been runtime-validated in every environment.
 
@@ -186,7 +195,8 @@ These entries reflect source code present in the repository, not a blanket state
 
 ## Known Limitations
 
-- This branch targets AE2LT `2.1.0` and Thunderbolt `2.0.1`; earlier releases are outside the declared dependency range.
+- The declared dependency minimums are AE2LT `2.1.0` and Thunderbolt `2.0.1`;
+  the current release defaults are `2.1.2-beta` and `2.0.3-beta` respectively.
 - AE2LT must include `WirelessPatternProviderHost.acceptsWirelessTarget` and `getWirelessTargetRejectionMessage` (the updated 2.1.0 build). Older 2.1.0 jars with the same version number do not provide this connector integration. Wireless targets require a matching installed packaged core; existing connections are retained while a core is swapped or removed.
 - Optional-mod access is reflection-based and fail-closed. If a target class,
   method, field, capability, or recipe type cannot be verified, that adapter
@@ -220,11 +230,21 @@ Verified locally on this branch:
 
 - `gradlew build -Puse_local_upstream=true -Penable_avaritia_tests=true
   --no-daemon --max-workers=1` runs the full build and optional AvaritiaNeo tests
-  on JDK 17; the verified local run passed all 271 unit tests. The migration test
+  on JDK 17; the verified local run passed all 299 unit tests. The migration test
   requiring a deobfuscated AE2LT development jar is excluded from this suite.
   Add `--offline` only after all dependencies are cached.
 - `gradlew runGameTestServer -Penable_integration_runtime=true --offline --no-daemon`
-  passes all 66 required GameTests with the checked-in integration runtime set.
+  passed 70 required GameTests with the base integration runtime set. Enabling
+  `-Penable_chiseling_runtime=true -Penable_appmek_runtime=true` also covers the
+  upstream backports and passes all 83 required GameTests.
+- Backports add the unified chiseling core, reusable Ars imbuement catalysts,
+  refreshed DE injector positions, native NBT-aware workbench matching, unbounded
+  pure-workbench batches and continuous MekMM orders with persisted output receipts.
+  The latest stress run passed 4.2 million randomized conservation operations,
+  5,000 rounds of co-located routing and 6,000 server ticks of blocked-output
+  recovery. See [upstream sources](UPSTREAM_BACKPORTS.zh-CN.md),
+  [stress coverage](GLOBAL_STRESS.zh-CN.md) and
+  [dependency compatibility](DEPENDENCY_COMPATIBILITY.zh-CN.md) for versions and limits.
 - Powered ME-network recovery tests cover both provider variants: output amounts
   remain unchanged while storage is unavailable, then reach a real ME chest
   exactly once after installing its cell, including reloads before and after delivery.
@@ -235,12 +255,30 @@ Verified locally on this branch:
 - A powered ME CPU executes two Blood Magic tier-one altar crafts, verifies exact
   LP-backed input and output delivery across a provider reload, and rejects a
   follow-up order after the stone supply is exhausted.
+- A powered ME CPU executes native AvaritiaNeo `endest_pearl` shaped and
+  `cosmic_meatballs` shapeless recipes, each in orders of one and three crafts.
+  Tests verify manual-table occupancy blocks dispatch without altering manual
+  items, exact ingredient and multi-item output quantities, provider reloads
+  without duplicate delivery, and rejection with exact missing-input counts.
 - A powered ME CPU executes two Hephaestus Forge ferrognetic-mixture rituals,
   waits for missing essences, and checks all five ingredient amounts, essence
   consumption, pedestal cleanup, and exact output delivery across provider
   reloads during and after each ritual. A depleted-ingredient order is rejected.
-- The full integration-runtime client reaches the main menu with 36 loaded mods
-  and exits normally. This verifies startup; it does not verify in-world dispatch.
+- The full integration-runtime client loads 36 mods and passes the same 70
+  GameTests inside a real integrated-server world, including the CPU orders
+  above. It renders all 32 packaged cores, opens both provider screens through
+  client block interaction, saves the world, returns to the menu, and exits.
+  This is automated client coverage, not manual acceptance of every recipe.
+- Mekanism More Machine's optional config-parser Mixin changes only null recipe
+  maps to mutable empty maps, preventing the empty-config JEI registration crash
+  for item/fluid replicators and preserving configured recipes. Client validation
+  checks all seven JEI categories with empty configs and with one configured
+  item recipe and one configured fluid recipe; both client runs pass 70 GameTests.
+- Malum's known malformed conditional recipe advancements receive missing
+  inventory criteria and recipe rewards before parsing. Their original tag
+  conditions stay intact; healthy/custom definitions and other namespaces are
+  not rewritten. GameTests verify enabled advancements load with real recipes
+  and disabled tag branches stay absent. Neither dependency jar is modified.
 - A separate client with fresh configuration also reaches the main menu with
   all 36 mods. The earlier GuideME config-loading failure did not recur in this
   run; one successful fresh start does not establish that the race is fixed.
@@ -249,7 +287,7 @@ Verified locally on this branch:
 
 Not yet verified:
 
-- In-game behaviour of the provider blocks (a `runClient` session).
+- Full manual in-game acceptance of both provider blocks and every recipe family.
 - The cause and permanent resolution of the intermittent GuideME 20.1.15
   config-loading failure.
 - Full interactive ME-network dispatch for every optional-mod recipe family;

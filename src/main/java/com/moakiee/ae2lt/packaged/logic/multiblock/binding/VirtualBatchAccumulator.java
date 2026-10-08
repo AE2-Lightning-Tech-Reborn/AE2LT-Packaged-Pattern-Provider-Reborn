@@ -20,16 +20,8 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 
 /**
- * Batches virtual-craft outputs and flushes them on a fixed interval (default
- * every 10 ticks).
- *
- * <p>Outputs are merged by {@link AEKey} inside the pending buffer so each
- * pattern only contributes one entry per key per flush window, keeping the
- * inserted stack count bounded even when push frequency is very high.
- *
- * <p>The class itself enforces no upper bound on accumulated amount; the
- * outer push path is expected to apply a per-tick admission cap (e.g. 64
- * outputs per lane per tick) before calling {@link #enqueue}.
+ * Merges pending outputs by AEKey and flushes every 10 ticks.
+ * The push path checks maxCopies before accepting inputs to prevent amount overflow.
  */
 public final class VirtualBatchAccumulator {
 
@@ -111,7 +103,7 @@ public final class VirtualBatchAccumulator {
         return true;
     }
 
-    /** Force flush regardless of interval; used on host removal / clearContent. */
+    /** Removes and returns pending outputs when the host is removed. */
     public List<GenericStack> drainAll() {
         if (pending.isEmpty()) {
             return List.of();
@@ -155,6 +147,24 @@ public final class VirtualBatchAccumulator {
                 LOG.warn("Ignoring malformed virtual batch entry at index {}", i, exception);
             }
         }
+    }
+
+    /** Capacity is checked before accepting inputs; pending products must never saturate. */
+    public long maxCopies(List<GenericStack> outputs) {
+        var oneCopy = new HashMap<AEKey, Long>();
+        try {
+            for (var stack : outputs) {
+                if (stack == null || stack.what() == null || stack.amount() <= 0) return 0;
+                oneCopy.merge(stack.what(), stack.amount(), Math::addExact);
+            }
+        } catch (ArithmeticException overflow) { return 0; }
+        if (oneCopy.isEmpty()) return 0;
+        long maximum = Long.MAX_VALUE;
+        for (var entry : oneCopy.entrySet()) {
+            maximum = Math.min(maximum,
+                    (Long.MAX_VALUE - pending.getOrDefault(entry.getKey(), 0L)) / entry.getValue());
+        }
+        return maximum;
     }
 
     private static CompoundTag writeStack(AEKey key, long amount) {

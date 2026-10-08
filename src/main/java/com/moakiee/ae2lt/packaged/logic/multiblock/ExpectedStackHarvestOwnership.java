@@ -92,14 +92,7 @@ public final class ExpectedStackHarvestOwnership {
     }
 
     public static int claimableCount(List<GenericStack> remaining, AEKey key, int available) {
-        if (available <= 0) {
-            return 0;
-        }
-        long claimed = remainingOf(remaining, key);
-        if (claimed <= 0) {
-            return 0;
-        }
-        return (int) Math.min(available, Math.min(Integer.MAX_VALUE, claimed));
+        return (int) claimableAmount(remaining, key, available);
     }
 
     public static long claimableAmount(List<GenericStack> remaining, AEKey key, long available) {

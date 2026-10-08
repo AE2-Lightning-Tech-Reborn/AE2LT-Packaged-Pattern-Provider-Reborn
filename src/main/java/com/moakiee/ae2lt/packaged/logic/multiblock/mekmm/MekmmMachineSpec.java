@@ -9,19 +9,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 /**
- * Declarative description of a Mekanism multiblock controller for the
- * unified {@link MekanismMoreMachinesAdapter}.
- *
- * <p>One spec covers all behaviour that previously required a hand-written
- * adapter per machine: which block id is the controller, which tile class
- * to identity-check, whether dispatch is gated on the machine being idle,
- * and the input/output port layouts relative to the controller's facing.
- *
- * <p>Most machines run in a single mode (one {@code PortGroup}). Machines
- * with selectable internal modes (e.g. the Rotary Condensentrator's
- * condensentrating vs. decondensentrating mode) supply multiple groups and
- * a {@code modeSelector} mapping a live block entity to an index into the
- * lists.
+ * Controller identity, idle gating and facing-relative ports.
+ * modeSelector chooses a port group from the live machine state.
  */
 public record MekmmMachineSpec(
         ResourceLocation block,

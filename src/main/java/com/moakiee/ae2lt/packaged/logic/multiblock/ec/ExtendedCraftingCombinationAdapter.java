@@ -49,20 +49,9 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
- * Runtime adapter for ExtendedCrafting's Combination Crafter — a central
- * {@code crafting_core} surrounded by up to 48 {@code pedestal} blocks
- * within a 7×7 horizontal AOE (same Y level as the core). Pure reflection.
- *
- * <p>The Core stores a catalyst in slot 0 and a {@link
- * net.minecraftforge.energy.EnergyStorage}-backed FE buffer. Pedestals
- * each hold one ingredient. Once enough power has accumulated, the BE
- * consumes the catalyst + pedestal stacks and writes the result back into
- * Core slot 0.
- *
- * <p>Binding mode is {@link BindingMode#REAL} — there's no equivalent
- * virtual evaluation since the recipe demands physical pedestals + tick
- * progress. We deliberately do not gate dispatch on FE balance; external
- * sources can keep refilling the Core while the BE waits.
+ * Real dispatch to a crafting core and up to 48 pedestals in its 7x7 horizontal area.
+ * The core consumes catalyst and pedestal inputs, then returns the result in slot 0.
+ * Dispatch allows an unpowered core; its own ticks wait for FE.
  */
 public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapter {
 
@@ -482,9 +471,6 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
                 "com.blakebr0.cucumber.tileentity.BaseInventoryTileEntity";
         private static final String CORE_TILE_CLASS =
                 "com.blakebr0.extendedcrafting.tileentity.CraftingCoreTileEntity";
-        private static final String COMBINATION_RECIPE_CLASS =
-                "com.blakebr0.extendedcrafting.crafting.recipe.CombinationRecipe";
-
         private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("ec-combination");
         private static volatile @Nullable Method getInventoryMethod;
         private static volatile @Nullable Method getProgressMethod;

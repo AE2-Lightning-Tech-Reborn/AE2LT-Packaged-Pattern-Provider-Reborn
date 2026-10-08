@@ -50,7 +50,8 @@ class PackagedCoreNamingTest {
             "avaritia_extreme_smithing_packaged_core",
             "bloodmagic_altar_packaged_core",
             "forbidden_arcanus_clibano_packaged_core",
-            "forbidden_arcanus_hephaestus_forge_packaged_core");
+            "forbidden_arcanus_hephaestus_forge_packaged_core",
+            "chiseling_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
             "basic_packaged_core");
@@ -90,8 +91,8 @@ class PackagedCoreNamingTest {
         var en = read("src/main/resources/assets/ae2ltpp/lang/en_us.json");
         var zh = read("src/main/resources/assets/ae2ltpp/lang/zh_cn.json");
 
-        assertTrue(en.contains("\"ae2ltpp.guide.title\": \"AE2LT Packaged Pattern Provider Reborn\""));
-        assertTrue(zh.contains("\"ae2ltpp.guide.title\": \"AE2 闪电科技封包：重生\""));
+        assertTrue(en.contains("\"ae2ltpp.guide.title\": \"AE2LT Packaged Pattern Provider\""));
+        assertTrue(zh.contains("\"ae2ltpp.guide.title\": \"AE2 闪电科技封包\""));
         assertTrue(en.contains("\"ae2ltpp.gui.adapter_slot\": \"Packaged Core\""));
         assertTrue(zh.contains("\"ae2ltpp.gui.adapter_slot\": \"封包核心\""));
         for (var id : EXPECTED_ITEM_IDS) {

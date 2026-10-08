@@ -14,7 +14,7 @@ import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEnti
  * Faces (NORMAL mode) and wireless connections (WIRELESS mode) flow through
  * the same scheduler via this sealed type.
  */
-public sealed interface LaneKey permits LaneKey.FaceLane, LaneKey.ConnLane {
+public sealed interface LaneKey permits LaneKey.FaceLane, LaneKey.ConnLane, LaneKey.InternalLane {
 
     /** True when this lane lives in the provider's own level. */
     boolean isLocal();
@@ -28,6 +28,13 @@ public sealed interface LaneKey permits LaneKey.FaceLane, LaneKey.ConnLane {
     /** The bound face on the target machine (for wireless connections); null for face lanes. */
     @Nullable
     Direction boundFace();
+
+    record InternalLane(net.minecraft.resources.ResourceLocation adapterId) implements LaneKey {
+        @Override public boolean isLocal() { return true; }
+        @Override public ResourceKey<Level> dimension(ResourceKey<Level> providerDimension) { return providerDimension; }
+        @Override public BlockPos position(BlockPos providerPos) { return providerPos; }
+        @Override public Direction boundFace() { return null; }
+    }
 
     record FaceLane(Direction face) implements LaneKey {
         @Override

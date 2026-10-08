@@ -1,13 +1,13 @@
 ---
 navigation:
-  title: AE2 闪电科技封包：重生
+  title: AE2 闪电科技封包
   position: 67
 item_ids:
 - ae2ltpp:packaged_pattern_provider
 - ae2ltpp:wireless_packaged_pattern_provider
 ---
 
-# AE2 闪电科技封包：重生
+# AE2 闪电科技封包
 
 `恭喜你走到了这一步！这将是你所掌握的闪电力量最巅峰之作！`
 
