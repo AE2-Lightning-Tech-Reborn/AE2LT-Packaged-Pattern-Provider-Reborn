@@ -141,6 +141,69 @@ public final class MekRoutingGameTests {
     }
 
     @GameTest(template = "mek_routing_test", timeoutTicks = 100)
+    public static void chemicalInfuserConsumesBothInputsAndHarvestPreservesBufferedChemicals(GameTestHelper helper) throws Exception {
+        var level = helper.getLevel();
+        var pos = helper.absolutePos(new BlockPos(5, 2, 5));
+        place(helper, pos, "large_chemical_infuser");
+        var machine = level.getBlockEntity(pos);
+        var adapter = new MekanismMoreMachinesAdapter();
+        var oxygen = chemical(MekanismChemicals.OXYGEN.asStack(1));
+        var chlorine = chemical(MekanismChemicals.CHLORINE.asStack(1));
+        var acid = chemical(MekanismChemicals.SULFURIC_ACID.asStack(2));
+        var pattern = pattern(helper, new GenericStack[]{oxygen, chlorine}, new GenericStack[]{acid});
+        var binding = adapter.bind(level, pos, pattern);
+        helper.assertTrue(binding != null, "the native chemical-infusing recipe binds");
+        var spec = ((MekRecipeBinding) binding.handle()).spec();
+        var facing = MekReflection.getFacing(machine);
+        var mode = spec.activeMode(machine);
+        var ports = new java.util.ArrayList<>(mode.inputs());
+        ports.addAll(mode.outputs());
+        for (var port : ports) {
+            var offset = port.spec();
+            var portPos = pos.relative(facing.getOpposite(), offset.backSteps())
+                    .relative(facing.getClockWise(), offset.leftSteps()).above(offset.y());
+            level.setBlockAndUpdate(portPos, BuiltInRegistries.BLOCK.get(ResourceLocation.parse("mekanism:bounding_block")).defaultBlockState());
+            ((mekanism.common.tile.TileEntityBoundingBlock) level.getBlockEntity(portPos)).setMainLocation(pos, false);
+        }
+        var left = (mekanism.api.chemical.IChemicalTank) machine.getClass().getField("leftTank").get(machine);
+        var right = (mekanism.api.chemical.IChemicalTank) machine.getClass().getField("rightTank").get(machine);
+        var center = (mekanism.api.chemical.IChemicalTank) machine.getClass().getField("centerTank").get(machine);
+        // Pre-existing supply is allowed, but it is consumed, not a reusable catalyst.
+        right.setStack(MekanismChemicals.CHLORINE.asStack(10));
+        var oneSided = pattern(helper, new GenericStack[]{oxygen}, new GenericStack[]{acid});
+        helper.assertTrue(adapter.bind(level, pos, oneSided) == null,
+                "a consumed chemical cannot be omitted from a self-contained processing pattern");
+        var energy = (mekanism.api.energy.IEnergyContainer) machine.getClass().getMethod("getEnergyContainer").invoke(machine);
+        var filter = new com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter();
+        filter.allowStrict(acid.what());
+        filter.allowStrict(oxygen.what());
+        filter.allowStrict(chlorine.what());
+        long completed = 0;
+        for (int order = 0; order < 64; order++) {
+            var plan = adapter.planWithBinding(level, pos, pattern, inputs(chlorine, oxygen), binding.handle(), null);
+            helper.assertTrue(plan != null && com.moakiee.ae2lt.packaged.logic.multiblock.DispatchExecutor.execute(
+                    plan, null, retained -> { throw new IllegalStateException("unexpected retained inputs " + retained); }).success(),
+                    "reordered inputs reach the real input tanks with existing supply");
+            helper.assertTrue(left.getStored() == 1 && right.getStored() == 11, "exactly one of each input was inserted");
+            energy.setEnergy(energy.getMaxEnergy());
+            for (int step = 0; step < 20 && center.isEmpty(); step++) {
+                mekanism.common.tile.base.TileEntityMekanism.tickServer(level, pos, machine.getBlockState(),
+                        (mekanism.common.tile.base.TileEntityMekanism) machine);
+            }
+            helper.assertTrue(left.isEmpty() && right.getStored() == 10 && center.getStored() == 2,
+                    "native processing consumes one chemical from each tank");
+            var returned = adapter.extractOutputs(level, pos, filter, null);
+            helper.assertTrue(returned.equals(List.of(acid)) && center.isEmpty() && right.getStored() == 10,
+                    "harvest collects only the product and preserves buffered input, even when the filter allows it");
+            helper.assertTrue(adapter.extractOutputs(level, pos, filter, null).isEmpty(), "harvest cannot return inputs or duplicate output");
+            completed += returned.getFirst().amount();
+        }
+        helper.assertTrue(completed == 128 && right.getStored() == 10, "64 recipes consume 64 of each input without draining the buffer");
+        System.out.println("PP_MEK_INFUSER_PASS recipes=64 output=128 oxygenConsumed=64 chlorineConsumed=64 preservedInputBuffer=10");
+        helper.succeed();
+    }
+
+    @GameTest(template = "mek_routing_test", timeoutTicks = 100)
     public static void rotaryModeAndElectrolysis(GameTestHelper helper) throws Exception {
         var level = helper.getLevel();
         var rotaryPos = helper.absolutePos(new BlockPos(2, 2, 2));

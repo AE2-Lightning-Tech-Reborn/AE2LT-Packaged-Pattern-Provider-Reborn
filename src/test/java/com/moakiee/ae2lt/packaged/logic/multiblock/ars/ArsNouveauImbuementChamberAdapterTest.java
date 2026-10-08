@@ -21,6 +21,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
@@ -95,6 +96,150 @@ class ArsNouveauImbuementChamberAdapterTest {
             assertEquals(2, stock.get(AEItemKey.of(Items.DIAMOND)));
             assertEquals(0, stock.get(AEItemKey.of(Items.IRON_INGOT)));
         }
+    }
+
+    @Test void residentCatalystsSupport64ReagentOnlyDispatchesWithoutPedestalIo() {
+        try (var f = new Fixture(Ingredient.of(Items.IRON_INGOT), List.of(
+                Ingredient.of(Items.DIAMOND), Ingredient.of(Items.DIAMOND)))) {
+            var catalyst = new ItemStack(Items.DIAMOND, 3);
+            catalyst.set(DataComponents.CUSTOM_NAME, Component.literal("resident catalyst"));
+            var pedestals = f.inventories.entrySet().stream()
+                    .filter(e -> !e.getKey().equals(BlockPos.ZERO)).toList();
+            pedestals.forEach(e -> e.getValue().setItem(0, catalyst.copy()));
+            var pattern = pattern(List.of(stack(Items.IRON_INGOT, 1)), List.of(stack(Items.GOLD_INGOT, 1)));
+            var binding = f.adapter.bind(f.level, BlockPos.ZERO, pattern);
+            assertNotNull(binding, "preplaced catalysts are not pattern inputs");
+            for (int i = 0; i < 64; i++) {
+                assertTrue(f.adapter.canDispatch(f.level, BlockPos.ZERO, binding.handle()));
+                var plan = f.adapter.planWithBinding(f.level, BlockPos.ZERO, pattern,
+                        reagentInputs(), binding.handle(), null);
+                assertNotNull(plan);
+                assertEquals(1, plan.targets().size(), "only the chamber receives inputs");
+                assertTrue(DispatchExecutor.execute(plan, null, ignored -> fail("unexpected retained input")).success());
+                assertTrue(f.adapter.extractOutputs(f.level, BlockPos.ZERO, f.filter, null).isEmpty());
+                f.chamber.setItem(0, new ItemStack(Items.GOLD_INGOT));
+                // Harvest through a new adapter, as after a provider reload.
+                assertEquals(List.of(stack(Items.GOLD_INGOT, 1)), new ArsNouveauImbuementChamberAdapter()
+                        .extractOutputs(f.level, BlockPos.ZERO, f.filter, null));
+                assertTrue(f.chamber.isEmpty());
+                pedestals.forEach(e -> assertTrue(ItemStack.matches(catalyst, e.getValue().getItem(0)),
+                        "resident stack count and components are preserved"));
+            }
+            for (var pedestal : pedestals) {
+                verify(f.level, never()).getCapability(eq(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK),
+                        eq(pedestal.getKey()), isNull());
+            }
+        }
+    }
+
+    @Test void residentBindingAndDispatchRequireEveryPedestalIngredient() {
+        try (var f = new Fixture(Ingredient.of(Items.IRON_INGOT), List.of(
+                Ingredient.of(Items.DIAMOND), Ingredient.of(Items.DIAMOND)))) {
+            var pattern = pattern(List.of(stack(Items.IRON_INGOT, 1)), List.of(stack(Items.GOLD_INGOT, 1)));
+            assertNull(f.adapter.bind(f.level, BlockPos.ZERO, pattern));
+            var left = f.inventories.get(new BlockPos(-1, 0, 1));
+            var right = f.inventories.get(new BlockPos(0, 0, 1));
+            left.setItem(0, new ItemStack(Items.DIAMOND, 2));
+            assertNull(f.adapter.bind(f.level, BlockPos.ZERO, pattern), "a stack cannot replace two occupied pedestals");
+            right.setItem(0, new ItemStack(Items.DIAMOND));
+            var binding = f.adapter.bind(f.level, BlockPos.ZERO, pattern);
+            assertNotNull(binding);
+            var plan = f.adapter.planWithBinding(f.level, BlockPos.ZERO, pattern,
+                    reagentInputs(), binding.handle(), null);
+            assertNotNull(plan);
+            right.setItem(0, new ItemStack(Items.EMERALD));
+            assertFalse(f.adapter.canDispatch(f.level, BlockPos.ZERO, binding.handle()));
+            assertNull(f.adapter.planWithBinding(f.level, BlockPos.ZERO, pattern,
+                    reagentInputs(), binding.handle(), null));
+            assertTrue(DispatchExecutor.execute(plan, null, ignored -> fail("no input should be accepted")).failure(),
+                    "insertion rechecks catalysts after planning");
+            assertTrue(f.chamber.isEmpty());
+            right.setItem(0, new ItemStack(Items.DIAMOND));
+            assertTrue(f.adapter.canDispatch(f.level, BlockPos.ZERO, binding.handle()));
+            var extra = new BlockPos(1, 0, 1);
+            f.addBlock(extra, new SimpleContainer(new ItemStack(Items.EMERALD)), pedestalBlock);
+            assertFalse(f.adapter.canDispatch(f.level, BlockPos.ZERO, binding.handle()));
+            assertNull(f.adapter.bind(f.level, BlockPos.ZERO, pattern));
+        }
+    }
+
+    @Test void residentPatternsCannotAdvertiseCatalystReturnsOrSupplyExtraInputs() {
+        try (var f = new Fixture(Ingredient.of(Items.IRON_INGOT), List.of(Ingredient.of(Items.DIAMOND)))) {
+            f.inventories.get(new BlockPos(-1, 0, 1)).setItem(0, new ItemStack(Items.DIAMOND));
+            var pattern = pattern(List.of(stack(Items.IRON_INGOT, 1)), List.of(stack(Items.GOLD_INGOT, 1)));
+            var binding = f.adapter.bind(f.level, BlockPos.ZERO, pattern);
+            assertNotNull(binding);
+            assertNull(f.adapter.bind(f.level, BlockPos.ZERO, pattern(List.of(stack(Items.IRON_INGOT, 1)),
+                    List.of(stack(Items.GOLD_INGOT, 1), stack(Items.DIAMOND, 1)))));
+            var extraInputs = reagentInputs();
+            extraInputs[0].add(AEItemKey.of(Items.DIAMOND), 1);
+            assertNull(f.adapter.planWithBinding(f.level, BlockPos.ZERO, pattern, extraInputs, binding.handle(), null));
+            var borrowed = f.adapter.bind(f.level, BlockPos.ZERO, pattern(
+                    List.of(stack(Items.IRON_INGOT, 1), stack(Items.DIAMOND, 1)),
+                    List.of(stack(Items.GOLD_INGOT, 1), stack(Items.DIAMOND, 1))));
+            assertNotNull(borrowed);
+            assertFalse(f.adapter.canDispatch(f.level, BlockPos.ZERO, borrowed.handle()),
+                    "borrowed mode must not overwrite preplaced catalysts");
+        }
+    }
+
+    @Test void residentHarvestPreservesProductLikeCatalystsAndModeCanSwitchBackToBorrowed() {
+        try (var f = new Fixture(Ingredient.of(Items.IRON_INGOT), List.of(Ingredient.of(Items.GOLD_INGOT)))) {
+            var pedestal = f.inventories.get(new BlockPos(-1, 0, 1));
+            pedestal.setItem(0, new ItemStack(Items.GOLD_INGOT));
+            var resident = pattern(List.of(stack(Items.IRON_INGOT, 1)), List.of(stack(Items.GOLD_INGOT, 1)));
+            var binding = f.adapter.bind(f.level, BlockPos.ZERO, resident);
+            assertNotNull(binding);
+            var plan = f.adapter.planWithBinding(f.level, BlockPos.ZERO, resident,
+                    reagentInputs(), binding.handle(), null);
+            assertNotNull(plan);
+            assertTrue(DispatchExecutor.execute(plan, null, ignored -> fail()).success());
+            f.chamber.setItem(0, new ItemStack(Items.GOLD_INGOT));
+            assertEquals(List.of(stack(Items.GOLD_INGOT, 1)),
+                    f.adapter.extractOutputs(f.level, BlockPos.ZERO, f.filter, null));
+            assertTrue(pedestal.getItem(0).is(Items.GOLD_INGOT), "even an allowed output remains on its pedestal");
+
+            pedestal.clearContent();
+            var borrowed = pattern(List.of(stack(Items.IRON_INGOT, 1), stack(Items.GOLD_INGOT, 1)),
+                    List.of(stack(Items.GOLD_INGOT, 2)));
+            binding = f.adapter.bind(f.level, BlockPos.ZERO, borrowed);
+            assertNotNull(binding);
+            var inputs = reagentInputs();
+            inputs[0].add(AEItemKey.of(Items.GOLD_INGOT), 1);
+            plan = f.adapter.planWithBinding(f.level, BlockPos.ZERO, borrowed, inputs, binding.handle(), null);
+            assertNotNull(plan);
+            assertTrue(DispatchExecutor.execute(plan, null, ignored -> fail()).success());
+            f.chamber.setItem(0, new ItemStack(Items.GOLD_INGOT));
+            var returned = f.adapter.extractOutputs(f.level, BlockPos.ZERO, f.filter, null);
+            assertEquals(2, returned.stream().mapToLong(GenericStack::amount).sum());
+            assertTrue(pedestal.isEmpty(), "a later borrowed dispatch clears resident mode");
+        }
+    }
+
+    @Test void residentHarvestCanCollectFinishedProductAfterCatalystRemoval() {
+        try (var f = new Fixture(Ingredient.of(Items.IRON_INGOT), List.of(Ingredient.of(Items.DIAMOND)))) {
+            var pedestalPos = new BlockPos(-1, 0, 1);
+            f.inventories.get(pedestalPos).setItem(0, new ItemStack(Items.DIAMOND));
+            var pattern = pattern(List.of(stack(Items.IRON_INGOT, 1)), List.of(stack(Items.GOLD_INGOT, 1)));
+            var binding = f.adapter.bind(f.level, BlockPos.ZERO, pattern);
+            assertNotNull(binding);
+            var plan = f.adapter.planWithBinding(f.level, BlockPos.ZERO, pattern,
+                    reagentInputs(), binding.handle(), null);
+            assertNotNull(plan);
+            assertTrue(DispatchExecutor.execute(plan, null, ignored -> fail()).success());
+            f.chamber.setItem(0, new ItemStack(Items.GOLD_INGOT));
+            f.inventories.get(pedestalPos).clearContent();
+            when(f.level.isLoaded(pedestalPos)).thenReturn(false);
+            assertEquals(List.of(stack(Items.GOLD_INGOT, 1)),
+                    f.adapter.extractOutputs(f.level, BlockPos.ZERO, f.filter, null));
+            assertFalse(f.adapter.canDispatch(f.level, BlockPos.ZERO, binding.handle()));
+        }
+    }
+
+    private static KeyCounter[] reagentInputs() {
+        var inputs = new KeyCounter[]{new KeyCounter()};
+        inputs[0].add(AEItemKey.of(Items.IRON_INGOT), 1);
+        return inputs;
     }
 
     @Test void bindingAndDispatchRejectMissingExtraAndWrongComponentReturns() {
@@ -252,6 +397,7 @@ class ArsNouveauImbuementChamberAdapterTest {
         private void addBlock(BlockPos pos, SimpleContainer inventory, Block block) {
             var be = mock(BlockEntity.class, withSettings().extraInterfaces(Container.class));
             when(be.getBlockState()).thenReturn(block.defaultBlockState());
+            when(be.getPersistentData()).thenReturn(new CompoundTag());
             var container = (Container) be;
             when(container.getContainerSize()).thenReturn(1);
             when(container.getItem(anyInt())).thenAnswer(i -> inventory.getItem(i.getArgument(0)));

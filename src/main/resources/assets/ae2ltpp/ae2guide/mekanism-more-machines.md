@@ -31,5 +31,6 @@ Build the machine, place the provider against it, install the Packaged Core, and
 
 ## Notes
 
+* The Large Chemical Infuser consumes both chemical inputs according to the recipe. They are not resident catalysts like an Ars Imbuement Chamber's pedestal items. Encode the actual amounts consumed in both inputs, and do not declare unchanged chemical returns as byproducts. Stored input chemicals are a consumable buffer; auto-return drains only the output ports and leaves the input buffer in place.
 * The machine still needs its own **energy**. Keep it adequately powered.
 * With blocking mode disabled, inputs can be supplied while the machine is running, and blocked requests can retry on the next tick. Auto-return polls output ports every 1–20 ticks, returning to fast polling after collecting output or accepting new input.

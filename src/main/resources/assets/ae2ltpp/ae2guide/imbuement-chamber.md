@@ -14,13 +14,33 @@ item_ids:
 **Mod:** Ars Nouveau
 
 Automatically performs Imbuement Chamber recipes. Place the provider against the Chamber, then place **enough** Arcane Pedestals and/or Arcane Platforms anywhere within the one-block-radius cube around it.
-The core ingredient goes into the Chamber, catalysts go on the pedestals, and the result is retrieved when imbuing finishes.
+The core ingredient goes into the Chamber, and the result is retrieved when imbuing finishes.
 
-## ⚠ Catalysts are recycled
+## Resident catalysts
 
 Ars does **not** consume the pedestal items for an Imbuement recipe — it only checks that they are
-present. So this provider treats them as **reusable catalysts**: it places them on the pedestals for
-the craft, then **pulls them back into your ME network together with the finished product**.
+present. For repeated production with one setup, place one complete set on the pedestals first.
+Encode a **processing pattern containing only the Chamber ingredient as input and the finished
+product as output**, with the quantities for one craft. Leave the pedestal catalysts out of both
+the inputs and outputs.
+
+The provider checks that the resident catalysts match the recipe before every dispatch, inserts
+only the Chamber ingredient, and retrieves only the product. Pedestal quantities and components
+stay unchanged, including across machine saves and reloads. AE2 therefore does not request or
+craft additional catalyst sets, even when the ME network has none in stock.
+
+For example, if one craft consumes A × 1 and requires B × 2 and C × 1 on separate pedestals,
+leave those catalysts on the pedestals and encode A × 1 → product × 1. An order for 64 products
+needs A × 64 and keeps the original catalysts in place.
+
+The Chamber must be empty, and the occupied pedestals must match the complete recipe. Missing,
+wrong, or extra pedestal items block dispatch. Change the pedestal setup when switching recipes.
+
+## Borrowed catalysts for switching recipes
+
+Patterns that include the pedestal catalysts as inputs retain the dynamic workflow: the provider
+places them for each craft, then retrieves them together with the product. This lets one Chamber
+run recipes requiring different pedestal setups.
 
 Encode one craft in a **processing pattern**:
 
@@ -33,4 +53,3 @@ For example, if one craft consumes A × 1 and needs B × 2 and C × 1 on the ped
 When declaring catalyst returns, include the complete set. Missing, extra, or mismatched returns prevent binding. Existing product-only patterns still work, but do not tell AE2 to reuse catalysts, so large requests can require many sets. The provider does not edit your patterns; manually re-encode them to declare catalyst returns. Each craft still places and retrieves the real catalysts.
 
 Before starting, the Chamber and every Arcane Pedestal within 1 block must be empty; any occupied pedestal in that range blocks the craft.
-`Like a clam, a delicate imbuement ritual cannot tolerate even a grain of sand.`
