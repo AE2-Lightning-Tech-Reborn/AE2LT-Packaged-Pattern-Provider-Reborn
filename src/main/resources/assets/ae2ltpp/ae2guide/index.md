@@ -98,3 +98,6 @@ Craft a **Basic Packaged Core**, then process it in the target mod's correspondi
 
 ### Chiseling
 * [Chipped, Rechiseled and Chisel](chiseling.md)
+
+### Nature's Aura
+* [Natural Altar, Ritual of the Forest and Offering Table](natures-aura.md)

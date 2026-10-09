@@ -1,0 +1,27 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "naturesaura"
+    }
+  ],
+  "type": "naturesaura:tree_ritual",
+  "output": {
+    "id": "ae2ltpp:naturesaura_tree_ritual_packaged_core"
+  },
+  "ingredients": [
+    {
+      "item": "ae2ltpp:basic_packaged_core"
+    },
+    {
+      "item": "naturesaura:gold_leaf"
+    },
+    {
+      "item": "naturesaura:token_joy"
+    }
+  ],
+  "sapling": {
+    "item": "minecraft:oak_sapling"
+  },
+  "time": 200
+}

@@ -29,6 +29,9 @@ public record PackagedCoreDefinition(
     private static final String AVARITIA = "avaritia";
 
     private static final List<PackagedCoreDefinition> ALL = List.of(
+            core("naturesaura_altar_packaged_core", "naturesaura", "nature_altar"),
+            core("naturesaura_tree_ritual_packaged_core", "naturesaura", "wood_stand"),
+            core("naturesaura_offering_packaged_core", "naturesaura", "offering_table"),
             core("aa_reconstructor_packaged_core", ACTUALLY_ADDITIONS, "atomic_reconstructor"),
             core("aa_empowerer_packaged_core", ACTUALLY_ADDITIONS, "empowerer"),
             core("ars_apparatus_packaged_core", ARS_NOUVEAU, "enchanting_apparatus"),
@@ -79,6 +82,9 @@ public record PackagedCoreDefinition(
 
     public DeferredItem<MultiblockAdapterItem> runtimeItem() {
         return switch (itemId) {
+            case "naturesaura_altar_packaged_core" -> PPItems.NATURES_AURA_ALTAR_ADAPTER;
+            case "naturesaura_tree_ritual_packaged_core" -> PPItems.NATURES_AURA_TREE_ADAPTER;
+            case "naturesaura_offering_packaged_core" -> PPItems.NATURES_AURA_OFFERING_ADAPTER;
             case "aa_reconstructor_packaged_core" -> PPItems.AA_RECONSTRUCTOR_ADAPTER;
             case "aa_empowerer_packaged_core" -> PPItems.AA_EMPOWERER_ADAPTER;
             case "ars_apparatus_packaged_core" -> PPItems.ARS_APPARATUS_ADAPTER;

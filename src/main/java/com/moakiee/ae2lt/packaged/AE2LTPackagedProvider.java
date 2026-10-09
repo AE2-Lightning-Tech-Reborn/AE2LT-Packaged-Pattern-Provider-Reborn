@@ -27,6 +27,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsAtomicRec
 import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsEmpowererAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsNouveauEnchantingApparatusAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsNouveauImbuementChamberAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.naturesaura.NaturesAuraAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.avaritia.AvaritiaExtremeSmithingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.avaritia.AvaritiaTableAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.botania.AlfheimPortalAdapter;
@@ -76,6 +77,13 @@ public class AE2LTPackagedProvider {
             MultiblockAdapterRegistry.register(new ActuallyAdditionsEmpowererAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauEnchantingApparatusAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauImbuementChamberAdapter());
+            if (ModList.get().isLoaded("naturesaura")) {
+                for (var kind : NaturesAuraAdapter.Kind.values()) {
+                    var adapter = new NaturesAuraAdapter(kind);
+                    MultiblockAdapterRegistry.register(new AdapterRegistration(adapter.requiredAdapterId(null, null),
+                            adapter.priority(), () -> true, adapter));
+                }
+            }
             MultiblockAdapterRegistry.register(new DraconicFusionCraftingAdapter());
             MultiblockAdapterRegistry.register(new ExtendedCraftingTableAdapter());
             MultiblockAdapterRegistry.register(new ExtendedCraftingEnderCrafterAdapter());

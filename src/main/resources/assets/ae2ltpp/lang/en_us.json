@@ -1,4 +1,7 @@
 {
+  "item.ae2ltpp.naturesaura_altar_packaged_core": "Natural Altar Packaged Core",
+  "item.ae2ltpp.naturesaura_tree_ritual_packaged_core": "Ritual of the Forest Packaged Core",
+  "item.ae2ltpp.naturesaura_offering_packaged_core": "Offering Table Packaged Core",
   "itemGroup.ae2ltpp": "AE2LT Packaged Pattern Provider Reborn",
   "ae2ltpp.guide.title": "AE2LT Packaged Pattern Provider Reborn",
   "block.ae2ltpp.packaged_pattern_provider": "Packaged Pattern Provider",

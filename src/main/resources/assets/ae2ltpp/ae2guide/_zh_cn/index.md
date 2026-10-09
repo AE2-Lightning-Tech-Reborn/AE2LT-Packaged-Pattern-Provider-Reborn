@@ -95,3 +95,6 @@ item_ids:
 
 ### 凿子与装饰方块
 * [Chipped、Rechiseled 与 Chisel](chiseling.md)
+
+### 自然灵气
+* [自然祭坛、森林仪式与供奉台](natures-aura.md)

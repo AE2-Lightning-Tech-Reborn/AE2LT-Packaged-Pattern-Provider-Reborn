@@ -6,7 +6,10 @@
   "mixins": [
     "PatternProviderLogicAccessor",
     "PatternProviderLogicMixin",
-    "AstralInventoryViewMixin"
+    "AstralInventoryViewMixin",
+    "NaturesAuraAltarMixin",
+    "NaturesAuraOfferingMixin",
+    "NaturesAuraTreeRitualMixin"
   ],
   "injectors": {
     "defaultRequire": 1
