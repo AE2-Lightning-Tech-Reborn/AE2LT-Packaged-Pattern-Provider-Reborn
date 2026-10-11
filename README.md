@@ -159,9 +159,12 @@ Integration code currently exists for:
 - Mekanism More Machines
 - Malum
 - Botania
+- Nature's Aura 41.10: Natural Altar, Ritual of the Forest and Offering Table
 - Astral Sorcery 1.21.1 development branch: four crafting altar tiers and Starlight Infuser
 
 Astral version pin, native test commands and supported recipe rules: [compatibility notes](docs/ASTRAL_SORCERY_COMPATIBILITY.zh-CN.md).
+
+Nature's Aura behavior and native validation: [compatibility notes](docs/NATURES_AURA_COMPATIBILITY.zh-CN.md).
 
 These entries reflect source code present in the repository, not a blanket statement that every target has already been runtime-validated in every environment.
 

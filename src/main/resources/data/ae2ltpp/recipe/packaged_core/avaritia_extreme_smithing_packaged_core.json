@@ -12,9 +12,17 @@
   "base": {
     "item": "ae2ltpp:basic_packaged_core"
   },
-  "addition": {
-    "item": "avaritia:diamond_lattice"
-  },
+  "addition": [
+    {
+      "item": "avaritia:diamond_lattice"
+    },
+    {
+      "item": "ae2:certus_quartz_crystal"
+    },
+    {
+      "item": "ae2:fluix_crystal"
+    }
+  ],
   "result": {
     "count": 1,
     "id": "ae2ltpp:avaritia_extreme_smithing_packaged_core"

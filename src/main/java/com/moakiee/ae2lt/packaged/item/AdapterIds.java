@@ -32,6 +32,10 @@ public final class AdapterIds {
     private AdapterIds() {
     }
 
+    public static final ResourceLocation NATURES_AURA_ALTAR = id("naturesaura/altar_packaged_core");
+    public static final ResourceLocation NATURES_AURA_TREE = id("naturesaura/tree_ritual_packaged_core");
+    public static final ResourceLocation NATURES_AURA_OFFERING = id("naturesaura/offering_packaged_core");
+
     public static final ResourceLocation AA_RECONSTRUCTOR =
             id("actuallyadditions/laser_packaged_core");
     public static final ResourceLocation AA_EMPOWERER =

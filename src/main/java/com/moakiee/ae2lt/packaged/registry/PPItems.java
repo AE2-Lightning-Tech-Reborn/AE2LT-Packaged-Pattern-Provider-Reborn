@@ -37,6 +37,18 @@ public final class PPItems {
                     AdapterIds.ARS_APPARATUS,
                     Set.of(AdapterIds.ARS_APPARATUS));
 
+    public static final DeferredItem<MultiblockAdapterItem> NATURES_AURA_ALTAR_ADAPTER =
+            registerPackagedCore("naturesaura_altar_packaged_core",
+                    AdapterIds.NATURES_AURA_ALTAR, Set.of(AdapterIds.NATURES_AURA_ALTAR));
+
+    public static final DeferredItem<MultiblockAdapterItem> NATURES_AURA_TREE_ADAPTER =
+            registerPackagedCore("naturesaura_tree_ritual_packaged_core",
+                    AdapterIds.NATURES_AURA_TREE, Set.of(AdapterIds.NATURES_AURA_TREE));
+
+    public static final DeferredItem<MultiblockAdapterItem> NATURES_AURA_OFFERING_ADAPTER =
+            registerPackagedCore("naturesaura_offering_packaged_core",
+                    AdapterIds.NATURES_AURA_OFFERING, Set.of(AdapterIds.NATURES_AURA_OFFERING));
+
     public static final DeferredItem<MultiblockAdapterItem> ARS_IMBUEMENT_ADAPTER =
             registerPackagedCore("ars_imbuement_packaged_core",
                     AdapterIds.ARS_IMBUEMENT,

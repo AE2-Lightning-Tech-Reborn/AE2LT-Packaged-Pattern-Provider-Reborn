@@ -1,0 +1,11 @@
+{
+  "type": "naturesaura:altar",
+  "input": {
+    "item": "minecraft:amethyst_shard"
+  },
+  "output": {
+    "id": "minecraft:diamond"
+  },
+  "aura": 200000,
+  "time": 10
+}

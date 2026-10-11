@@ -1,0 +1,18 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "naturesaura"
+    }
+  ],
+  "type": "naturesaura:offering",
+  "output": {
+    "id": "ae2ltpp:naturesaura_offering_packaged_core"
+  },
+  "input": {
+    "item": "ae2ltpp:basic_packaged_core"
+  },
+  "start_item": {
+    "item": "naturesaura:calling_spirit"
+  }
+}

@@ -1,0 +1,38 @@
+// Opt-in native QA. Target-mod jars and test classes are never bundled in the release.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        // Existing reflection-based EC unit tests need their own fixtures even in this isolated game profile.
+        configurations.runtimeOnly.dependencies.findAll { it.name in ['extended-crafting', 'cucumber'] }.each {
+            dependencies.add('testRuntimeOnly', it)
+        }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        def absent = providers.gradleProperty('ppNaturesAuraAbsent').isPresent()
+        sourceSets.create('naturesAuraTest') {
+            if (absent) {
+                java.setSrcDirs(['src/naturesAuraAbsentTest/java'])
+                resources.exclude('data/ae2ltpp/recipe/**')
+            }
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        if (!absent) {
+            for (def name : ['ppNaturesAuraJar', 'ppPatchouliJar']) {
+                def path = providers.gradleProperty(name).orNull
+                if (path == null || !file(path).isFile()) throw new GradleException('Set -P' + name + ' to the native jar')
+                dependencies.add('naturesAuraTestImplementation', files(path))
+            }
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.naturesAuraTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.naturesAuraTest
+            gameDirectory = project.layout.buildDirectory.dir(absent ? 'natures-aura-absent-native' : 'natures-aura-native').get().asFile
+        }
+    }
+}
