@@ -1,1 +1,14 @@
-{"type":"extendedcrafting:shaped_table","pattern":["MI"],"key":{"M":"minecraft:milk_bucket","I":"minecraft:iron_ingot"},"result":{"id":"minecraft:diamond","count":1}}
+{
+  "type": "extendedcrafting:shaped_table",
+  "pattern": [
+    "MI"
+  ],
+  "key": {
+    "M": "minecraft:milk_bucket",
+    "I": "minecraft:iron_ingot"
+  },
+  "result": {
+    "id": "minecraft:diamond",
+    "count": 1
+  }
+}

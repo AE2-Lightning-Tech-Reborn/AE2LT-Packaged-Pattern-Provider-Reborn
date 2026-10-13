@@ -1,0 +1,33 @@
+{
+  "type": "avaritia:shaped_table",
+  "tier": 4,
+  "pattern": [
+    "MI"
+  ],
+  "key": {
+    "M": {
+      "items": "minecraft:milk_bucket",
+      "components": {
+        "minecraft:custom_data": {
+          "pp_overload": "required"
+        }
+      },
+      "strict": false,
+      "neoforge:ingredient_type": "neoforge:components"
+    },
+    "I": {
+      "items": "minecraft:iron_ingot",
+      "components": {
+        "minecraft:custom_data": {
+          "pp_overload": "required"
+        }
+      },
+      "strict": false,
+      "neoforge:ingredient_type": "neoforge:components"
+    }
+  },
+  "result": {
+    "id": "minecraft:heart_of_the_sea",
+    "count": 1
+  }
+}

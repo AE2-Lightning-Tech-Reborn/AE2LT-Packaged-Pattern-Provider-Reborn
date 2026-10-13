@@ -42,21 +42,21 @@ public final class BatchProviderGameTests {
             logic.updatePatterns();
             IPatternDetails pattern = logic.getAvailablePatterns().getFirst();
             var template = counters(input);
-            helper.assertTrue(logic.getBatchCapacity(pattern) == 64, "real PP advertises 64-copy EC batch capacity");
-            helper.assertTrue(logic.pushBatch(pattern, template, 70) == 6, "one dispatch accepts 64 and returns six leftovers");
+            helper.assertTrue(logic.getBatchCapacity(pattern) == Long.MAX_VALUE, "EC workbench has no provider copy cap");
+            helper.assertTrue(logic.pushBatch(pattern, template, 70) == 0, "one dispatch accepts all 70 copies");
             helper.assertTrue(template[0].get(AEItemKey.of(Items.MILK_BUCKET)) == 1
                     && template[1].get(AEItemKey.of(Items.IRON_INGOT)) == 1, "borrowed input template stays unchanged");
-            helper.assertTrue(logic.getBatchCapacity(pattern) == 0 && !logic.pushPattern(pattern, BatchCopies.copy(template)),
-                    "single and batch calls share the 64-copy lane limit");
+            helper.assertTrue(logic.getBatchCapacity(pattern) == Long.MAX_VALUE && logic.pushPattern(pattern, BatchCopies.copy(template)),
+                    "another ordinary push is allowed in the same tick");
             var saved = new CompoundTag();
             logic.writeToNBT(com.moakiee.ae2lt.api.compat.ValueIO.output(saved, level.registryAccess()));
             var before = new ArrayList<ItemStack>(); logic.addDrops(before);
-            helper.assertTrue(count(before, Items.DIAMOND) == 64 && count(before, Items.BUCKET) == 64,
+            helper.assertTrue(count(before, Items.DIAMOND) == 71 && count(before, Items.BUCKET) == 71,
                     "all batch products and per-copy bucket remainders are owned before flush");
             logic.clearContent();
             logic.readFromNBT(com.moakiee.ae2lt.api.compat.ValueIO.input(saved, level.registryAccess()));
             var after = new ArrayList<ItemStack>(); logic.addDrops(after);
-            helper.assertTrue(count(after, Items.DIAMOND) == 64 && count(after, Items.BUCKET) == 64, "reload preserves exact products and remainders");
+            helper.assertTrue(count(after, Items.DIAMOND) == 71 && count(after, Items.BUCKET) == 71, "reload preserves exact products and remainders");
             logic.getConfigManager().putSetting(Settings.LOCK_CRAFTING_MODE, LockCraftingMode.LOCK_UNTIL_RESULT);
             helper.assertTrue(logic.getBatchCapacity(pattern) <= 1 && logic.pushBatch(pattern, template, 8) == 8, "lock-until-result keeps single-copy dispatch");
             logic.getConfigManager().putSetting(Settings.LOCK_CRAFTING_MODE, LockCraftingMode.NONE);
@@ -66,7 +66,7 @@ public final class BatchProviderGameTests {
             logic.clearContent();
             var empty = new ArrayList<ItemStack>(); logic.addDrops(empty);
             helper.assertTrue(count(empty, Items.DIAMOND) == 0 && count(empty, Items.BUCKET) == 0, "clear does not duplicate pending drops");
-            System.out.println("PP_BATCH_EC_PASS copies=64 leftover=6 buckets=64 template=unchanged reload=exact controls=single");
+            System.out.println("PP_BATCH_EC_PASS copies=70+1 leftover=0 buckets=71 template=unchanged reload=exact controls=single");
             helper.succeed();
         });
     }
@@ -126,13 +126,15 @@ public final class BatchProviderGameTests {
                     com.moakiee.thunderbolt.core.crafting.batch.BatchCpuAccounting.Mode.SUCCESSFUL_DISPATCH,
                     (appeng.me.service.CraftingService)grid.getCraftingService(),grid.getEnergyService(),job,inventory,
                     new java.util.HashMap<>(),be::saveChanges);
-            helper.assertTrue(result.dispatchedCopies() == 64 && result.consumedCpuOps() == 1, "Thunderbolt resolves PP and dispatches 64 copies in one CPU operation");
-            helper.assertTrue(remaining[0] == 6 && inventory.list.get(AEItemKey.of(Items.MILK_BUCKET)) == 6
-                    && inventory.list.get(AEItemKey.of(Items.IRON_INGOT)) == 6, "CPU keeps exact leftover task and material quantities");
-            helper.assertTrue(waiting.list.get(AEItemKey.of(Items.DIAMOND)) == 64, "CPU registers exactly 64 expected outputs");
+            long accepted = injectFailure ? 64 : 70;
+            long leftover = 70 - accepted;
+            helper.assertTrue(result.dispatchedCopies() == accepted && result.consumedCpuOps() == 1, "Thunderbolt batches the available copies in one CPU operation");
+            helper.assertTrue(remaining[0] == leftover && inventory.list.get(AEItemKey.of(Items.MILK_BUCKET)) == leftover
+                    && inventory.list.get(AEItemKey.of(Items.IRON_INGOT)) == leftover, "CPU keeps exact leftover task and material quantities");
+            helper.assertTrue(waiting.list.get(AEItemKey.of(Items.DIAMOND)) == accepted, "CPU registers exactly the accepted outputs");
             if (injectFailure) helper.assertTrue(failureReached.get(), "the second lane actually threw after the first lane accepted its batch");
             System.out.println((injectFailure ? "PP_BATCH_CPU_FAILURE_PASS" : "PP_BATCH_CPU_PASS")
-                    + " dispatches=1 copies=64 remaining=6 waiting=64");
+                    + " dispatches=1 copies=" + accepted + " remaining=" + leftover + " waiting=" + accepted);
             helper.succeed();
         });
     }
@@ -144,6 +146,10 @@ public final class BatchProviderGameTests {
         var ec = new com.moakiee.ae2lt.packaged.logic.multiblock.ec.ExtendedCraftingTableAdapter();
         var ecBinding = ec.bind(level, pos.east(), pattern);
         var type = com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter.class;
+        // Keep this failure-boundary fixture bounded so the second lane is reached.
+        var boundedEc = (com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter)
+                java.lang.reflect.Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type},
+                        (proxy, method, args) -> method.invoke(ec, args));
         var failureReached = new java.util.concurrent.atomic.AtomicBoolean();
         var broken = (com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter)
                 java.lang.reflect.Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
@@ -157,7 +163,7 @@ public final class BatchProviderGameTests {
         var candidates = List.of(
                 new com.moakiee.ae2lt.packaged.logic.multiblock.binding.LaneCandidate(
                         new com.moakiee.ae2lt.packaged.logic.multiblock.binding.LaneKey.FaceLane(Direction.EAST),
-                        ec, ecBinding.handle(), com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode.VIRTUAL),
+                        boundedEc, ecBinding.handle(), com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode.VIRTUAL),
                 new com.moakiee.ae2lt.packaged.logic.multiblock.binding.LaneCandidate(
                         new com.moakiee.ae2lt.packaged.logic.multiblock.binding.LaneKey.FaceLane(Direction.UP),
                         broken, new Object(), com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode.VIRTUAL));

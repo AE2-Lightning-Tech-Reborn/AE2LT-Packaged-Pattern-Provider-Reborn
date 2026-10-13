@@ -89,17 +89,17 @@ public final class RefactorIntegrationGameTests {
                 })), commits::incrementAndGet);
         var result = DispatchExecutor.execute(plan, null, retained::addAll);
         helper.assertTrue(result.success(), "first accepted stack transfers dispatch ownership away from the CPU");
-        helper.assertTrue(retained.equals(stacks.subList(1, 3)) && calls.get() == 2 && commits.get() == 0,
-                "throwing and unvisited inputs are retained, without a completion callback or whole-input refund");
+        helper.assertTrue(retained.equals(stacks.subList(2, 3)) && calls.get() == 2 && commits.get() == 0,
+                "only unvisited input is retained; a throwing receipt cannot prove zero insertion");
         retained.clear();
         var rejected = new DispatchPlan(List.of(new TargetSlot(null, BlockPos.ZERO, null, stacks,
                 InsertionStrategy.CUSTOM, (stack, mode) -> {
                     if (mode == Actionable.SIMULATE) return stack.amount();
                     throw new IllegalStateException("injected failure before any input was accepted");
                 })), commits::incrementAndGet);
-        helper.assertTrue(DispatchExecutor.execute(rejected, null, retained::addAll).failure() && retained.isEmpty(),
-                "a failure before any transfer leaves all materials with the CPU and creates no duplicate refund");
-        System.out.println("PP_REFACTOR_DISPATCH_FAILURE_PASS accepted=10 retained=20+30 commits=0");
+        helper.assertTrue(DispatchExecutor.execute(rejected, null, retained::addAll).success() && retained.equals(stacks.subList(1, 3)),
+                "an unknown first receipt consumes ownership and retains only unvisited inputs");
+        System.out.println("PP_REFACTOR_DISPATCH_FAILURE_PASS accepted=10 unknown=20 retained=30 commits=0");
         helper.succeed();
     }
 
@@ -137,13 +137,15 @@ public final class RefactorIntegrationGameTests {
             var pattern = logic.getAvailablePatterns().getFirst();
             var counters = new KeyCounter[inputs.size()];
             for (int i = 0; i < inputs.size(); i++) { counters[i] = new KeyCounter(); counters[i].add(inputs.get(i).what(), inputs.get(i).amount()); }
-            helper.assertTrue(logic.getBatchCapacity(pattern) == 64, "batch lane recognized: " + target);
-            helper.assertTrue(logic.pushBatch(pattern, counters, 70) == 6, "64 copies accepted on " + target);
+            boolean unbounded = target.startsWith("avaritia:");
+            long accepted = unbounded ? 70 : 64;
+            helper.assertTrue(logic.getBatchCapacity(pattern) == (unbounded ? Long.MAX_VALUE : 64), "batch lane recognized: " + target);
+            helper.assertTrue(logic.pushBatch(pattern, counters, 70) == 70 - accepted, "expected copies accepted on " + target);
             for (int i = 0; i < counters.length; i++) helper.assertTrue(counters[i].get(inputs.get(i).what()) == inputs.get(i).amount(), "borrowed template unchanged");
             var owned = pendingOutputs(logic).snapshot();
-            helper.assertTrue(owned.contains(new GenericStack(output.what(), 64 * output.amount())), "exact batch output for " + target);
-            if (buckets) helper.assertTrue(owned.contains(item("minecraft:bucket", 64)), "Avaritia returns 64 native container remainders");
-            System.out.println("PP_REFACTOR_VIRTUAL_PASS target=" + target + " accepted=64 leftover=6 containers=" + buckets);
+            helper.assertTrue(owned.contains(new GenericStack(output.what(), accepted * output.amount())), "exact batch output for " + target);
+            if (buckets) helper.assertTrue(owned.contains(item("minecraft:bucket", accepted)), "Avaritia returns exact native container remainders");
+            System.out.println("PP_REFACTOR_VIRTUAL_PASS target=" + target + " accepted=" + accepted + " leftover=" + (70 - accepted) + " containers=" + buckets);
             helper.succeed();
         });
     }

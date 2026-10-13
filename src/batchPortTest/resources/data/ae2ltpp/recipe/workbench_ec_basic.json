@@ -1,0 +1,15 @@
+{
+  "type": "extendedcrafting:shaped_table",
+  "tier": 1,
+  "pattern": [
+    "MI"
+  ],
+  "key": {
+    "M": "minecraft:milk_bucket",
+    "I": "minecraft:iron_ingot"
+  },
+  "result": {
+    "id": "minecraft:diamond",
+    "count": 1
+  }
+}
