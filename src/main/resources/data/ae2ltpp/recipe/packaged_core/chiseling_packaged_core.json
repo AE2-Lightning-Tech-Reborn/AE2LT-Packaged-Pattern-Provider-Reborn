@@ -1,0 +1,31 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "ae2ltpp:basic_packaged_core",
+    "#ae2ltpp:chisel_tools"
+  ],
+  "result": {
+    "id": "ae2ltpp:chiseling_packaged_core",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:or",
+      "values": [
+        {
+          "type": "neoforge:mod_loaded",
+          "modid": "chipped"
+        },
+        {
+          "type": "neoforge:mod_loaded",
+          "modid": "rechiseled"
+        },
+        {
+          "type": "neoforge:mod_loaded",
+          "modid": "chisel"
+        }
+      ]
+    }
+  ]
+}

@@ -40,5 +40,8 @@
   "item.ae2ltpp.avaritia_end_table_packaged_core": "终末工作台封包核心",
   "item.ae2ltpp.avaritia_extreme_table_packaged_core": "终焉工作台封包核心",
   "item.ae2ltpp.avaritia_extreme_smithing_packaged_core": "终焉锻造台封包核心",
-  "tooltip.ae2ltpp.packaged_core.covers": "向下兼容 %s 种封包核心"
+  "tooltip.ae2ltpp.packaged_core.covers": "向下兼容 %s 种封包核心",
+  "item.ae2ltpp.chiseling_packaged_core": "凿子封包核心",
+  "ae2ltpp.connector.core_required": "请先插入封包核心，再连接目标。",
+  "ae2ltpp.connector.core_mismatch": "当前封包核心不支持连接此目标。"
 }

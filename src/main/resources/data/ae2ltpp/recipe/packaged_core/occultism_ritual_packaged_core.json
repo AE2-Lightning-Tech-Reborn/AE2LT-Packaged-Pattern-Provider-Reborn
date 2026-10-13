@@ -1,21 +1,11 @@
 {
-  "neoforge:conditions": [
-    {
-      "type": "neoforge:mod_loaded",
-      "modid": "occultism"
-    }
-  ],
   "type": "occultism:ritual",
   "ritual_type": "occultism:craft",
-  "pentacle_id": "occultism:craft_djinni",
+  "pentacle_id": "occultism:craft_foliot",
   "duration": 60,
   "activation_item": "ae2ltpp:basic_packaged_core",
   "ingredients": [
     "occultism:spirit_attuned_gem",
-    "occultism:spirit_attuned_gem",
-    "occultism:spirit_attuned_gem",
-    "occultism:spirit_attuned_gem",
-    "occultism:otherstone",
     "occultism:otherstone",
     "occultism:otherstone",
     "occultism:otherstone"
@@ -27,5 +17,11 @@
   "result": {
     "id": "ae2ltpp:occultism_ritual_packaged_core",
     "count": 1
-  }
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "occultism"
+    }
+  ]
 }

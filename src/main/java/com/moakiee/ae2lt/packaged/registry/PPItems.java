@@ -170,6 +170,9 @@ public final class PPItems {
                     AdapterIds.AVARITIA_EXTREME_SMITHING,
                     Set.of(AdapterIds.AVARITIA_EXTREME_SMITHING));
 
+    public static final DeferredItem<MultiblockAdapterItem> CHISELING_ADAPTER =
+            registerPackagedCore("chiseling_packaged_core", AdapterIds.CHISELING, Set.of(AdapterIds.CHISELING));
+
     // ===== Crafting intermediates =====
 
     /** Generic crafting base for the per-machine packaged cores. */

@@ -1,25 +1,25 @@
 {
+  "type": "extendedcrafting:combination",
+  "power_cost": 100000,
+  "input": "ae2ltpp:basic_packaged_core",
+  "ingredients": [
+    "extendedcrafting:black_iron_ingot",
+    "extendedcrafting:black_iron_ingot",
+    "extendedcrafting:black_iron_ingot",
+    "extendedcrafting:black_iron_ingot",
+    "extendedcrafting:luminessence",
+    "extendedcrafting:luminessence",
+    "extendedcrafting:luminessence",
+    "extendedcrafting:luminessence"
+  ],
+  "result": {
+    "id": "ae2ltpp:ec_combination_packaged_core",
+    "count": 1
+  },
   "neoforge:conditions": [
     {
       "type": "neoforge:mod_loaded",
       "modid": "extendedcrafting"
     }
-  ],
-  "type": "extendedcrafting:combination",
-  "power_cost": 1000000,
-  "input": "ae2ltpp:basic_packaged_core",
-  "ingredients": [
-    "extendedcrafting:crystaltine_ingot",
-    "extendedcrafting:crystaltine_ingot",
-    "extendedcrafting:crystaltine_ingot",
-    "extendedcrafting:crystaltine_ingot",
-    "extendedcrafting:enhanced_ender_ingot",
-    "extendedcrafting:enhanced_ender_ingot",
-    "extendedcrafting:enhanced_ender_ingot",
-    "extendedcrafting:enhanced_ender_ingot"
-  ],
-  "result": {
-    "id": "ae2ltpp:ec_combination_packaged_core",
-    "count": 1
-  }
+  ]
 }

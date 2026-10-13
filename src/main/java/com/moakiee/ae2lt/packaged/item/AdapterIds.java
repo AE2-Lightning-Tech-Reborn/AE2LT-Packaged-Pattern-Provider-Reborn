@@ -98,6 +98,14 @@ public final class AdapterIds {
     public static final Identifier AVARITIA_EXTREME_SMITHING =
             id("avaritia/extreme_smithing_packaged_core");
 
+    public static final Identifier CHISELING = id("chiseling/conversion_packaged_core");
+
+    public static final Identifier RECHISELED = id("rechiseled/chiseling_packaged_core");
+
+    public static final Identifier CHISEL = id("chisel/chiseling_packaged_core");
+
+    public static final Identifier CHIPPED = id("chipped/workbench_packaged_core");
+
     private static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(AE2LTPackagedProvider.MODID, path);
     }

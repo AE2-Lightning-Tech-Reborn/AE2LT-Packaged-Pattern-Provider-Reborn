@@ -1,12 +1,6 @@
 {
-  "neoforge:conditions": [
-    {
-      "type": "neoforge:mod_loaded",
-      "modid": "extendedcrafting"
-    }
-  ],
   "type": "extendedcrafting:shaped_flux_crafter",
-  "power_required": 500000,
+  "power_required": 50000,
   "power_rate": 1000,
   "pattern": [
     "RFR",
@@ -14,12 +8,18 @@
     "RFR"
   ],
   "key": {
-    "R": "extendedcrafting:enhanced_redstone_ingot",
-    "F": "extendedcrafting:flux_star",
+    "R": "extendedcrafting:redstone_ingot",
+    "F": "ae2:certus_quartz_crystal",
     "C": "ae2ltpp:basic_packaged_core"
   },
   "result": {
     "id": "ae2ltpp:ec_flux_crafter_packaged_core",
     "count": 1
-  }
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "extendedcrafting"
+    }
+  ]
 }

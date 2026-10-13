@@ -12,9 +12,19 @@ final class PackagedCoreItemRenderer {
 
     static Optional<ItemStack> targetStack(ItemStack stack) {
         for (var definition : PackagedCoreDefinition.all()) {
-            if (!stack.is(definition.runtimeItem().get())) continue;
-            var item = BuiltInRegistries.ITEM.getValue(definition.targetItemId());
-            if (item == null || item == Items.AIR) return Optional.empty();
+            if (!stack.is(definition.runtimeItem().get())) {
+                continue;
+            }
+
+            var id = definition.displayItemId();
+            if (!BuiltInRegistries.ITEM.containsKey(id)) {
+                return Optional.empty();
+            }
+
+            var item = BuiltInRegistries.ITEM.getValue(id);
+            if (item == null || item == Items.AIR) {
+                return Optional.empty();
+            }
             return Optional.of(new ItemStack(item));
         }
         return Optional.empty();

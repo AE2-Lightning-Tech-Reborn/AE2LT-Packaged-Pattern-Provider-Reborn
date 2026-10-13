@@ -1,10 +1,4 @@
 {
-  "neoforge:conditions": [
-    {
-      "type": "neoforge:mod_loaded",
-      "modid": "extendedcrafting"
-    }
-  ],
   "type": "extendedcrafting:shaped_ender_crafter",
   "crafting_time": 200,
   "pattern": [
@@ -13,12 +7,18 @@
     "ESE"
   ],
   "key": {
-    "E": "extendedcrafting:enhanced_ender_ingot",
-    "S": "extendedcrafting:ender_star",
+    "E": "extendedcrafting:ender_ingot",
+    "S": "minecraft:ender_pearl",
     "C": "ae2ltpp:basic_packaged_core"
   },
   "result": {
     "id": "ae2ltpp:ec_ender_crafter_packaged_core",
     "count": 1
-  }
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "extendedcrafting"
+    }
+  ]
 }

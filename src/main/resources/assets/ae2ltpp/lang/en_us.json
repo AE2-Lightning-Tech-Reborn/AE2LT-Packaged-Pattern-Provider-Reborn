@@ -39,5 +39,8 @@
   "item.ae2ltpp.avaritia_end_table_packaged_core": "End Crafting Table Packaged Core",
   "item.ae2ltpp.avaritia_extreme_table_packaged_core": "Extreme Crafting Table Packaged Core",
   "item.ae2ltpp.avaritia_extreme_smithing_packaged_core": "Extreme Smithing Table Packaged Core",
-  "tooltip.ae2ltpp.packaged_core.covers": "Covers %s packaged cores"
+  "tooltip.ae2ltpp.packaged_core.covers": "Covers %s packaged cores",
+  "item.ae2ltpp.chiseling_packaged_core": "Chiseling Packaged Core",
+  "ae2ltpp.connector.core_required": "Insert a Packaged Core before linking a target.",
+  "ae2ltpp.connector.core_mismatch": "The installed Packaged Core cannot link to this target."
 }

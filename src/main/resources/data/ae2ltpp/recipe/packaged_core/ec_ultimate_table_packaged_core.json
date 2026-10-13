@@ -1,33 +1,25 @@
 {
-  "neoforge:conditions": [
-    {
-      "type": "neoforge:mod_loaded",
-      "modid": "extendedcrafting"
-    }
-  ],
   "type": "extendedcrafting:shaped_table",
   "tier": 4,
   "pattern": [
-    "KEKEKEKEK",
-    "ELLLLLLLE",
-    "KLEEEEELK",
-    "ELEUXUELE",
-    "KLEXCXELK",
-    "ELEUXUELE",
-    "KLEEEEELK",
-    "ELLLLLLLE",
-    "KEKEKEKEK"
+    "LTL",
+    "BCB",
+    "LTL"
   ],
   "key": {
-    "K": "extendedcrafting:crystaltine_ingot",
-    "E": "extendedcrafting:enhanced_ender_ingot",
     "L": "extendedcrafting:luminessence",
-    "U": "extendedcrafting:ultimate_catalyst",
-    "X": "extendedcrafting:crystaltine_catalyst",
+    "T": "extendedcrafting:ultimate_component",
+    "B": "extendedcrafting:black_iron_ingot",
     "C": "ae2ltpp:basic_packaged_core"
   },
   "result": {
     "id": "ae2ltpp:ec_ultimate_table_packaged_core",
     "count": 1
-  }
+  },
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "extendedcrafting"
+    }
+  ]
 }
