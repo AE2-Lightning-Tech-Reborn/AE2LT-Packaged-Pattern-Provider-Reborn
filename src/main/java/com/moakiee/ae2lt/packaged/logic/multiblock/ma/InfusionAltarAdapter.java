@@ -1,5 +1,8 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.ma;
 
+import net.neoforged.neoforge.items.IItemHandler;
+import java.util.function.Consumer;
+import com.moakiee.ae2lt.packaged.logic.multiblock.AcceptedInsertion;
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.security.IActionSource;
@@ -160,7 +163,8 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
                     pedestalInserter(level, pedestalPos, unit)));
         }
 
-        return new DispatchPlan(List.copyOf(targets), () -> InfusionAltarAccess.activate(level, mainPos));
+        return new DispatchPlan(List.copyOf(targets), () -> InfusionAltarAccess.activateOrThrow(level, mainPos),
+                (accepted, recovered) -> recoverUnstartedDispatch(level, mainPos, targets, accepted, recovered));
     }
 
     @Override
@@ -442,4 +446,66 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
     private record InfusionBindHandle(Object recipe) {
     }
 
+    private static void recoverUnstartedDispatch(
+            ServerLevel level,
+            BlockPos mainPos,
+            List<TargetSlot> targets,
+            List<AcceptedInsertion> acceptedInsertions,
+            Consumer<GenericStack> recovered) {
+        var altar = level.getBlockEntity(mainPos);
+        if (altar == null || !InfusionAltarAccess.isDefinitelyInactive(altar)) {
+            return;
+        }
+        for (var accepted : acceptedInsertions) {
+            int targetIndex = targets.indexOf(accepted.target());
+            if (targetIndex < 0) {
+                continue;
+            }
+            var be = level.getBlockEntity(accepted.target().pos());
+            boolean expectedTarget = be != null && (targetIndex == 0
+                    ? blockId(be.getBlockState()).equals(ALTAR_BLOCK)
+                            && InfusionAltarAccess.isInfusionAltar(be)
+                    : blockId(be.getBlockState()).equals(PEDESTAL_BLOCK)
+                            && InfusionAltarAccess.isInfusionPedestal(be));
+            if (!expectedTarget) {
+                continue;
+            }
+            var stack = recoverExactInsertion(
+                    CucumberInventoryAccess.get(be), 0, accepted.stack());
+            if (stack != null) {
+                recovered.accept(stack);
+            }
+        }
+    }
+
+    @Nullable
+    private static GenericStack recoverExactInsertion(
+            @Nullable IItemHandler inventory, int slot, GenericStack accepted) {
+        if (inventory == null
+                || slot < 0
+                || slot >= inventory.getSlots()
+                || !(accepted.what() instanceof AEItemKey expectedKey)
+                || accepted.amount() <= 0
+                || accepted.amount() > Integer.MAX_VALUE) {
+            return null;
+        }
+        var current = inventory.getStackInSlot(slot);
+        var expected = expectedKey.toStack((int) accepted.amount());
+        if (current.isEmpty()
+                || current.getCount() != expected.getCount()
+                || !ItemStack.isSameItemSameComponents(current, expected)) {
+            return null;
+        }
+        var simulated = inventory.extractItem(slot, current.getCount(), true);
+        if (simulated.isEmpty()
+                || simulated.getCount() != current.getCount()
+                || !ItemStack.isSameItemSameComponents(simulated, current)) {
+            return null;
+        }
+        var extracted = inventory.extractItem(slot, current.getCount(), false);
+        if (extracted.isEmpty() || !ItemStack.isSameItemSameComponents(extracted, current)) {
+            return null;
+        }
+        return new GenericStack(AEItemKey.of(extracted), extracted.getCount());
+    }
 }

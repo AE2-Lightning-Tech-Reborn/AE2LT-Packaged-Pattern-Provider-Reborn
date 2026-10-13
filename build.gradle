@@ -97,6 +97,9 @@ def thunderboltJarFile = thunderboltJarPath != null && !thunderboltJarPath.isBla
 def portOptionalMods = providers.gradleProperty('port_optional_mods').orElse('').get()
         .split(',').collect { it.trim() }.findAll { !it.isBlank() }
 
+def portOptionalJars = providers.gradleProperty('port_optional_jars').orElse('').get()
+        .split(',').collect { it.trim() }.findAll { !it.isBlank() }
+
 neoForge {
     // Specify the version of NeoForge to use.
     version = project.neo_version
@@ -201,7 +204,7 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
     testImplementation "org.mockito:mockito-core:5.20.0"
     // Exercise the reflection contract against the native 26.1 optional mods.
-    testRuntimeOnly "maven.modrinth:5JMG1gql:JNqZA1Du" // Extended Crafting 8.0.2
+    testRuntimeOnly "maven.modrinth:5JMG1gql:soXMrjKe" // Extended Crafting 8.0.3
     testRuntimeOnly "maven.modrinth:Rw1NrDzF:ZkLAGLIj" // Cucumber 9.0.6
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 
@@ -244,6 +247,7 @@ dependencies {
     runtimeOnly "org.appliedenergistics:guideme:${guideme_version}"
     // Recipe viewers are optional and can be supplied through port_optional_mods.
     portOptionalMods.each { runtimeOnly it }
+    portOptionalJars.each { runtimeOnly files(it) }
 }
 
 // Provider persistence tests exercise real Minecraft NBT and registry types,

@@ -7,7 +7,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
-import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -32,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Virtual adapter for Re-Avaritia's Extreme Smithing Table.
  */
-public final class AvaritiaExtremeSmithingAdapter implements LinearVirtualCraftingAdapter {
+public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCraftingAdapter {
 
     private static final String MOD_ID = "avaritia";
     private static final Identifier EXTREME_SMITHING_BLOCK = avaritiaId("extreme_smithing_table");

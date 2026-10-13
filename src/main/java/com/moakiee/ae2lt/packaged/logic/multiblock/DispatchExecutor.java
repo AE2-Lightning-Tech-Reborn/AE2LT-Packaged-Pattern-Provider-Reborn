@@ -1,15 +1,18 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderTarget;
+
 import com.moakiee.ae2lt.packaged.logic.DispatchResult;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class DispatchExecutor {
 
@@ -18,95 +21,237 @@ public final class DispatchExecutor {
     private DispatchExecutor() {
     }
 
-    public static DispatchResult<Void> execute(DispatchPlan plan,
-                                               IActionSource source,
-                                               Consumer<List<GenericStack>> retainUndelivered) {
+    /** The sink must take ownership before returning and must not throw after accepting inputs. */
+    public static DispatchResult<Void> execute(DispatchPlan plan, IActionSource source,
+            java.util.function.Consumer<List<GenericStack>> retainUndelivered) {
+        if (retainUndelivered == null) return DispatchResult.failure("Dispatch retention sink was unavailable.");
+        return executeInternal(plan, source, stack -> retainUndelivered.accept(List.of(stack)));
+    }
+
+    private static DispatchResult<Void> executeInternal(DispatchPlan plan, IActionSource source,
+            java.util.function.Consumer<GenericStack> retain) {
+        if (plan == null) {
+            return DispatchResult.failure("Dispatch plan or retention sink was unavailable.");
+        }
         var targets = plan.targets();
-        if (targets.isEmpty()) {
+        if (targets == null || targets.isEmpty()) {
             LOG.debug("Dispatch skipped: plan contained no insertion targets.");
             return DispatchResult.failure("Dispatch plan contained no insertion targets.");
         }
 
-        // Simulation is a preflight, not a reservation: the real insert may accept less.
-        // Simulate first so the caller can fall over to the next
-        // lane candidate cleanly if any target rejects the plan. Logging the
-        // rejection reason is intentional - it makes "why did the provider
-        // skip this lane this tick?" investigable without a debugger.
         for (var target : targets) {
-            var simulation = simulateTarget(target, source);
+            if (target == null || target.stacks() == null || target.stacks().isEmpty()) {
+                return DispatchResult.failure("Dispatch plan contained an invalid insertion target.");
+            }
+            DispatchResult<Void> simulation;
+            try {
+                simulation = simulateTarget(target, source);
+            } catch (RuntimeException | LinkageError e) {
+                LOG.warn("Dispatch simulation failed at {}; refusing to modulate input",
+                        target == null ? "<null>" : target.pos(), e);
+                return DispatchResult.failure("Target simulation failed before input was committed.");
+            }
             if (simulation.failure()) {
                 return simulation;
             }
         }
 
         boolean acceptedAny = false;
+        boolean partial = false;
+        boolean modulationFailed = false;
+        var acceptedInsertions = new ArrayList<AcceptedInsertion>();
+        var undelivered = new ArrayList<GenericStack>();
         for (int targetIndex = 0; targetIndex < targets.size(); targetIndex++) {
             var target = targets.get(targetIndex);
+            PatternProviderTarget resolved;
+            try {
+                resolved = resolveStandardTarget(target, source);
+            } catch (RuntimeException | LinkageError e) {
+                modulationFailed = true;
+                partial = true;
+                LOG.warn("Dispatch target resolution failed at {}; nothing of this target was attempted",
+                        target.pos(), e);
+                // No insertion of this target was attempted, so every stack
+                // that was never reached stays with the caller.
+                addRemainingResiduals(undelivered, targets, targetIndex, 0);
+                break;
+            }
             for (int stackIndex = 0; stackIndex < target.stacks().size(); stackIndex++) {
                 var stack = target.stacks().get(stackIndex);
                 long accepted;
                 try {
-                    accepted = insertOne(target, stack, Actionable.MODULATE, source);
+                    accepted = insertOne(target, stack, Actionable.MODULATE, resolved);
                     if (accepted < 0 || accepted > stack.amount()) {
-                        throw new IllegalStateException("Invalid adapter insertion receipt: " + accepted);
+                        throw new IllegalStateException("Invalid insertion receipt: " + accepted);
                     }
-                } catch (RuntimeException | LinkageError failure) {
-                    // A throwing or invalid receipt does not prove that the machine accepted
-                    // zero. Consume ownership of this unknown input and retain only the tail
-                    // that was never attempted; failure would let AE2 refund the whole plan.
-                    retainUndelivered.accept(remainingInputs(targets, targetIndex, stackIndex, stack.amount()));
-                    LOG.error("Dispatch stopped at {}; current input ownership is unknown; retained only unvisited inputs",
-                            target.pos(), failure);
-                    return DispatchResult.success(null);
+                } catch (RuntimeException | LinkageError e) {
+                    modulationFailed = true;
+                    partial = true;
+                    LOG.warn("Dispatch modulation failed at {}; ownership of {} x{} is unknown; compensating only prior confirmed insertions",
+                            target.pos(), stack.what(), stack.amount(), e);
+                    // The throwing call may already have inserted some or all of this
+                    // stack. Only inputs not attempted after it are known undelivered.
+                    addRemainingResiduals(undelivered, targets, targetIndex, stackIndex + 1);
+                    break;
                 }
-                acceptedAny |= accepted > 0;
+                if (accepted > 0) {
+                    acceptedAny = true;
+                    acceptedInsertions.add(new AcceptedInsertion(
+                            target,
+                            new GenericStack(stack.what(), accepted)));
+                }
                 if (accepted < stack.amount()) {
-                    if (!acceptedAny) {
-                        return DispatchResult.failure("Target at " + target.pos() + " rejected the dispatch.");
+                    partial = true;
+                    addResidual(undelivered, stack.what(), stack.amount() - accepted);
+                    addRemainingResiduals(undelivered, targets, targetIndex, stackIndex + 1);
+                    break;
+                }
+            }
+            if (partial) {
+                break;
+            }
+        }
+
+        boolean commitFailed = modulationFailed;
+        if (!partial) {
+            try {
+                if (plan.onCommit() != null) {
+                    plan.onCommit().run();
+                }
+                return DispatchResult.success(null);
+            } catch (RuntimeException | LinkageError e) {
+                commitFailed = true;
+                LOG.warn("Dispatch commit was not confirmed; attempting exact compensation: {}",
+                        e.toString());
+            }
+        }
+
+        // Only a confirmed rejection leaves every input with the caller. A
+        // throwing first insertion has unknown effects and cannot allow a refund.
+        if (!acceptedAny && !modulationFailed) {
+            return DispatchResult.failure("Target rejected input during modulation.");
+        }
+
+        var acceptedByKey = new java.util.LinkedHashMap<appeng.api.stacks.AEKey, Long>();
+        for (var insertion : acceptedInsertions) {
+            addAmount(acceptedByKey, insertion.stack().what(), insertion.stack().amount());
+        }
+        var recoveredByKey = new java.util.LinkedHashMap<appeng.api.stacks.AEKey, Long>();
+        boolean compensationFailed = false;
+        if (acceptedAny && plan.onPartialCommit() != null) {
+            try {
+                plan.onPartialCommit().recover(List.copyOf(acceptedInsertions), stack -> {
+                    if (stack == null || stack.what() == null || stack.amount() <= 0) {
+                        return;
                     }
-                    // AE2 must not retry the full inputs after any amount has
-                    // entered a machine. Own ALL remaining inputs, including
-                    // stacks and targets that have not yet been visited.
-                    var remaining = remainingInputs(targets, targetIndex, stackIndex, accepted);
-                    retainUndelivered.accept(remaining);
-                    LOG.warn("Partial dispatch at {}; retained {} undelivered stacks. "
-                            + "The incomplete machine input may need recovery.", target.pos(), remaining.size());
-                    // onCommit belongs only to a fully populated machine.
-                    return DispatchResult.success(null);
+                    long accepted = acceptedByKey.getOrDefault(stack.what(), 0L);
+                    long alreadyRecovered = recoveredByKey.getOrDefault(stack.what(), 0L);
+                    long remaining = accepted - Math.min(accepted, alreadyRecovered);
+                    long recoverable = Math.min(stack.amount(), Math.max(0L, remaining));
+                    if (recoverable > 0) {
+                        // Record each confirmation before recovery can fail on a later stack.
+                        addAmount(recoveredByKey, stack.what(), recoverable);
+                    }
+                });
+            } catch (RuntimeException | LinkageError e) {
+                compensationFailed = true;
+                LOG.warn("Dispatch compensation failed; retaining accepted inputs", e);
+            }
+        } else if (acceptedAny) {
+            compensationFailed = true;
+            LOG.warn("Dispatch compensation unavailable; retaining accepted inputs");
+        }
+
+        // AE2 retains the complete input holder. Only a confirmed full rollback
+        // of a failed commit may hand ownership back without also retaining inputs.
+        // A throwing modulation has unknown effects, even if prior insertions recover.
+        if (commitFailed && !modulationFailed && !compensationFailed
+                && acceptedByKey.equals(recoveredByKey)) {
+            return DispatchResult.failure("Dispatch commit failed; all accepted inputs were recovered.");
+        }
+
+        for (var entry : recoveredByKey.entrySet()) {
+            retain.accept(new GenericStack(entry.getKey(), entry.getValue()));
+        }
+
+        // Do not synthesize recovery for amounts the callback did not confirm
+        // removing. Those stacks may still be in the target; returning them here
+        // would duplicate inputs. Keep the target-owned remainder in place and
+        // make the uncertainty visible in the log instead.
+        if (commitFailed) {
+            for (var entry : acceptedByKey.entrySet()) {
+                long recovered = recoveredByKey.getOrDefault(entry.getKey(), 0L);
+                long missing = entry.getValue() - Math.min(entry.getValue(), recovered);
+                if (missing > 0) {
+                    LOG.warn("Dispatch compensation could not confirm {} x{} for {}",
+                            entry.getKey(), missing, entry.getKey());
                 }
             }
         }
 
-        if (plan.onCommit() != null) {
-            try {
-                plan.onCommit().run();
-            } catch (RuntimeException | LinkageError failure) {
-                // The inputs have already been transferred. Returning failure
-                // (or throwing into AE2) would allow the CPU to refund them again.
-                LOG.error("Dispatch completed, but its machine completion hook failed", failure);
-            }
+        for (var stack : undelivered) {
+            retain.accept(stack);
         }
+        if (commitFailed) {
+            LOG.warn("Dispatch commit or modulation failed; {} recovered key(s) and {} undelivered stack(s) were routed to retention",
+                    recoveredByKey.size(), undelivered.size());
+        } else {
+            LOG.warn("Dispatch race: {} input stack(s) were partially committed; all residuals were routed to retention",
+                    undelivered.size());
+        }
+        // Without a confirmed full rollback of a failed commit, report success.
+        // Returning failure would refund AE2's complete input holder and duplicate
+        // inputs still owned by targets or already routed to retention.
         return DispatchResult.success(null);
     }
 
-    private static List<GenericStack> remainingInputs(List<TargetSlot> targets, int targetIndex,
-            int stackIndex, long accepted) {
+    private static void addResidual(List<GenericStack> residuals, appeng.api.stacks.AEKey what, long amount) {
+        if (what == null || amount <= 0) {
+            return;
+        }
+        residuals.add(new GenericStack(what, amount));
+    }
+
+    private static void addRemainingResiduals(List<GenericStack> residuals,
+                                              List<TargetSlot> targets,
+                                              int targetIndex,
+                                              int firstStackIndex) {
+        if (targetIndex < 0 || targetIndex >= targets.size()) {
+            return;
+        }
         var target = targets.get(targetIndex);
-        var stack = target.stacks().get(stackIndex);
-        var remaining = new ArrayList<GenericStack>();
-        if (accepted < stack.amount()) {
-            remaining.add(new GenericStack(stack.what(), stack.amount() - accepted));
+        for (int i = firstStackIndex; i < target.stacks().size(); i++) {
+            var remaining = target.stacks().get(i);
+            addResidual(residuals, remaining.what(), remaining.amount());
         }
-        remaining.addAll(target.stacks().subList(stackIndex + 1, target.stacks().size()));
-        for (int next = targetIndex + 1; next < targets.size(); next++) {
-            remaining.addAll(targets.get(next).stacks());
+        for (int i = targetIndex + 1; i < targets.size(); i++) {
+            for (var remaining : targets.get(i).stacks()) {
+                addResidual(residuals, remaining.what(), remaining.amount());
+            }
         }
-        return List.copyOf(remaining);
+    }
+
+    private static void addAmount(
+            java.util.Map<appeng.api.stacks.AEKey, Long> amounts,
+            appeng.api.stacks.AEKey key,
+            long amount) {
+        if (key == null || amount <= 0) {
+            return;
+        }
+        var previous = amounts.get(key);
+        long merged;
+        try {
+            merged = previous == null ? amount : Math.addExact(previous, amount);
+        } catch (ArithmeticException overflow) {
+            merged = Long.MAX_VALUE;
+        }
+        amounts.put(key, merged);
     }
 
     private static DispatchResult<Void> simulateTarget(TargetSlot target, IActionSource source) {
+        var resolved = resolveStandardTarget(target, source);
         for (var stack : target.stacks()) {
-            long accepted = insertOne(target, stack, Actionable.SIMULATE, source);
+            long accepted = insertOne(target, stack, Actionable.SIMULATE, resolved);
             if (accepted < stack.amount()) {
                 LOG.debug("Dispatch simulation rejected at {}: {} x{} (only {} would fit)",
                         target.pos(), stack.what(), stack.amount(), accepted);
@@ -118,20 +263,31 @@ public final class DispatchExecutor {
         return DispatchResult.success(null);
     }
 
+    /**
+     * Resolves the standard insertion facade once per target and phase
+     * instead of once per stack. The returned view is only reused within
+     * the calling phase of a single dispatch; nothing yields control in
+     * between, so the resolved capability cannot go stale concurrently.
+     */
+    @Nullable
+    private static PatternProviderTarget resolveStandardTarget(TargetSlot target,
+                                                               IActionSource source) {
+        if (target.strategy() != InsertionStrategy.STANDARD) {
+            return null;
+        }
+        var be = target.level().getBlockEntity(target.pos());
+        if (be == null) {
+            return null;
+        }
+        return PatternProviderTarget.get(target.level(), target.pos(), be, target.face(), source);
+    }
+
     private static long insertOne(TargetSlot target, GenericStack stack,
-                                  Actionable mode, IActionSource source) {
+                                  Actionable mode, @Nullable PatternProviderTarget resolved) {
         return switch (target.strategy()) {
-            case STANDARD -> {
-                var be = target.level().getBlockEntity(target.pos());
-                if (be == null) {
-                    yield 0L;
-                }
-                var ppt = PatternProviderTarget.get(target.level(), target.pos(), be, target.face(), source);
-                if (ppt == null) {
-                    yield 0L;
-                }
-                yield ppt.insert(stack.what(), stack.amount(), mode);
-            }
+            case STANDARD -> resolved == null
+                    ? 0L
+                    : resolved.insert(stack.what(), stack.amount(), mode);
             case CUSTOM -> {
                 if (target.customInserter() == null) {
                     yield 0L;

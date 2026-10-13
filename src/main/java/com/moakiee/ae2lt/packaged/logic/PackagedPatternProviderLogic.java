@@ -1,19 +1,20 @@
 package com.moakiee.ae2lt.packaged.logic;
 
 import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.ProviderInternalCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BatchCopies;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingBatchInputs;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.HashSet;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -66,14 +67,14 @@ import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderLogic;
  *   <li><b>Virtual batch accumulation.</b> Virtual adapters (no in-world delay)
  *       deposit outputs into {@link PendingOutputBuffer}; the buffer
  *       flushes every {@value PendingOutputBuffer#FLUSH_INTERVAL_TICKS} ticks.
- *       A {@link LaneRateLimiter} caps each lane at 64 pushes per tick.</li>
+ *       Workbench lanes follow the CPU copy budget; other virtual lanes use
+ *       a {@link LaneRateLimiter} capped at 64 pushes per tick.</li>
  *   <li><b>Real dispatch.</b> Per push: optionally return outputs, then run
  *       {@link MultiblockAdapter#canDispatch} &rarr; {@code planWithBinding}.
  *       Failures route the lane through {@link LaneCooldownTable}'s retry
- *       schedule (1, 2, 3, 4, 5, 8, 10, 20, 40, then every 40 ticks).</li>
- *   <li><b>Unified 20-tick auto-return.</b> Real lanes get pulled exactly once
- *       per 20 ticks; virtual lanes are skipped because they never store outputs
- *       in the world.</li>
+ *       schedule.</li>
+ *   <li><b>Auto-return.</b> Real lanes retain the 20-tick sweep and pre-dispatch collection.
+ *       Virtual lanes never store outputs in the world.</li>
  * </ul>
  */
 public class PackagedPatternProviderLogic extends StablePatternProviderLogic
@@ -83,7 +84,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     private static final int VIRTUAL_PUSH_CAP_PER_LANE_PER_TICK = 64;
     private static final String TAG_PENDING_OUTPUTS = "ae2ltpp_pending_outputs";
 
-    /** Auto-return polling interval for real-dispatch lanes. */
+    /** Output polling interval. */
     private static final int AUTO_RETURN_INTERVAL_TICKS = 20;
 
     private final NeighborMainBlockIndex neighborIndex;
@@ -100,7 +101,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     /** Round-robin cursor across real candidates within a single binding. */
     private int realPushRoundRobin;
 
-    /** Last server tick at which {@link #runAutoReturnTick} executed; -MIN forces first run. */
+    /** Last regular discovery tick; MIN_VALUE forces first run. */
     private long lastAutoReturnTick = Long.MIN_VALUE;
 
     /**
@@ -128,12 +129,14 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     public void updatePatterns() {
         super.updatePatterns();
         bindingTable.invalidateAll();
+        lastAutoReturnTick = Long.MIN_VALUE;
     }
 
     @Override
     public void onNeighborChanged() {
         neighborIndex.invalidate();
         bindingTable.invalidateAll();
+        lastAutoReturnTick = Long.MIN_VALUE;
         cooldownTable.clear();
         super.onNeighborChanged();
     }
@@ -141,6 +144,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     @Override
     public void onHostStateChanged() {
         bindingTable.invalidateAll();
+        lastAutoReturnTick = Long.MIN_VALUE;
         pruneStaleLaneState();
         super.onHostStateChanged();
     }
@@ -151,6 +155,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
      */
     public void onRecipesReloaded() {
         bindingTable.invalidateAll();
+        lastAutoReturnTick = Long.MIN_VALUE;
     }
 
     /**
@@ -161,6 +166,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
      */
     public void onAdapterSlotChanged() {
         bindingTable.invalidateAll();
+        lastAutoReturnTick = Long.MIN_VALUE;
         cooldownTable.clear();
     }
 
@@ -204,12 +210,14 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         boolean ordinary = false;
         for (var candidate : binding.candidates()) {
             if (candidate.mode() == BindingMode.VIRTUAL && candidate.adapter() instanceof LinearVirtualCraftingAdapter) {
+                if (candidate.adapter() instanceof UnboundedVirtualCraftingAdapter) return Long.MAX_VALUE;
                 capacity += virtualPushLimiter.remaining(candidate.lane(), tick);
             } else if (candidate.mode() == BindingMode.REAL && candidate.adapter() instanceof InputBatchCraftingAdapter) {
                 var env = resolveLaneEnv(level, candidate);
-                if (env != null && cooldownTable.isReady(candidate.lane(), tick)
-                        && candidate.adapter().canDispatch(env.level(), env.pos(), candidate.handle())) {
-                    capacity += inputBatchLimiter.remaining(candidate.lane(), tick);
+                if (env != null && cooldownTable.isReady(candidate.lane(), tick)) {
+                    if (candidate.adapter().canDispatch(env.level(), env.pos(), candidate.handle())) {
+                        capacity += inputBatchLimiter.remaining(candidate.lane(), tick);
+                    } else cooldownTable.recordFailure(candidate.lane(), tick);
                 }
             } else ordinary = true;
         }
@@ -234,22 +242,26 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                 if (remaining <= 0 || pendingBatchInputs.hasPending()) break;
                 var env = resolveLaneEnv(level, candidate);
                 if (env == null) continue;
-                int accepted = 0;
+                long accepted = 0;
                 if (candidate.mode() == BindingMode.VIRTUAL
                         && candidate.adapter() instanceof LinearVirtualCraftingAdapter adapter) {
-                    int maximum = (int) Math.min(remaining, virtualPushLimiter.remaining(candidate.lane(), tick));
-                    int copies = BatchCopies.fitting(maximum,
-                            n -> PatternProviderPowerCost.canAfford(grid, oneCopyCost * n));
-                    if (copies <= 0) continue;
+                    boolean unbounded = adapter instanceof UnboundedVirtualCraftingAdapter;
+                    long maximum = unbounded ? remaining
+                            : Math.min(remaining, virtualPushLimiter.remaining(candidate.lane(), tick));
+                    if (maximum <= 0 || !PatternProviderPowerCost.canAfford(grid, oneCopyCost)) continue;
                     // Only adapters explicitly promising pure, linear evaluation enter this path.
                     var result = adapter.planVirtualWithBinding(env.level(), env.pos(), pattern,
                             BatchCopies.copy(oneCopyTemplate), candidate.handle(), getActionSource());
                     if (result == null || result.outputs().isEmpty()) continue;
+                    maximum = Math.min(maximum, BatchCopies.maxScalableCopies(result.outputs()));
+                    long copies = BatchCopies.fittingLong(maximum,
+                            n -> PatternProviderPowerCost.canAfford(grid, oneCopyCost * n));
+                    if (copies <= 0) continue;
                     List<GenericStack> outputs;
                     try { outputs = BatchCopies.scale(result.outputs(), copies); }
                     catch (ArithmeticException | IllegalArgumentException overflow) { continue; }
                     var soundId = adapter.flushSoundId();
-                    if (!virtualPushLimiter.tryAcquire(candidate.lane(), tick, copies)) continue;
+                    if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
                     pendingOutputs.enqueue(outputs);
                     remaining -= copies;
                     pendingFlushSoundId = soundId;
@@ -257,8 +269,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                     accepted = copies;
                 } else if (candidate.mode() == BindingMode.REAL
                         && candidate.adapter() instanceof InputBatchCraftingAdapter adapter) {
-                    if (!cooldownTable.isReady(candidate.lane(), tick)
-                            || !adapter.canDispatch(env.level(), env.pos(), candidate.handle())) continue;
+                    if (!cooldownTable.isReady(candidate.lane(), tick)) continue;
+                    if (!adapter.canDispatch(env.level(), env.pos(), candidate.handle())) {
+                        cooldownTable.recordFailure(candidate.lane(), tick);
+                        continue;
+                    }
                     if (getProviderHost().getReturnMode() == ReturnMode.AUTO) {
                         insertOutputsToReturnInv(adapter.extractOutputs(env.level(), env.pos(),
                                 getOrBuildOutputFilter(), getActionSource(), adapterScope()));
@@ -266,7 +281,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                     var plan = adapter.planWithBinding(env.level(), env.pos(), pattern,
                             BatchCopies.copy(oneCopyTemplate), candidate.handle(), getActionSource(), adapterScope());
                     var ports = PendingBatchInputs.prepare(plan, adapter);
-                    if (ports.isEmpty()) continue;
+                    if (ports.isEmpty()) {
+                        cooldownTable.recordFailure(candidate.lane(), tick);
+                        continue;
+                    }
                     int maximum = (int) Math.min(remaining, inputBatchLimiter.remaining(candidate.lane(), tick));
                     int copies = BatchCopies.fitting(maximum, n -> {
                         if (!PatternProviderPowerCost.canAfford(grid, oneCopyCost * n)) return false;
@@ -277,7 +295,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                             return true;
                         } catch (ArithmeticException overflow) { return false; }
                     });
-                    if (copies <= 0) continue;
+                    if (copies <= 0) {
+                        cooldownTable.recordFailure(candidate.lane(), tick);
+                        continue;
+                    }
                     if (!inputBatchLimiter.tryAcquire(candidate.lane(), tick, copies)) continue;
                     // Ownership transfers for the entire accepted batch. A MODULATE race cannot return
                     // a partial template to the CPU: persist every unfinished port and retry it instead.
@@ -342,6 +363,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         pendingOutputs.readFromNBT(tag.getListOrEmpty(outputsTag), registries);
         virtualPushLimiter.clear();
         inputBatchLimiter.clear();
+        lastAutoReturnTick = Long.MIN_VALUE;
         pendingFlushEffect = null;
         pendingFlushSoundId = null;
     }
@@ -365,6 +387,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         pendingBatchInputs.clear();
         virtualPushLimiter.clear();
         inputBatchLimiter.clear();
+        lastAutoReturnTick = Long.MIN_VALUE;
         pendingFlushEffect = null;
         pendingFlushSoundId = null;
     }
@@ -427,7 +450,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
             if (candidate.mode() != BindingMode.VIRTUAL) {
                 continue;
             }
-            if (!virtualPushLimiter.hasCapacity(candidate.lane(), gameTick)) {
+            boolean unbounded = candidate.adapter() instanceof UnboundedVirtualCraftingAdapter;
+            if (!unbounded && !virtualPushLimiter.hasCapacity(candidate.lane(), gameTick)) {
                 continue;
             }
 
@@ -446,7 +470,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                 continue;
             }
 
-            if (!virtualPushLimiter.tryAcquire(candidate.lane(), gameTick)) {
+            if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), gameTick)) {
                 continue;
             }
             enqueuePendingOutputs(result.outputs());
@@ -466,7 +490,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
 
     /**
      * Tries to dispatch one real candidate using the three-step flow:
-     * extract first, gate on {@code canDispatch}, then plan + execute.
+     * optionally extract, gate on {@code canDispatch}, then plan + execute.
      */
     private boolean tryRealDispatch(ServerLevel level, IPatternDetails pattern, KeyCounter[] inputs,
                                     PatternBinding binding, long gameTick) {
@@ -486,11 +510,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
             int idx = Math.floorMod(realPushRoundRobin + i, total);
             var candidate = realCandidates.get(idx);
 
-            if (!cooldownTable.isReady(candidate.lane(), gameTick)) {
-                continue;
-            }
-
             var env = resolveLaneEnv(level, candidate);
+            if (!cooldownTable.isReady(candidate.lane(), gameTick)) continue;
             if (env == null) {
                 cooldownTable.recordFailure(candidate.lane(), gameTick);
                 continue;
@@ -518,8 +539,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
             var plan = candidate.adapter().planWithBinding(
                     env.level(), env.pos(), pattern, inputs, candidate.handle(),
                     getActionSource(), adapterScope());
-            if (plan == null
-                    || !DispatchExecutor.execute(plan, getActionSource(), this::enqueuePendingOutputs).success()) {
+            boolean success = plan != null && DispatchExecutor.execute(plan, getActionSource(), this::enqueuePendingOutputs).success();
+            if (!success) {
                 cooldownTable.recordFailure(candidate.lane(), gameTick);
                 continue;
             }
@@ -655,6 +676,18 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         var mode = getProviderHost().getProviderMode();
         var installedCard = installedAdapterStack();
 
+        for (var adapter : MultiblockAdapterRegistry.activeAdapters()) {
+            if (!(adapter instanceof ProviderInternalCraftingAdapter internal)
+                    || !isAdapterUnlocked(adapter, level, getProviderHost().getBlockPos(), installedCard)) continue;
+            var result = adapter.bind(level, getProviderHost().getBlockPos(), pattern);
+            if (result != null && result.mode() == BindingMode.VIRTUAL) {
+                candidates.add(new LaneCandidate(new LaneKey.InternalLane(internal.internalLaneId()),
+                        adapter, result.handle(), result.mode()));
+                // One internal lane for the combined core, even when multiple mods offer this conversion.
+                break;
+            }
+        }
+
         if (mode == ProviderMode.NORMAL) {
             for (var face : neighborIndex.adapterFaces(level)) {
                 var adapter = neighborIndex.getAdapter(face);
@@ -709,6 +742,13 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     @Nullable
     private LaneEnv resolveLaneEnv(ServerLevel providerLevel, LaneCandidate candidate) {
         var lane = candidate.lane();
+        if (lane instanceof LaneKey.InternalLane internalLane) {
+            if (!(candidate.adapter() instanceof ProviderInternalCraftingAdapter internal)
+                    || !internal.internalLaneId().equals(internalLane.adapterId())
+                    || !isAdapterUnlocked(candidate.adapter(), providerLevel,
+                            getProviderHost().getBlockPos(), installedAdapterStack())) return null;
+            return new LaneEnv(providerLevel, getProviderHost().getBlockPos());
+        }
         if (lane instanceof LaneKey.FaceLane(Direction face)) {
             var pos = getProviderHost().getBlockPos().relative(face);
             if (!providerLevel.isLoaded(pos)) {
@@ -740,6 +780,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
 
     private void pruneStaleLaneState() {
         Set<LaneKey> active = new HashSet<>();
+        for (var adapter : MultiblockAdapterRegistry.activeAdapters()) {
+            if (adapter instanceof ProviderInternalCraftingAdapter internal) {
+                active.add(new LaneKey.InternalLane(internal.internalLaneId()));
+            }
+        }
         for (var dir : EnumSet.allOf(Direction.class)) {
             active.add(new LaneKey.FaceLane(dir));
         }
@@ -791,8 +836,13 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     private void enqueuePendingOutputs(List<GenericStack> outputs) {
         if (outputs.isEmpty()) return;
         pendingOutputs.enqueue(outputs);
-        getProviderHost().saveChanges();
-        alertGridTick();
+        try {
+            getProviderHost().saveChanges();
+            alertGridTick();
+        } catch (RuntimeException | LinkageError failure) {
+            // Ownership is already in the persistent buffer; throwing would let the CPU refund again.
+            appeng.core.AELog.warn("[ae2ltpp] Pending outputs retained, but host notification failed: %s", failure);
+        }
     }
 
     /**

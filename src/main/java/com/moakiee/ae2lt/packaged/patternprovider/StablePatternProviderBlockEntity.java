@@ -35,6 +35,7 @@ import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionLists;
 import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionRef;
 import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionValidator;
 import com.moakiee.ae2lt.api.compat.ValueIO;
+import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionRange;
 
 /**
  * PP-owned block-entity foundation for the packaged provider.
@@ -343,22 +344,35 @@ public abstract class StablePatternProviderBlockEntity
         return pruneInvalidConnections(Integer.MAX_VALUE);
     }
 
+    /** Presence is independent of the installed core, so temporarily removing a core preserves links. */
+    protected boolean isWirelessTargetPresent(ServerLevel targetLevel, BlockPos pos) {
+        return targetLevel.getBlockEntity(pos) != null;
+    }
+
+    public final WirelessConnectionValidator.Status validateWirelessConnection(
+            ServerLevel hostLevel, WirelessConnectionRef connection) {
+        if (!WirelessConnectionRange.isInRange(hostLevel.dimension(), worldPosition,
+                connection.dimension(), connection.pos(), WirelessPatternProviderPolicy.maxDistance())) {
+            return WirelessConnectionValidator.Status.REMOVE;
+        }
+        var targetLevel = hostLevel.getServer().getLevel(connection.dimension());
+        if (targetLevel == null) return WirelessConnectionValidator.Status.REMOVE;
+        if (!targetLevel.isLoaded(connection.pos())) return WirelessConnectionValidator.Status.UNLOADED;
+        return isWirelessTargetPresent(targetLevel, connection.pos())
+                ? WirelessConnectionValidator.Status.VALID : WirelessConnectionValidator.Status.REMOVE;
+    }
+
     public int pruneInvalidConnections(int maxChecks) {
         if (!(level instanceof ServerLevel serverLevel)
                 || maxChecks <= 0
                 || connections.isEmpty()) {
             return 0;
         }
-        int maxDistance = WirelessPatternProviderPolicy.maxDistance();
         var result = WirelessConnectionLists.prune(
                 connections,
                 invalidConnectionScanCursor,
                 maxChecks,
-                connection -> WirelessConnectionValidator.validate(
-                        serverLevel,
-                        worldPosition,
-                        connection,
-                        maxDistance) == WirelessConnectionValidator.Status.REMOVE);
+                connection -> validateWirelessConnection(serverLevel, connection) == WirelessConnectionValidator.Status.REMOVE);
         invalidConnectionScanCursor = result.nextCursor();
         if (result.removed() > 0) {
             recomputeIdlePower();
@@ -610,13 +624,8 @@ public abstract class StablePatternProviderBlockEntity
         }
 
         var counts = new LinkedHashMap<PatternContainerGroup, Integer>();
-        int maxDistance = WirelessPatternProviderPolicy.maxDistance();
         for (var connection : connections) {
-            if (WirelessConnectionValidator.validate(
-                    hostLevel,
-                    worldPosition,
-                    connection,
-                    maxDistance) != WirelessConnectionValidator.Status.VALID) {
+            if (validateWirelessConnection(hostLevel, connection) != WirelessConnectionValidator.Status.VALID) {
                 continue;
             }
             var targetLevel = hostLevel.getServer().getLevel(connection.dimension());

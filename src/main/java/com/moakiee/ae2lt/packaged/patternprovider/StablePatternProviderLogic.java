@@ -7,6 +7,9 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import com.moakiee.ae2lt.api.compat.ValueIO;
+import com.moakiee.ae2lt.packaged.compat.LegacyItemStackNbt;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
@@ -33,11 +36,7 @@ import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.me.helpers.MachineSource;
 import appeng.util.inv.filter.IAEItemFilter;
 
-import com.moakiee.ae2lt.api.patternprovider.WirelessPatternProviderPolicy;
 import com.moakiee.ae2lt.api.patternprovider.EncodedPatternPayloadValidator;
-import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionRange;
-import com.moakiee.ae2lt.packaged.compat.LegacyItemStackNbt;
-import com.moakiee.ae2lt.api.compat.ValueIO;
 import com.moakiee.ae2lt.packaged.mixin.PatternProviderLogicAccessor;
 import com.moakiee.thunderbolt.core.crafting.overload.OverloadedPatternDetails;
 
@@ -229,24 +228,11 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
         }
 
         var valid = new ArrayList<StablePatternProviderBlockEntity.WirelessConnection>();
-        int maxDistance = WirelessPatternProviderPolicy.maxDistance();
         for (var connection : providerHost.getConnections()) {
-            if (!WirelessConnectionRange.isInRange(
-                    providerLevel.dimension(),
-                    providerHost.getBlockPos(),
-                    connection.dimension(),
-                    connection.pos(),
-                    maxDistance)) {
-                continue;
+            if (providerHost.validateWirelessConnection(providerLevel, connection)
+                    == com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionValidator.Status.VALID) {
+                valid.add(connection);
             }
-            var targetLevel = providerLevel.getServer().getLevel(connection.dimension());
-            if (targetLevel == null || !targetLevel.isLoaded(connection.pos())) {
-                continue;
-            }
-            if (targetLevel.getBlockEntity(connection.pos()) == null) {
-                continue;
-            }
-            valid.add(connection);
         }
         validConnectionsCache = List.copyOf(valid);
         validConnectionsCacheTick = gameTick;
