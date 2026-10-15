@@ -76,7 +76,7 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
     public StablePatternProviderLogic(
             IManagedGridNode mainNode,
             StablePatternProviderBlockEntity host) {
-        super(mainNode, host, StablePatternProviderBlockEntity.SLOTS_PER_PAGE);
+        super(mainNode, host, host.getPatternSlotCount());
         this.providerHost = host;
         this.gridNode = mainNode;
         this.actionSource = new MachineSource(mainNode::getNode);

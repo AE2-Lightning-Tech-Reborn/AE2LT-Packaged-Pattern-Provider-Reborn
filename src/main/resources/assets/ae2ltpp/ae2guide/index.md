@@ -5,6 +5,7 @@ navigation:
 item_ids:
 - ae2ltpp:packaged_pattern_provider
 - ae2ltpp:wireless_packaged_pattern_provider
+- ae2ltpp:extended_packaged_pattern_provider
 ---
 
 # AE2LT Packaged Pattern Provider Reborn
@@ -14,6 +15,14 @@ item_ids:
 The **Packaged Pattern Provider** (and its wireless version) lets AE2 autocrafting drive crafting machines from **other mods**, greatly simplifying automation setups that would otherwise be complex and inefficient.
 ~~`Although it seems you still need a thorough understanding of these crafting structures...`~~
 Insert the corresponding **Packaged Core** into the provider to select the type of machine it will control.
+
+## Extended Packaged Pattern Provider
+
+The extended model has **144 pattern slots across four pages of 36**. Use the arrows or scroll over the pattern area to change pages. Patterns on every page remain available to the ME network. It retains one core slot and supports all packaged cores, including the Resonant Packaged Core.
+
+Use the left toolbar to switch between **normal and wireless mode**. Normal mode uses adjacent machines; wireless mode uses connector-bound machines. New providers start in normal mode. Switching back preserves wireless bindings for later reuse. The mode, patterns, core and bindings survive world reloads. Inputs already accepted before a switch continue to their original ports.
+
+Lightning assembly upgrades one Wireless Packaged Pattern Provider with four Capacity Cards, sixteen Engineering Processors and one 256k ME Storage Component, consuming 128,000,000 FE and 512 extreme-high-voltage lightning strikes. The original normal and wireless providers retain their fixed modes and 36 slots.
 
 ## Making specialized cores
 
@@ -101,3 +110,6 @@ Craft a **Basic Packaged Core**, then process it in the target mod's correspondi
 
 ### Nature's Aura
 * [Natural Altar, Ritual of the Forest and Offering Table](natures-aura.md)
+
+### Crystal Science
+* [Resonant layouts for ordinary and resonating patterns](resonant.md)

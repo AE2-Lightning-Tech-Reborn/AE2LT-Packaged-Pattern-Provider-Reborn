@@ -36,6 +36,7 @@ import com.moakiee.ae2lt.api.frequency.FrequencyBindingAccess;
 import com.moakiee.ae2lt.api.frequency.FrequencyBindingHost;
 import com.moakiee.ae2lt.api.pattern.PatternProviderUiProfile;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
+import com.moakiee.ae2lt.packaged.item.ResonantPackagedCoreItem;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
@@ -60,6 +61,9 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
      * spelled out in {@link AdapterPersistentScope}.
      */
     private final java.util.HashMap<String, java.util.HashSet<Long>> adapterFlags = new java.util.HashMap<>();
+    // Keep recorded anchor types with their links, so temporarily removing a core never erases those links.
+    private final java.util.Map<Long, net.minecraft.resources.ResourceLocation> resonantAnchorBlocks = new java.util.HashMap<>();
+    private static final String TAG_RESONANT_ANCHORS = "ae2ltpp_resonant_anchors";
 
     private final ProviderMode fixedProviderMode;
     private final FrequencyBindingAccess frequencyBinding = FrequencyApi.createBinding(this);
@@ -69,6 +73,10 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         if (!isWirelessProvider() || !(targetLevel instanceof ServerLevel serverLevel)
                 || !targetLevel.isLoaded(pos)) return false;
         var core = adapterInv.getStackInSlot(0);
+        if (core.getItem() instanceof ResonantPackagedCoreItem) {
+            var layout = ResonantPackagedCoreItem.layout(core);
+            return layout != null && !pos.equals(getBlockPos()) && layout.matchesAnchor(targetLevel.getBlockState(pos));
+        }
         if (!(core.getItem() instanceof MultiblockAdapterItem)) return false;
         var adapter = MultiblockAdapterRegistry.find(serverLevel, pos, serverLevel.getBlockEntity(pos));
         return adapter != null && MultiblockAdapterItem.stackCovers(core, adapter.requiredAdapterId(serverLevel, pos));
@@ -82,12 +90,36 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     @Override
     public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
-        return level != null && level.dimension().equals(dimension) && acceptsWirelessTarget(level, pos)
-                && super.addOrUpdateConnection(dimension, pos, boundFace);
+        if (level == null || !level.dimension().equals(dimension) || !acceptsWirelessTarget(level, pos)
+                || !super.addOrUpdateConnection(dimension, pos, boundFace)) return false;
+        if (ResonantPackagedCoreItem.layout(adapterInv.getStackInSlot(0)) != null) {
+            resonantAnchorBlocks.put(pos.asLong(), net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                    .getKey(level.getBlockState(pos).getBlock()));
+        } else resonantAnchorBlocks.remove(pos.asLong());
+        pruneResonantAnchorRecords();
+        saveChanges();
+        return true;
+    }
+
+    @Override
+    public boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos) {
+        if (!super.removeConnection(dimension, pos)) return false;
+        resonantAnchorBlocks.remove(pos.asLong());
+        saveChanges();
+        return true;
+    }
+
+    private void pruneResonantAnchorRecords() {
+        var positions = new java.util.HashSet<Long>();
+        for (var connection : getConnections()) positions.add(connection.pos().asLong());
+        resonantAnchorBlocks.keySet().retainAll(positions);
     }
 
     @Override
     protected boolean isWirelessTargetPresent(ServerLevel targetLevel, BlockPos pos) {
+        var recorded = resonantAnchorBlocks.get(pos.asLong());
+        if (recorded != null) return recorded.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                .getKey(targetLevel.getBlockState(pos).getBlock()));
         return MultiblockAdapterRegistry.find(targetLevel, pos, targetLevel.getBlockEntity(pos)) != null;
     }
 
@@ -205,12 +237,12 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     @Override
     public ProviderMode getProviderMode() {
-        return fixedProviderMode();
+        return isProviderModeSwitchable() ? super.getProviderMode() : fixedProviderMode();
     }
 
     @Override
     public void setProviderMode(ProviderMode providerMode) {
-        super.setProviderMode(fixedProviderMode());
+        super.setProviderMode(isProviderModeSwitchable() ? providerMode : fixedProviderMode());
     }
 
     @Override
@@ -226,7 +258,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     @Override
     public EnumSet<Direction> getTargets() {
-        if (fixedProviderMode() == ProviderMode.WIRELESS) {
+        if (getProviderMode() == ProviderMode.WIRELESS) {
             return EnumSet.noneOf(Direction.class);
         }
         return EnumSet.allOf(Direction.class);
@@ -257,9 +289,13 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         return true;
     }
 
+    public boolean isProviderModeSwitchable() {
+        return false;
+    }
+
     @Override
     public boolean ae2lt$isModeSwitchVisible() {
-        return false;
+        return isProviderModeSwitchable();
     }
 
     @Override
@@ -290,6 +326,13 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         if (data.contains(TAG_ADAPTER_INV)) {
             adapterInv.readFromNBT(data, TAG_ADAPTER_INV, registries);
         }
+        resonantAnchorBlocks.clear();
+        for (var entry : data.getList(TAG_RESONANT_ANCHORS, Tag.TAG_COMPOUND)) {
+            if (!(entry instanceof CompoundTag anchor)) continue;
+            var id = net.minecraft.resources.ResourceLocation.tryParse(anchor.getString("block"));
+            if (id != null) resonantAnchorBlocks.put(anchor.getLong("pos"), id);
+        }
+        pruneResonantAnchorRecords();
         adapterFlags.clear();
         if (data.contains(TAG_ADAPTER_FLAGS, Tag.TAG_COMPOUND)) {
             var flagsTag = data.getCompound(TAG_ADAPTER_FLAGS);
@@ -312,6 +355,15 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         super.saveAdditional(data, registries);
         frequencyBinding.save(data);
         adapterInv.writeToNBT(data, TAG_ADAPTER_INV, registries);
+        pruneResonantAnchorRecords();
+        var anchors = new net.minecraft.nbt.ListTag();
+        resonantAnchorBlocks.forEach((pos, block) -> {
+            var anchor = new CompoundTag();
+            anchor.putLong("pos", pos);
+            anchor.putString("block", block.toString());
+            anchors.add(anchor);
+        });
+        data.put(TAG_RESONANT_ANCHORS, anchors);
         if (!adapterFlags.isEmpty()) {
             var flagsTag = new CompoundTag();
             for (var entry : adapterFlags.entrySet()) {
@@ -435,7 +487,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     }
 
     private void sanitizePackagedModes() {
-        super.setProviderMode(fixedProviderMode());
+        super.setProviderMode(getProviderMode());
         if (super.getReturnMode() == ReturnMode.EJECT) {
             super.setReturnMode(ReturnMode.OFF);
         }

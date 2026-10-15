@@ -7,6 +7,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.packaged.blockentity.ExtendedPackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.blockentity.WirelessPackagedPatternProviderBlockEntity;
 
 public final class PPBlockEntities {
@@ -27,6 +28,14 @@ public final class PPBlockEntities {
                     () -> BlockEntityType.Builder.of(
                             WirelessPackagedPatternProviderBlockEntity::new,
                             PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get())
+                            .build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ExtendedPackagedPatternProviderBlockEntity>>
+            EXTENDED_PACKAGED_PATTERN_PROVIDER = BLOCK_ENTITY_TYPES.register(
+                    "extended_packaged_pattern_provider",
+                    () -> BlockEntityType.Builder.of(
+                            ExtendedPackagedPatternProviderBlockEntity::new,
+                            PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get())
                             .build(null));
 
     private PPBlockEntities() {

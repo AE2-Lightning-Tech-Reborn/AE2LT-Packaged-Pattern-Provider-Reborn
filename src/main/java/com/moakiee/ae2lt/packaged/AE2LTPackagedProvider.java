@@ -15,6 +15,7 @@ import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.blockentity.AEBaseBlockEntity;
 
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.packaged.blockentity.ExtendedPackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.blockentity.WirelessPackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
@@ -52,6 +53,8 @@ import com.moakiee.ae2lt.packaged.registry.PPBlocks;
 import com.moakiee.ae2lt.packaged.registry.PPCreativeTabs;
 import com.moakiee.ae2lt.packaged.registry.PPItems;
 import com.moakiee.ae2lt.packaged.registry.PPMenuTypes;
+import com.moakiee.ae2lt.packaged.registry.PPDataComponents;
+import com.moakiee.ae2lt.packaged.network.ResonantCoreSelectPacket;
 import com.moakiee.ae2lt.packaged.patternprovider.InsertOnlyPatternProviderReturnInventory;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity;
 
@@ -62,6 +65,7 @@ public class AE2LTPackagedProvider {
 
     public AE2LTPackagedProvider(IEventBus modEventBus, ModContainer modContainer) {
         PPItems.ITEMS.register(modEventBus);
+        PPDataComponents.COMPONENTS.register(modEventBus);
         PPBlocks.BLOCKS.register(modEventBus);
         PPBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
         PPMenuTypes.MENU_TYPES.register(modEventBus);
@@ -69,6 +73,7 @@ public class AE2LTPackagedProvider {
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerCapabilities);
+        modEventBus.addListener(ResonantCoreSelectPacket::register);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -140,6 +145,15 @@ public class AE2LTPackagedProvider {
                     wirelessPackagedBeType,
                     wirelessPackagedBlock.asItem());
 
+            var extendedBlock = PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get();
+            var extendedBeType = PPBlockEntities.EXTENDED_PACKAGED_PATTERN_PROVIDER.get();
+            extendedBlock.setBlockEntity(
+                    ExtendedPackagedPatternProviderBlockEntity.class,
+                    extendedBeType,
+                    null,
+                    StablePatternProviderBlockEntity::serverTick);
+            AEBaseBlockEntity.registerBlockEntityItem(extendedBeType, extendedBlock.asItem());
+
             LOGGER.info("AE2LT Packaged Pattern Provider Reborn initialized");
         });
     }
@@ -147,6 +161,7 @@ public class AE2LTPackagedProvider {
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
         registerGridNodeHost(event, PPBlockEntities.PACKAGED_PATTERN_PROVIDER.get());
         registerGridNodeHost(event, PPBlockEntities.WIRELESS_PACKAGED_PATTERN_PROVIDER.get());
+        registerGridNodeHost(event, PPBlockEntities.EXTENDED_PACKAGED_PATTERN_PROVIDER.get());
 
         event.registerBlock(
                 AECapabilities.GENERIC_INTERNAL_INV,
@@ -160,7 +175,8 @@ public class AE2LTPackagedProvider {
                     return null;
                 },
                 PPBlocks.PACKAGED_PATTERN_PROVIDER.get(),
-                PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get());
+                PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get(),
+                PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get());
     }
 
     private static void registerGridNodeHost(

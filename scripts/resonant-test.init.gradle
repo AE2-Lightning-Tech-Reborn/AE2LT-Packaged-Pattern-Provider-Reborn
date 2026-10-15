@@ -1,0 +1,30 @@
+// Native routing tests, with an optional real Crystal Science jar. No test code enters the release jar.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.findAll { it.name in ['extended-crafting', 'cucumber'] }.each {
+            dependencies.add('testRuntimeOnly', it.copy())
+        }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('resonantTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        def crystalJar = providers.gradleProperty('ppCrystalScienceJar').orNull
+        if (crystalJar != null) {
+            if (!file(crystalJar).isFile()) throw new GradleException('ppCrystalScienceJar must be a native jar')
+            dependencies.add('resonantTestRuntimeOnly', files(crystalJar))
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.resonantTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.resonantTest
+            gameDirectory = project.layout.buildDirectory.dir(crystalJar == null ? 'resonant-absent-native' : 'resonant-native').get().asFile
+        }
+    }
+}

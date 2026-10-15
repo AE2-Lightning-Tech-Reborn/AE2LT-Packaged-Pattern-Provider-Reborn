@@ -41,6 +41,12 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
+import com.moakiee.ae2lt.packaged.item.AdapterIds;
+import com.moakiee.ae2lt.packaged.item.ResonantPackagedCoreItem;
+import com.moakiee.ae2lt.packaged.logic.resonant.ResonantDispatch;
+import com.moakiee.ae2lt.packaged.logic.resonant.ResonantLayout;
+import com.moakiee.ae2lt.packaged.logic.resonant.ResonantPatternAccess;
+import com.moakiee.ae2lt.packaged.mixin.PatternProviderLogicAccessor;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchExecutor;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
@@ -96,6 +102,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
 
     private final NeighborMainBlockIndex neighborIndex;
     private final PatternBindingTable bindingTable = new PatternBindingTable();
+    private final Map<IPatternDetails, java.util.Optional<ResonantPatternAccess.Data>> resonantPatterns = new java.util.IdentityHashMap<>();
     private final LaneCooldownTable cooldownTable = new LaneCooldownTable();
     private record MekTarget(ResourceLocation dimension, BlockPos controller) {}
     private record MekRequest(MekTarget target, IPatternDetails pattern, Object mode) {}
@@ -141,6 +148,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     public void updatePatterns() {
         super.updatePatterns();
         bindingTable.invalidateAll();
+        resonantPatterns.clear();
         resetMekScheduling();
     }
 
@@ -180,6 +188,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         bindingTable.invalidateAll();
         resetMekScheduling();
         cooldownTable.clear();
+        super.onHostStateChanged();
     }
 
     /**
@@ -251,6 +260,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     @Override
     public long getBatchCapacity(IPatternDetails details) {
         if (!getGridNode().isActive() || isBusy() || getCraftingLockedReason() != LockCraftingMode.NONE) return 0;
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+            return ResonantPackagedCoreItem.layout(installedAdapterStack()) != null
+                    && getAvailablePatterns().contains(details) && resonantPattern(details) != null ? 1 : 0;
+        }
         if (!BatchCopies.eligible(details) || !batchControlsAllowDispatch()) return 1;
         if (!getAvailablePatterns().contains(details)
                 || !(getProviderHost().getLevel() instanceof ServerLevel level)) return 0;
@@ -277,6 +290,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     @Override
     public long pushBatch(IPatternDetails pattern, KeyCounter[] oneCopyTemplate, long maxCraft) {
         if (maxCraft <= 0) return 0;
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+            return oneCopyTemplate != null && pushPattern(pattern, BatchCopies.copy(oneCopyTemplate))
+                    ? maxCraft - 1 : maxCraft;
+        }
         if (oneCopyTemplate == null || !BatchCopies.eligible(pattern) || !batchControlsAllowDispatch()
                 || !getGridNode().isActive() || isBusy() || getCraftingLockedReason() != LockCraftingMode.NONE
                 || !getAvailablePatterns().contains(pattern)
@@ -383,6 +400,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         var targetLevel = providerLevel.getServer().getLevel(ResourceKey.create(Registries.DIMENSION, delivery.dimension()));
         if (targetLevel == null || !targetLevel.isLoaded(delivery.pos())
                 || !BuiltInRegistries.BLOCK.getKey(targetLevel.getBlockState(delivery.pos()).getBlock()).equals(delivery.block())) return 0;
+        if (delivery.adapter().equals(AdapterIds.RESONANT)) {
+            // Routed inputs are already accepted and paid for. Keep their original destination after core changes.
+            return mode == Actionable.MODULATE ? ResonantDispatch.insert(targetLevel, delivery, getActionSource()) : 0;
+        }
         for (var candidate : MultiblockAdapterRegistry.getAll()) {
             if (candidate instanceof InputBatchCraftingAdapter adapter && adapter.batchAdapterId().equals(delivery.adapter())) {
                 return adapter.insertBatchInput(targetLevel, delivery.pos(), delivery.face(), delivery.stack(), mode, getActionSource());
@@ -465,6 +486,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         }
 
         long gameTick = sl.getGameTime();
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+            var layout = ResonantPackagedCoreItem.layout(installedAdapterStack());
+            return layout != null && tryResonantPush(sl, layout, patternDetails, inputHolder, cost, gameTick);
+        }
         var binding = getOrComputeBinding(sl, patternDetails, gameTick);
         if (!binding.isMatched()) {
             return false;
@@ -483,6 +508,66 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         }
 
         return false;
+    }
+
+    private List<ResonantDispatch.Anchor> resonantAnchors(ServerLevel level, ResonantLayout layout, long tick) {
+        var anchors = new ArrayList<ResonantDispatch.Anchor>();
+        if (getProviderHost().getProviderMode() == ProviderMode.NORMAL) {
+            for (var face : getProviderHost().getTargets()) {
+                var anchor = new ResonantDispatch.Anchor(level, getProviderHost().getBlockPos().relative(face), face.getOpposite());
+                if (ResonantDispatch.validAnchor(layout, anchor)) anchors.add(anchor);
+            }
+        } else {
+            for (var connection : getValidConnections(level, tick)) {
+                var targetLevel = level.getServer().getLevel(connection.dimension());
+                if (targetLevel == null) continue;
+                var anchor = new ResonantDispatch.Anchor(targetLevel, connection.pos(), connection.boundFace());
+                if (ResonantDispatch.validAnchor(layout, anchor)) anchors.add(anchor);
+            }
+        }
+        return anchors;
+    }
+
+    private boolean tryResonantPush(ServerLevel level, ResonantLayout layout, IPatternDetails pattern,
+                                    KeyCounter[] inputs, double cost, long tick) {
+        var data = resonantPattern(pattern);
+        if (data == null) return false;
+        var anchors = resonantAnchors(level, layout, tick);
+        for (int i = 0; i < anchors.size(); i++) {
+            int index = Math.floorMod(realPushRoundRobin + i, anchors.size());
+            var anchor = anchors.get(index);
+            var deliveries = ResonantDispatch.plan(layout, data, inputs, anchor, getProviderHost().getBlockPos());
+            if (deliveries == null) continue;
+            try {
+                if (!ResonantDispatch.canInsertAll(anchor.level(), deliveries, getActionSource(), isBlocking(),
+                        ((PatternProviderLogicAccessor) this).ae2ltpp$getPatternInputs())) continue;
+            } catch (RuntimeException | LinkageError failure) {
+                appeng.core.AELog.warn("[ae2ltpp] Resonant target simulation failed: %s", failure);
+                continue;
+            }
+            // Acquire the complete craft before any native insertion. A partial receipt can never refund the CPU.
+            pendingBatchInputs.adopt(deliveries);
+            realPushRoundRobin = (index + 1) % anchors.size();
+            try {
+                getProviderHost().saveChanges();
+                PatternProviderPowerCost.consumeRaw(getGridNode().getGrid(), cost);
+                recordSuccessfulPush(pattern);
+                pendingBatchInputs.deliver(delivery -> insertBatchDelivery(level, delivery, Actionable.MODULATE));
+            } catch (RuntimeException | LinkageError failure) {
+                appeng.core.AELog.warn("[ae2ltpp] Resonant craft accepted; preserving undelivered inputs: %s", failure);
+            } finally {
+                getProviderHost().saveChanges();
+                alertGridTick();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    @Nullable
+    private ResonantPatternAccess.Data resonantPattern(IPatternDetails pattern) {
+        return resonantPatterns.computeIfAbsent(pattern, p -> java.util.Optional.ofNullable(ResonantPatternAccess.read(p)))
+                .orElse(null);
     }
 
     /**
@@ -662,6 +747,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         if (pendingBatchInputs.hasPending() && getGridNode().isActive()) {
             try {
                 pendingBatchInputs.deliver(delivery -> insertBatchDelivery(sl, delivery, Actionable.MODULATE));
+            } catch (RuntimeException | LinkageError failure) {
+                appeng.core.AELog.warn("[ae2ltpp] Pending input delivery stopped; retaining known remainders: %s", failure);
             } finally {
                 getProviderHost().saveChanges();
             }
@@ -681,6 +768,21 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
 
         boolean regularDue = lastAutoReturnTick == Long.MIN_VALUE
                 || gameTick - lastAutoReturnTick >= AUTO_RETURN_INTERVAL_TICKS;
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+            var layout = ResonantPackagedCoreItem.layout(installedAdapterStack());
+            if (regularDue && layout != null && !pendingBatchInputs.hasPending()) {
+                for (var anchor : resonantAnchors(sl, layout, gameTick)) {
+                    try {
+                        ResonantDispatch.extractOutputs(layout, anchor, getProviderHost().getBlockPos(),
+                                getOrBuildOutputFilter(), getActionSource(), stack -> enqueuePendingOutputs(List.of(stack)));
+                    } catch (RuntimeException | LinkageError failure) {
+                        appeng.core.AELog.warn("[ae2ltpp] Resonant output collection stopped: %s", failure);
+                    }
+                }
+                lastAutoReturnTick = gameTick;
+            }
+            return;
+        }
         if (regularDue || mekReturns.hasDue(gameTick)) {
             runAutoReturnTick(sl, gameTick, regularDue);
             if (regularDue) lastAutoReturnTick = gameTick;

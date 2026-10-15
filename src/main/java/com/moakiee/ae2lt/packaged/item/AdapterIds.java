@@ -117,6 +117,7 @@ public final class AdapterIds {
     public static final ResourceLocation CHIPPED = id("chipped/workbench_packaged_core");
     public static final ResourceLocation RECHISELED = id("rechiseled/chiseling_packaged_core");
     public static final ResourceLocation CHISEL = id("chisel/chiseling_packaged_core");
+    public static final ResourceLocation RESONANT = id("ae2cs/resonant_packaged_core");
 
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(AE2LTPackagedProvider.MODID, path);

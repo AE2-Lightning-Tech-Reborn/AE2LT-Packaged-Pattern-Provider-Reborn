@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "ae2ltpp:packaged_pattern_provider",
-    "ae2ltpp:wireless_packaged_pattern_provider"
+    "ae2ltpp:wireless_packaged_pattern_provider",
+    "ae2ltpp:extended_packaged_pattern_provider"
   ]
 }

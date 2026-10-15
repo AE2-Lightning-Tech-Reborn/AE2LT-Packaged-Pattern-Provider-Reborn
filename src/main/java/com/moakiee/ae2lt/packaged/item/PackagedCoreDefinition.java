@@ -66,7 +66,8 @@ public record PackagedCoreDefinition(
             core("astral_luminance_packaged_core", "astralsorcery", "altar_luminance"),
             core("astral_radiance_packaged_core", "astralsorcery", "altar_radiance"),
             core("astral_infuser_packaged_core", "astralsorcery", "infuser"),
-            core("chiseling_packaged_core", "chisel", "chisel"));
+            core("chiseling_packaged_core", "chisel", "chisel"),
+            core("resonant_packaged_core", "ae2cs", "resonating_pattern_provider"));
 
     public static List<PackagedCoreDefinition> all() {
         return ALL;
@@ -120,6 +121,7 @@ public record PackagedCoreDefinition(
             case "astral_radiance_packaged_core" -> PPItems.ASTRAL_RADIANCE_ADAPTER;
             case "astral_infuser_packaged_core" -> PPItems.ASTRAL_INFUSER_ADAPTER;
             case "chiseling_packaged_core" -> PPItems.CHISELING_ADAPTER;
+            case "resonant_packaged_core" -> PPItems.RESONANT_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };
     }
