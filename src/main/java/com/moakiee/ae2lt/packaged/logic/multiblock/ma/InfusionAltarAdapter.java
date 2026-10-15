@@ -51,13 +51,8 @@ import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
- * Runtime adapter for Mystical Agriculture's Infusion Altar (seed crafting).
- * Pure reflection: MA is not a compile dependency.
- *
- * Layout: 1 altar + 8 pedestals at fixed offsets
- *   (+/-3,0,0), (0,0,+/-3), (+/-2,0,+/-2).
- * Two sets need at least 7 blocks apart to both assemble, so the hardcoded
- * offsets cannot pull from a neighboring set.
+ * Reflection adapter for an Infusion Altar and eight pedestals at fixed offsets:
+ * {@code (+/-3,0,0), (0,0,+/-3), (+/-2,0,+/-2)}.
  */
 public final class InfusionAltarAdapter implements MultiblockAdapter {
 

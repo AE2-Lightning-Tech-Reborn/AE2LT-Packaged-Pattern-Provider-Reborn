@@ -29,8 +29,14 @@ import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
  */
 public final class AdapterIds {
 
+    public static final ResourceLocation CHISELING = new ResourceLocation("ae2ltpp", "chiseling_packaged_core");
+
     private AdapterIds() {
     }
+
+    public static final ResourceLocation NATURES_AURA_ALTAR = id("naturesaura/altar_packaged_core");
+    public static final ResourceLocation NATURES_AURA_TREE = id("naturesaura/tree_ritual_packaged_core");
+    public static final ResourceLocation NATURES_AURA_OFFERING = id("naturesaura/offering_packaged_core");
 
     public static final ResourceLocation AA_RECONSTRUCTOR =
             id("actuallyadditions/laser_packaged_core");
@@ -100,6 +106,8 @@ public final class AdapterIds {
     public static final ResourceLocation BLOOD_MAGIC_ALTAR = id("bloodmagic/altar_packaged_core");
     public static final ResourceLocation FORBIDDEN_ARCANUS_CLIBANO = id("forbidden_arcanus/clibano_packaged_core");
     public static final ResourceLocation FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE = id("forbidden_arcanus/hephaestus_forge_packaged_core");
+
+    public static final ResourceLocation RESONANT = id("resonant_packaged_core");
 
     private static ResourceLocation id(String path) {
         return new ResourceLocation(AE2LTPackagedProvider.MODID, path);

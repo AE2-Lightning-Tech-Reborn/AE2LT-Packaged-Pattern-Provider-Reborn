@@ -32,12 +32,26 @@ import appeng.api.stacks.KeyCounter;
 
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
+import com.moakiee.ae2lt.packaged.item.AdapterIds;
+import com.moakiee.ae2lt.packaged.item.ResonantPackagedCoreItem;
+import com.moakiee.ae2lt.packaged.logic.resonant.ResonantDispatch;
+import com.moakiee.ae2lt.packaged.logic.resonant.ResonantLayout;
+import com.moakiee.ae2lt.packaged.logic.resonant.ResonantPatternAccess;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchExecutor;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
 import com.moakiee.ae2lt.packaged.logic.multiblock.NeighborMainBlockIndex;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.ProviderInternalCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BatchCopies;
+import com.moakiee.ae2lt.packaged.logic.multiblock.binding.AdaptiveReturnSchedule;
+import com.moakiee.ae2lt.packaged.logic.multiblock.binding.TickFailureSet;
+import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekanismMoreMachinesAdapter;
+import com.moakiee.ae2lt.packaged.mixin.PatternProviderLogicAccessor;
+import com.moakiee.thunderbolt.api.crafting.batch.IBatchCraftingProvider;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.LaneCandidate;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.LaneCooldownTable;
@@ -45,7 +59,9 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.LaneKey;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.LaneRateLimiter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.PatternBinding;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.PatternBindingTable;
+import com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingBatchInputs;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.VirtualBatchAccumulator;
+import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.patternprovider.PatternProviderPowerCost;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ProviderMode;
@@ -68,18 +84,21 @@ import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderLogic;
  *   <li><b>Real dispatch.</b> Per push: optionally return outputs, then run
  *       {@link MultiblockAdapter#canDispatch} &rarr; {@code planWithBinding}.
  *       Failures route the lane through {@link LaneCooldownTable}'s retry
- *       schedule (1, 2, 3, 4, 5, 8, 10, 20, 40, then every 40 ticks).</li>
+ *       schedule; MekMM retries failed requests on the next tick.</li>
  *   <li><b>Unified 20-tick auto-return.</b> Real lanes get pulled exactly once
  *       per 20 ticks; virtual lanes are skipped because they never store outputs
  *       in the world.</li>
  * </ul>
  */
-public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
+public class PackagedPatternProviderLogic extends StablePatternProviderLogic implements IBatchCraftingProvider {
 
     private static final Logger LOG = LoggerFactory.getLogger(PackagedPatternProviderLogic.class);
 
     /** Maximum virtual-craft acquisitions per lane per game tick. */
     private static final int VIRTUAL_PUSH_CAP_PER_LANE_PER_TICK = 64;
+
+    /** Maximum independent physical-port inputs accepted per lane per tick. */
+    private static final int INPUT_BATCH_CAP_PER_LANE_PER_TICK = 64;
 
     /** Auto-return polling interval for real-dispatch lanes. */
     private static final int AUTO_RETURN_INTERVAL_TICKS = 20;
@@ -89,13 +108,22 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
 
     private final NeighborMainBlockIndex neighborIndex;
     private final PatternBindingTable bindingTable = new PatternBindingTable();
+    private final Map<IPatternDetails, java.util.Optional<ResonantPatternAccess.Data>> resonantPatterns = new java.util.IdentityHashMap<>();
     private final LaneCooldownTable cooldownTable = new LaneCooldownTable();
     private final LaneRateLimiter virtualPushLimiter =
             new LaneRateLimiter(VIRTUAL_PUSH_CAP_PER_LANE_PER_TICK);
+    private final LaneRateLimiter inputBatchLimiter =
+            new LaneRateLimiter(INPUT_BATCH_CAP_PER_LANE_PER_TICK);
     private final VirtualBatchAccumulator virtualBatch = new VirtualBatchAccumulator();
+    private final PendingBatchInputs pendingBatchInputs = new PendingBatchInputs();
 
     /** Round-robin cursor across real candidates within a single binding. */
     private int realPushRoundRobin;
+    private record MekTarget(ResourceLocation dimension, net.minecraft.core.BlockPos pos) {}
+    private record MekRequest(MekTarget target, IPatternDetails pattern, Object mode) {}
+    private final TickFailureSet<MekRequest> mekFailures = new TickFailureSet<>();
+    private final AdaptiveReturnSchedule<MekTarget> mekReturns = new AdaptiveReturnSchedule<>();
+    private final Map<MekTarget, MultiblockAdapter> mekReturnTargets = new LinkedHashMap<>();
 
     /** Last server tick at which {@link #runAutoReturnTick} executed; -MIN forces first run. */
     private long lastAutoReturnTick = Long.MIN_VALUE;
@@ -128,18 +156,23 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
     public void updatePatterns() {
         super.updatePatterns();
         bindingTable.invalidateAll();
+        resonantPatterns.clear();
+        resetMekScheduling();
     }
 
     @Override
     public void writeToNBT(net.minecraft.nbt.CompoundTag tag) {
         super.writeToNBT(tag);
         virtualBatch.writeToNBT(tag);
+        pendingBatchInputs.writeToNBT(tag);
     }
 
     @Override
     public void readFromNBT(net.minecraft.nbt.CompoundTag tag) {
         super.readFromNBT(tag);
+        resetMekScheduling();
         virtualBatch.readFromNBT(tag);
+        pendingBatchInputs.readFromNBT(tag);
         pendingFlushSoundId = null;
         pendingFlushEffect = null;
         lastAutoReturnTick = Long.MIN_VALUE;
@@ -149,6 +182,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
     @Override
     public void clearContent() {
         super.clearContent();
+        resetMekScheduling();
         // Pending virtual outputs belong to the provider and must survive an
         // inventory/content reset until they can be delivered or dropped.
         pendingFlushSoundId = null;
@@ -156,6 +190,24 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         if (virtualBatch.hasPending()) {
             alertGridTick();
         }
+        if (pendingBatchInputs.hasPending()) {
+            alertGridTick();
+        }
+    }
+
+    @Override
+    public void addDrops(List<ItemStack> drops) {
+        super.addDrops(drops);
+        var host = getProviderHost();
+        for (var delivery : pendingBatchInputs.snapshot()) {
+            var stack = delivery.stack();
+            stack.what().addDrops(stack.amount(), drops, host.getLevel(), host.getBlockPos());
+        }
+    }
+
+    /** Called after the block's drop path has handed the pending inputs to the world. */
+    public void clearDroppedBatchInputs() {
+        pendingBatchInputs.clear();
     }
 
     public List<GenericStack> drainVirtualBatch() {
@@ -179,6 +231,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         clearRemovedAdjacentTargetState();
         neighborIndex.invalidate();
         bindingTable.invalidateAll();
+        resetMekScheduling();
         cooldownTable.clear();
         super.onNeighborChanged();
     }
@@ -215,6 +268,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
     @Override
     public void onHostStateChanged() {
         bindingTable.invalidateAll();
+        resetMekScheduling();
         pruneStaleLaneState();
         super.onHostStateChanged();
     }
@@ -225,6 +279,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
      */
     public void onRecipesReloaded() {
         bindingTable.invalidateAll();
+        resetMekScheduling();
     }
 
     /**
@@ -235,7 +290,9 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
      */
     public void onAdapterSlotChanged() {
         bindingTable.invalidateAll();
+        resetMekScheduling();
         cooldownTable.clear();
+        super.onHostStateChanged();
     }
 
     /**
@@ -257,9 +314,200 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
 
     // ===== Push path =====
 
+    private boolean batchControlsAllowDispatch() {
+        return !isBlocking() && getConfigManager().getSetting(appeng.api.config.Settings.LOCK_CRAFTING_MODE)
+                == LockCraftingMode.NONE;
+    }
+
+    @Override
+    public boolean isBusy() {
+        return pendingBatchInputs.hasPending() || super.isBusy();
+    }
+
+    @Override
+    public long getBatchCapacity(IPatternDetails pattern) {
+        if (!getGridNode().isActive() || isBusy() || getCraftingLockedReason() != LockCraftingMode.NONE
+                || !getAvailablePatterns().contains(pattern)) return 0;
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+            return ResonantPackagedCoreItem.layout(installedAdapterStack()) != null && resonantPattern(pattern) != null ? 1 : 0;
+        }
+        if (!BatchCopies.eligible(pattern) || !batchControlsAllowDispatch()) return 1;
+        if (!(getProviderHost().getLevel() instanceof ServerLevel level)) return 0;
+        if (pendingBatchInputs.hasPending()) return 0;
+        long tick = level.getGameTime();
+        var binding = getOrComputeBinding(level, pattern, level.getGameTime());
+        long capacity = 0;
+        boolean ordinary = false;
+        for (var candidate : binding.candidates()) {
+            if (candidate.mode() == BindingMode.VIRTUAL
+                    && candidate.adapter() instanceof UnboundedVirtualCraftingAdapter) {
+                return Long.MAX_VALUE;
+            }
+            if (candidate.mode() == BindingMode.VIRTUAL
+                    && candidate.adapter() instanceof LinearVirtualCraftingAdapter) {
+                capacity += virtualPushLimiter.remaining(candidate.lane(), tick);
+                continue;
+            }
+            if (candidate.mode() == BindingMode.REAL
+                    && candidate.adapter() instanceof InputBatchCraftingAdapter) {
+                var env = resolveLaneEnv(level, candidate);
+                if (env != null && dispatchReady(candidate, pattern, env, tick)
+                        && candidate.adapter().canDispatch(env.level(), env.pos(), candidate.handle(), adapterScope())) {
+                    capacity += inputBatchLimiter.remaining(candidate.lane(), tick);
+                }
+            } else {
+                ordinary = true;
+            }
+        }
+        return Math.max(capacity, ordinary ? 1 : 0);
+    }
+
+    @Override
+    public long pushBatch(IPatternDetails pattern, KeyCounter[] template, long maxCraft) {
+        if (maxCraft <= 0) return maxCraft;
+        if (template == null) return maxCraft;
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+            return pushPattern(pattern, BatchCopies.copy(template)) ? maxCraft - 1 : maxCraft;
+        }
+        if (!BatchCopies.eligible(pattern) || !batchControlsAllowDispatch()) {
+            return pushPattern(pattern, BatchCopies.copy(template)) ? maxCraft - 1 : maxCraft;
+        }
+        if (!getGridNode().isActive() || isBusy() || getCraftingLockedReason() != LockCraftingMode.NONE
+                || !getAvailablePatterns().contains(pattern)
+                || !(getProviderHost().getLevel() instanceof ServerLevel level)) return maxCraft;
+        if (pendingBatchInputs.hasPending()) return maxCraft;
+        var grid = getGridNode().getGrid();
+        double cost = PatternProviderPowerCost.totalCost(template);
+        long tick = level.getGameTime();
+        var binding = getOrComputeBinding(level, pattern, tick);
+        for (var candidate : binding.candidates()) {
+            if (candidate.mode() == BindingMode.VIRTUAL
+                    && candidate.adapter() instanceof LinearVirtualCraftingAdapter adapter) {
+                var env = resolveLaneEnv(level, candidate);
+                if (env == null) continue;
+                var result = adapter.planVirtualWithBinding(env.level(), env.pos(), pattern,
+                        BatchCopies.copy(template), candidate.handle(), getActionSource());
+                if (result == null || result.outputs().isEmpty()) continue;
+                boolean unbounded = adapter instanceof UnboundedVirtualCraftingAdapter;
+                long laneMaximum = unbounded ? maxCraft
+                        : Math.min(maxCraft, virtualPushLimiter.remaining(candidate.lane(), tick));
+                long maximum = Math.min(laneMaximum, virtualBatch.maxCopies(result.outputs()));
+                long copies = BatchCopies.fittingLong(maximum,
+                        n -> Double.isFinite(cost * n) && PatternProviderPowerCost.canAfford(grid, cost * n));
+                if (copies <= 0) continue;
+                var outputs = BatchCopies.scale(result.outputs(), copies);
+                if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
+                if (!result.commit()) continue;
+                pendingFlushSoundId = adapter.flushSoundId();
+                pendingFlushEffect = new PendingVirtualFlushEffect(adapter, env.level(), env.pos(), candidate.handle());
+                enqueueVirtualOutputs(outputs);
+                PatternProviderPowerCost.consumeRaw(grid, cost * copies);
+                recordSuccessfulPush(pattern);
+                alertGridTick();
+                return maxCraft - copies;
+            }
+            if (candidate.mode() != BindingMode.REAL
+                    || !(candidate.adapter() instanceof InputBatchCraftingAdapter adapter)) continue;
+            var env = resolveLaneEnv(level, candidate);
+            if (env == null || !dispatchReady(candidate, pattern, env, tick)
+                    || !candidate.adapter().canDispatch(env.level(), env.pos(), candidate.handle(), adapterScope())) continue;
+            var plan = adapter.planBatchWithBinding(env.level(), env.pos(), pattern,
+                    BatchCopies.copy(template), candidate.handle(), getActionSource(), adapterScope());
+            var ports = PendingBatchInputs.prepare(plan, adapter);
+            if (ports.isEmpty()) continue;
+            long maximum = Math.min(maxCraft, inputBatchLimiter.remaining(candidate.lane(), tick));
+            long copies = BatchCopies.fittingLong(maximum, n -> {
+                if (!Double.isFinite(cost * n) || !PatternProviderPowerCost.canAfford(grid, cost * n)) return false;
+                try {
+                    for (var delivery : PendingBatchInputs.scale(ports, n)) {
+                        if (insertBatchDelivery(level, delivery, Actionable.SIMULATE) < delivery.stack().amount()) return false;
+                    }
+                    return true;
+                } catch (ArithmeticException overflow) {
+                    return false;
+                }
+            });
+            if (copies <= 0 || !inputBatchLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
+            var scaled = PendingBatchInputs.scale(ports, copies);
+            if (acceptBatch(level, env, candidate, pattern, copies, cost, grid, tick, scaled)) {
+                return maxCraft - copies;
+            }
+        }
+        return pushPattern(pattern, BatchCopies.copy(template)) ? maxCraft - 1 : maxCraft;
+    }
+
+    private boolean acceptBatch(ServerLevel providerLevel, LaneEnv env,
+                                 LaneCandidate candidate, IPatternDetails pattern,
+                                 long copies, double cost, IGrid grid, long tick,
+                                 List<PendingBatchInputs.Delivery> deliveries) {
+        pendingBatchInputs.adopt(deliveries);
+        try {
+            if (!((InputBatchCraftingAdapter) candidate.adapter()).onBatchAccepted(
+                    env.level(), env.pos(), pattern, candidate.handle(), (int) copies, adapterScope())) {
+                pendingBatchInputs.clear();
+                return false;
+            }
+        } catch (RuntimeException | LinkageError failure) {
+            pendingBatchInputs.clear();
+            LOG.warn("Batch dispatch was rejected before acceptance", failure);
+            return false;
+        }
+        try {
+            PatternProviderPowerCost.consumeRaw(grid, cost * copies);
+            recordSuccessfulPush(pattern);
+            dispatchSucceeded(candidate, pattern, env, tick);
+            getProviderHost().saveChanges();
+            deliverPendingBatchInputs(providerLevel);
+            alertGridTick();
+        } catch (RuntimeException | LinkageError failure) {
+            LOG.error("Batch dispatch committed; retaining pending input ownership", failure);
+            try {
+                getProviderHost().saveChanges();
+            } catch (RuntimeException | LinkageError saveFailure) {
+                LOG.warn("Could not persist committed batch input ownership", saveFailure);
+            }
+        }
+        return true;
+    }
+
+    private long insertBatchDelivery(ServerLevel providerLevel, PendingBatchInputs.Delivery delivery,
+                                     Actionable mode) {
+        var key = net.minecraft.resources.ResourceKey.create(
+                net.minecraft.core.registries.Registries.DIMENSION, delivery.dimension());
+        var targetLevel = providerLevel.getServer().getLevel(key);
+        if (targetLevel == null || !targetLevel.isLoaded(delivery.pos())
+                || !BuiltInRegistries.BLOCK.getKey(targetLevel.getBlockState(delivery.pos()).getBlock())
+                .equals(delivery.block())) return 0;
+        if (delivery.adapter().equals(AdapterIds.RESONANT)) {
+            return mode == Actionable.MODULATE ? ResonantDispatch.insert(targetLevel, delivery, getActionSource()) : 0;
+        }
+        for (var adapter : MultiblockAdapterRegistry.activeAdapters()) {
+            if (adapter instanceof InputBatchCraftingAdapter batch
+                    && batch.batchAdapterId().equals(delivery.adapter())) {
+                return batch.insertBatchInput(targetLevel, delivery.pos(), delivery.face(),
+                        delivery.stack(), mode, getActionSource());
+            }
+        }
+        return 0;
+    }
+
+    private void deliverPendingBatchInputs(ServerLevel providerLevel) {
+        if (!pendingBatchInputs.hasPending()) return;
+        try {
+            pendingBatchInputs.deliver(delivery -> insertBatchDelivery(providerLevel, delivery, Actionable.MODULATE));
+        } catch (RuntimeException | LinkageError failure) {
+            LOG.warn("Pending batch input delivery stopped; unresolved ownership was removed from retry", failure);
+        } finally {
+            getProviderHost().saveChanges();
+        }
+    }
+
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         if (!getGridNode().isActive()) {
+            return false;
+        }
+        if (pendingBatchInputs.hasPending()) {
             return false;
         }
         if (!getAvailablePatterns().contains(patternDetails)) {
@@ -281,6 +529,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         }
 
         long gameTick = sl.getGameTime();
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+            var layout = ResonantPackagedCoreItem.layout(installedAdapterStack());
+            return layout != null && tryResonantPush(sl, layout, patternDetails, inputHolder, cost, gameTick);
+        }
         var binding = getOrComputeBinding(sl, patternDetails, gameTick);
         if (!binding.isMatched()) {
             return false;
@@ -301,6 +553,66 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         return false;
     }
 
+    private List<ResonantDispatch.Anchor> resonantAnchors(ServerLevel level, ResonantLayout layout, long tick) {
+        var anchors = new ArrayList<ResonantDispatch.Anchor>();
+        if (getProviderHost().getProviderMode() == ProviderMode.NORMAL) {
+            for (var face : getProviderHost().getTargets()) {
+                var anchor = new ResonantDispatch.Anchor(level, getProviderHost().getBlockPos().relative(face), face.getOpposite());
+                if (ResonantDispatch.validAnchor(layout, anchor)) anchors.add(anchor);
+            }
+        } else {
+            for (var connection : getValidConnections(level, tick)) {
+                var targetLevel = level.getServer().getLevel(connection.dimension());
+                if (targetLevel == null) continue;
+                var anchor = new ResonantDispatch.Anchor(targetLevel, connection.pos(), connection.boundFace());
+                if (ResonantDispatch.validAnchor(layout, anchor)) anchors.add(anchor);
+            }
+        }
+        return anchors;
+    }
+
+    private boolean tryResonantPush(ServerLevel level, ResonantLayout layout, IPatternDetails pattern,
+                                    KeyCounter[] inputs, double cost, long tick) {
+        var data = resonantPattern(pattern);
+        if (data == null) return false;
+        var anchors = resonantAnchors(level, layout, tick);
+        for (int i = 0; i < anchors.size(); i++) {
+            int index = Math.floorMod(realPushRoundRobin + i, anchors.size());
+            var anchor = anchors.get(index);
+            var deliveries = ResonantDispatch.plan(layout, data, inputs, anchor, getProviderHost().getBlockPos());
+            if (deliveries == null) continue;
+            try {
+                if (!ResonantDispatch.canInsertAll(anchor.level(), deliveries, getActionSource(), isBlocking(),
+                        ((PatternProviderLogicAccessor) this).ae2ltpp$getPatternInputs())) continue;
+            } catch (RuntimeException | LinkageError failure) {
+                appeng.core.AELog.warn("[ae2ltpp] Resonant target simulation failed: %s", failure);
+                continue;
+            }
+            // Acquire the complete craft before any native insertion. A partial receipt can never refund the CPU.
+            pendingBatchInputs.adopt(deliveries);
+            realPushRoundRobin = (index + 1) % anchors.size();
+            try {
+                getProviderHost().saveChanges();
+                PatternProviderPowerCost.consumeRaw(getGridNode().getGrid(), cost);
+                recordSuccessfulPush(pattern);
+                pendingBatchInputs.deliver(delivery -> insertBatchDelivery(level, delivery, Actionable.MODULATE));
+            } catch (RuntimeException | LinkageError failure) {
+                appeng.core.AELog.warn("[ae2ltpp] Resonant craft accepted; preserving undelivered inputs: %s", failure);
+            } finally {
+                getProviderHost().saveChanges();
+                alertGridTick();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    @Nullable
+    private ResonantPatternAccess.Data resonantPattern(IPatternDetails pattern) {
+        return resonantPatterns.computeIfAbsent(pattern, p -> java.util.Optional.ofNullable(ResonantPatternAccess.read(p)))
+                .orElse(null);
+    }
+
     /**
      * Tries to admit a single virtual craft into the batch accumulator.
      * One push acquires at most one lane: AE views the push as a single
@@ -315,7 +627,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             if (candidate.mode() != BindingMode.VIRTUAL) {
                 continue;
             }
-            if (!virtualPushLimiter.hasCapacity(candidate.lane(), gameTick)) {
+            boolean unbounded = candidate.adapter() instanceof UnboundedVirtualCraftingAdapter;
+            if (!unbounded && !virtualPushLimiter.hasCapacity(candidate.lane(), gameTick)) {
                 continue;
             }
 
@@ -330,11 +643,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
 
             var result = virtualAdapter.planVirtualWithBinding(
                     env.level(), env.pos(), pattern, inputs, candidate.handle(), getActionSource());
-            if (result == null || result.outputs().isEmpty()) {
+            if (result == null || result.outputs().isEmpty() || virtualBatch.maxCopies(result.outputs()) < 1) {
                 continue;
             }
 
-            if (!virtualPushLimiter.tryAcquire(candidate.lane(), gameTick)) {
+            if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), gameTick)) {
                 continue;
             }
             if (!result.commit()) {
@@ -378,32 +691,44 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             int idx = Math.floorMod(realPushRoundRobin + i, total);
             var candidate = realCandidates.get(idx);
 
-            if (!cooldownTable.isReady(candidate.lane(), gameTick)) {
+            var env = resolveLaneEnv(level, candidate);
+            if (env == null) {
+                dispatchFailed(candidate, pattern, env, gameTick);
                 continue;
             }
 
-            var env = resolveLaneEnv(level, candidate);
-            if (env == null) {
-                cooldownTable.recordFailure(candidate.lane(), gameTick);
-                continue;
-            }
+            if (!dispatchReady(candidate, pattern, env, gameTick)) continue;
 
             // OFF means the provider must not pull completed products from the
             // machine. Previously this pre-dispatch cleanup ran unconditionally,
             // which made auto-return effectively active even while its GUI button
             // showed OFF.
-            if (getProviderHost().getReturnMode() == ReturnMode.AUTO) {
+            if (getProviderHost().getReturnMode() == ReturnMode.AUTO
+                    && (!(candidate.adapter() instanceof MekanismMoreMachinesAdapter)
+                        || mekReturns.isDue(mekTarget(env), gameTick))) {
                 var extracted = candidate.adapter().extractOutputs(
                         env.level(), env.pos(), filter, getActionSource(), adapterScope());
+                if (candidate.adapter() instanceof MekanismMoreMachinesAdapter) {
+                    var target = mekTarget(env);
+                    mekReturnTargets.put(target, candidate.adapter());
+                    mekReturns.record(target, gameTick, !extracted.isEmpty());
+                }
                 if (!extracted.isEmpty()) {
                     enqueueVirtualOutputs(insertOutputsToReturnInv(extracted));
                 }
             }
 
+            if (candidate.adapter() instanceof MekanismMoreMachinesAdapter mek && isBlocking()
+                    && mek.containsPatternInput(env.level(), env.pos(),
+                            ((PatternProviderLogicAccessor) this).ae2ltpp$getPatternInputs())) {
+                dispatchFailed(candidate, pattern, env, gameTick);
+                continue;
+            }
+
             // 1. Cheap gate: is the machine accepting?
             if (!candidate.adapter().canDispatch(
                     env.level(), env.pos(), candidate.handle(), adapterScope())) {
-                cooldownTable.recordFailure(candidate.lane(), gameTick);
+                dispatchFailed(candidate, pattern, env, gameTick);
                 continue;
             }
 
@@ -427,11 +752,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
                                         return true;
                                     })
                             .success()) {
-                cooldownTable.recordFailure(candidate.lane(), gameTick);
+                dispatchFailed(candidate, pattern, env, gameTick);
                 continue;
             }
 
-            cooldownTable.recordSuccess(candidate.lane());
+            dispatchSucceeded(candidate, pattern, env, gameTick);
             realPushRoundRobin = (idx + 1) % total;
             return true;
         }
@@ -454,7 +779,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
 
     @Override
     public boolean hasAnyTickWork() {
-        return super.hasAnyTickWork() || virtualBatch.hasPending();
+        return super.hasAnyTickWork() || virtualBatch.hasPending() || pendingBatchInputs.hasPending();
     }
 
     public void tickPendingAdapters(ServerLevel providerLevel) {
@@ -516,6 +841,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         }
         long gameTick = sl.getGameTime();
 
+        deliverPendingBatchInputs(sl);
+
         // Virtual batch always ticks; outputs surface every 10 ticks.
         // Persist the transition after a real flush so clearing a delivered
         // batch or retaining a residual cannot be lost across a crash.
@@ -537,6 +864,25 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             return;
         }
 
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+            var layout = ResonantPackagedCoreItem.layout(installedAdapterStack());
+            if (layout != null && !pendingBatchInputs.hasPending() && (lastAutoReturnTick == Long.MIN_VALUE
+                    || elapsedTicks(gameTick, lastAutoReturnTick) >= AUTO_RETURN_INTERVAL_TICKS)) {
+                for (var anchor : resonantAnchors(sl, layout, gameTick)) {
+                    try {
+                        ResonantDispatch.extractOutputs(layout, anchor, getProviderHost().getBlockPos(),
+                                getOrBuildOutputFilter(), getActionSource(),
+                                stack -> enqueueVirtualOutputs(insertOutputsToReturnInv(List.of(stack))));
+                    } catch (RuntimeException | LinkageError failure) {
+                        LOG.warn("Resonant output collection stopped", failure);
+                    }
+                }
+                lastAutoReturnTick = gameTick;
+            }
+            return;
+        }
+        runMekReturnTick(sl, gameTick);
+
         if (lastAutoReturnTick == Long.MIN_VALUE
                 || elapsedTicks(gameTick, lastAutoReturnTick) >= AUTO_RETURN_INTERVAL_TICKS) {
             runAutoReturnTick(sl, gameTick);
@@ -556,13 +902,13 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
     private void runAutoReturnTick(ServerLevel level, long gameTick) {
         var filter = getOrBuildOutputFilter();
         if (getProviderHost().getProviderMode() == ProviderMode.NORMAL) {
-            autoReturnNormal(level, filter);
+            autoReturnNormal(level, filter, gameTick);
         } else {
             autoReturnWireless(level, filter, gameTick);
         }
     }
 
-    private void autoReturnNormal(ServerLevel level, AllowedOutputFilter filter) {
+    private void autoReturnNormal(ServerLevel level, AllowedOutputFilter filter, long gameTick) {
         for (var face : neighborIndex.adapterFaces(level)) {
             var adapter = neighborIndex.getAdapter(face);
             if (adapter == null || adapter instanceof VirtualCraftingAdapter) {
@@ -572,10 +918,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
                 continue;
             }
             var pos = getProviderHost().getBlockPos().relative(face);
-            var outputs = adapter.extractOutputs(level, pos, filter, getActionSource(), adapterScope());
-            if (!outputs.isEmpty()) {
-                enqueueVirtualOutputs(insertOutputsToReturnInv(outputs));
-            }
+            pollOutputs(adapter, level, pos, filter, gameTick);
         }
     }
 
@@ -602,10 +945,76 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             if (filter.isEmpty() && !adapter.supportsPatternIndependentHarvest()) {
                 continue;
             }
-            var outputs = adapter.extractOutputs(targetLevel, conn.pos(), filter, getActionSource(), adapterScope());
-            if (!outputs.isEmpty()) {
-                enqueueVirtualOutputs(insertOutputsToReturnInv(outputs));
+            pollOutputs(adapter, targetLevel, conn.pos(), filter, gameTick);
+        }
+    }
+
+    private void resetMekScheduling() {
+        mekFailures.clear();
+        mekReturns.clear();
+        mekReturnTargets.clear();
+        lastAutoReturnTick = Long.MIN_VALUE;
+    }
+
+    private MekTarget mekTarget(LaneEnv env) {
+        return new MekTarget(env.level().dimension().location(),
+                MekanismMoreMachinesAdapter.resolveMainPos(env.level(), env.pos()).immutable());
+    }
+
+    private MekRequest mekRequest(LaneCandidate candidate, IPatternDetails pattern, LaneEnv env) {
+        return new MekRequest(mekTarget(env), pattern,
+                ((MekanismMoreMachinesAdapter) candidate.adapter()).dispatchMode(env.level(), env.pos()));
+    }
+
+    private boolean dispatchReady(LaneCandidate candidate, IPatternDetails pattern, LaneEnv env, long tick) {
+        return candidate.adapter() instanceof MekanismMoreMachinesAdapter
+                ? mekFailures.isReady(mekRequest(candidate, pattern, env), tick)
+                : cooldownTable.isReady(candidate.lane(), tick);
+    }
+
+    private void dispatchFailed(LaneCandidate candidate, IPatternDetails pattern, LaneEnv env, long tick) {
+        if (env != null && candidate.adapter() instanceof MekanismMoreMachinesAdapter) {
+            mekFailures.recordFailure(mekRequest(candidate, pattern, env), tick);
+        } else cooldownTable.recordFailure(candidate.lane(), tick);
+    }
+
+    private void dispatchSucceeded(LaneCandidate candidate, IPatternDetails pattern, LaneEnv env, long tick) {
+        cooldownTable.recordSuccess(candidate.lane());
+        if (candidate.adapter() instanceof MekanismMoreMachinesAdapter) {
+            if (getProviderHost().getReturnMode() == ReturnMode.AUTO) {
+                var target = mekTarget(env);
+                mekReturnTargets.put(target, candidate.adapter());
+                mekReturns.wake(target, tick);
+                alertGridTick();
             }
+        }
+    }
+
+    private void pollOutputs(MultiblockAdapter adapter, ServerLevel level, net.minecraft.core.BlockPos pos,
+                             AllowedOutputFilter filter, long tick) {
+        if (adapter instanceof MekanismMoreMachinesAdapter) {
+            var target = mekTarget(new LaneEnv(level, pos));
+            mekReturnTargets.put(target, adapter);
+            if (!mekReturns.isDue(target, tick)) return;
+            var outputs = adapter.extractOutputs(level, target.pos(), filter, getActionSource(), adapterScope());
+            mekReturns.record(target, tick, !outputs.isEmpty());
+            if (!outputs.isEmpty()) enqueueVirtualOutputs(insertOutputsToReturnInv(outputs));
+        } else {
+            var outputs = adapter.extractOutputs(level, pos, filter, getActionSource(), adapterScope());
+            if (!outputs.isEmpty()) enqueueVirtualOutputs(insertOutputsToReturnInv(outputs));
+        }
+    }
+
+    private void runMekReturnTick(ServerLevel providerLevel, long tick) {
+        if (!mekReturns.hasDue(tick)) return;
+        var filter = getOrBuildOutputFilter();
+        for (var entry : mekReturnTargets.entrySet()) {
+            if (!mekReturns.isDue(entry.getKey(), tick)) continue;
+            var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,
+                    entry.getKey().dimension());
+            var level = providerLevel.getServer().getLevel(key);
+            if (level == null || !level.isLoaded(entry.getKey().pos())) continue;
+            pollOutputs(entry.getValue(), level, entry.getKey().pos(), filter, tick);
         }
     }
 
@@ -667,6 +1076,16 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             }
         }
 
+        for (var adapter : MultiblockAdapterRegistry.activeAdapters()) {
+            if (!(adapter instanceof ProviderInternalCraftingAdapter internal)
+                    || !isAdapterUnlocked(adapter, level, getProviderHost().getBlockPos(), installedCard)) continue;
+            var result = adapter.bind(level, getProviderHost().getBlockPos(), pattern);
+            if (result != null && result.mode() == BindingMode.VIRTUAL) {
+                candidates.add(new LaneCandidate(new LaneKey.InternalLane(internal.internalLaneId()),
+                        adapter, result.handle(), result.mode()));
+                break;
+            }
+        }
         return candidates.isEmpty()
                 ? PatternBinding.unmatched(gameTick)
                 : new PatternBinding(candidates, gameTick);
@@ -680,6 +1099,13 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
     @Nullable
     private LaneEnv resolveLaneEnv(ServerLevel providerLevel, LaneCandidate candidate) {
         var lane = candidate.lane();
+        if (lane instanceof LaneKey.InternalLane internalLane
+                && candidate.adapter() instanceof ProviderInternalCraftingAdapter internal) {
+            if (!internal.internalLaneId().equals(internalLane.adapterId())) return null;
+            return isAdapterUnlocked(candidate.adapter(), providerLevel, getProviderHost().getBlockPos(),
+                    ((PackagedPatternProviderBlockEntity) getProviderHost()).getInstalledAdapterStack())
+                    ? new LaneEnv(providerLevel, getProviderHost().getBlockPos()) : null;
+        }
         if (lane instanceof LaneKey.FaceLane faceLane) {
             var pos = getProviderHost().getBlockPos().relative(faceLane.face());
             if (!providerLevel.isLoaded(pos)) {
@@ -719,6 +1145,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
 
     private void pruneStaleLaneState() {
         Set<LaneKey> active = new HashSet<>();
+        for (var adapter : MultiblockAdapterRegistry.activeAdapters()) {
+            if (adapter instanceof ProviderInternalCraftingAdapter internal) {
+                active.add(new LaneKey.InternalLane(internal.internalLaneId()));
+            }
+        }
         for (var dir : EnumSet.allOf(Direction.class)) {
             active.add(new LaneKey.FaceLane(dir));
         }
@@ -727,6 +1158,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         }
         cooldownTable.retainAll(active);
         virtualPushLimiter.retainAll(active);
+        inputBatchLimiter.retainAll(active);
     }
 
     // ===== Output delivery =====
@@ -749,7 +1181,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
         }
         var grid = getGridNode().getGrid();
         var returnInv = getInternalReturnInv();
-        var retained = new LinkedHashMap<AEKey, Long>();
+        var retained = new PendingAmounts<AEKey>();
 
         for (var stack : outputs) {
             if (stack == null || stack.what() == null || stack.amount() <= 0) {
@@ -788,7 +1220,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
             }
             long undelivered = total - actuallyInserted;
             if (undelivered > 0) {
-                addMergedResidual(retained, stack.what(), undelivered);
+                retained.add(stack.what(), undelivered);
             }
         }
 
@@ -801,31 +1233,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic {
                 LOG.warn("Could not wake provider for retained virtual outputs", e);
             }
         }
-        var residuals = new ArrayList<GenericStack>(retained.size());
-        for (var entry : retained.entrySet()) {
-            residuals.add(new GenericStack(entry.getKey(), entry.getValue()));
+        var residuals = new ArrayList<GenericStack>();
+        for (var entry : retained.snapshot()) {
+            residuals.add(new GenericStack(entry.key(), entry.amount()));
         }
         return List.copyOf(residuals);
-    }
-
-    private static void addMergedResidual(Map<AEKey, Long> residuals,
-                                          AEKey key,
-                                          long amount) {
-        if (key == null || amount <= 0) {
-            return;
-        }
-        var previous = residuals.get(key);
-        if (previous == null) {
-            residuals.put(key, amount);
-            return;
-        }
-        long merged;
-        try {
-            merged = Math.addExact(previous, amount);
-        } catch (ArithmeticException overflow) {
-            merged = Long.MAX_VALUE;
-        }
-        residuals.put(key, merged);
     }
 
     /**

@@ -1,8 +1,6 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,10 +19,7 @@ import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 
 public final class MultiblockAdapterRegistry {
 
-    // Volatile reads of `activeAdapters` are safe because we always publish an
-    // immutable List.of/Collections.unmodifiableList. Writes are guarded by the
-    // monitor on MultiblockAdapterRegistry.class so that the pair
-    // (activeAdapters, activeEnabledStates) is updated atomically.
+    // Publish immutable lists; registration happens during mod setup.
     private static final Map<ResourceLocation, AdapterRegistration> REGISTRATIONS = new LinkedHashMap<>();
     private static final BooleanSupplier ALWAYS_ENABLED = () -> true;
     private static volatile List<AdapterRegistration> sortedRegistrations = List.of();
@@ -63,10 +58,6 @@ public final class MultiblockAdapterRegistry {
         return null;
     }
 
-    public static List<MultiblockAdapter> getAll() {
-        return activeAdapters();
-    }
-
     public static List<MultiblockAdapter> activeAdapters() {
         refreshSortedRegistrationsIfNeeded();
         if (!hasDynamicEnabledSupplier) {
@@ -92,14 +83,14 @@ public final class MultiblockAdapterRegistry {
             }
         }
         synchronized (MultiblockAdapterRegistry.class) {
-            activeEnabledStates = Arrays.copyOf(enabledStates, enabledStates.length);
-            activeAdapters = Collections.unmodifiableList(adapters);
+            activeEnabledStates = enabledStates;
+            activeAdapters = List.copyOf(adapters);
         }
         return activeAdapters;
     }
 
     public static List<AdapterRegistration> registrations() {
-        return Collections.unmodifiableList(List.copyOf(REGISTRATIONS.values()));
+        return List.copyOf(REGISTRATIONS.values());
     }
 
     static synchronized void clearForTests() {
@@ -127,7 +118,7 @@ public final class MultiblockAdapterRegistry {
                 for (var registration : sortedRegistrations) {
                     adapters.add(registration.adapter());
                 }
-                activeAdapters = Collections.unmodifiableList(adapters);
+                activeAdapters = List.copyOf(adapters);
             }
             cacheDirty = false;
         }

@@ -747,16 +747,6 @@ final class MalumReflection {
         return null;
     }
 
-    private static boolean booleanField(@Nullable Field field, Object target) {
-        var value = fieldValue(field, target);
-        return value instanceof Boolean b && b;
-    }
-
-    private static double numberField(@Nullable Field field, Object target) {
-        var value = fieldValue(field, target);
-        return value instanceof Number number ? number.doubleValue() : 0;
-    }
-
     @Nullable
     private static List<ItemStack> spiritStacks(@Nullable Object value) {
         if (!(value instanceof List<?> list) || spiritAsItemStackMethod == null) {

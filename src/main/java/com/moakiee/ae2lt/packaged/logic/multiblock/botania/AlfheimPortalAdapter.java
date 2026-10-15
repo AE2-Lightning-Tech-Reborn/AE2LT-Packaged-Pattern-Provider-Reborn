@@ -29,40 +29,9 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 
 /**
- * Virtual adapter for the Alfheim Portal &mdash; the Elven Trade
- * multi-block where mundane items are exchanged for elven equivalents.
- * Player workflow: throw input stacks into the active (ON_X/ON_Z)
- * portal, the portal spawns the traded outputs after a short delay.
- *
- * <p>Equivalence model: we accept the trade only when the portal is
- * physically open (ticks-open counter positive or controller state in
- * ON_X/ON_Z), then validate the runtime {@link KeyCounter} against the
- * recipe's ingredients with NBT-strict {@code ingredient.test}, and
- * return the recipe's declared {@code getOutputs()} list verbatim.
- *
- * <p>Batch policy: K=1 (single trade per push). Elven Trade outputs
- * are typically multi-stack and arbitrary item; deriving a robust
- * craftRatio from {@code pattern.outputs} divided by recipe outputs is
- * ambiguous when outputs contain multiple items, so we keep batching
- * off and let the user submit multiple patterns for volume.
- *
- * <p>Anti-duplication path:
- * <ul>
- *   <li>bind verifies that the pattern's outputs <i>exactly</i> match
- *       the recipe's {@code getOutputs()} (one-to-one item + amount,
- *       NBT-strict under STRICT, item-id-only under ID_ONLY). No
- *       extras and nothing missing.</li>
- *   <li>plan re-runs strict {@code ingredient.test} on each KeyCounter
- *       key &mdash; under ID_ONLY a different NBT variant cannot
- *       satisfy the ingredient.</li>
- *   <li>Returned stacks are {@code AEItemKey.of(output)} from the
- *       recipe, never from the pattern.</li>
- * </ul>
- *
- * <p>No side effect: the portal's mana/ticks are left untouched so the
- * player's own automation (pylons, sparks) continues to govern portal
- * lifetime. A closed portal simply causes {@link #canDispatch} to
- * return false and the push falls through to other lanes.
+ * Single-trade virtual adapter requiring an open Alfheim Portal. Binding
+ * validates pattern outputs; dispatch validates real inputs against the recipe
+ * and returns recipe outputs. Portal mana and lifetime remain machine-owned.
  */
 public final class AlfheimPortalAdapter implements VirtualCraftingAdapter {
 

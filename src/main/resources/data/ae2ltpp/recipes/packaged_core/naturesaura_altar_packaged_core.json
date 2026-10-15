@@ -1,0 +1,8 @@
+{
+  "conditions": [{"type": "forge:mod_loaded", "modid": "naturesaura"}],
+  "type": "naturesaura:altar",
+  "output": {"item": "ae2ltpp:naturesaura_altar_packaged_core"},
+  "input": {"item": "ae2ltpp:basic_packaged_core"},
+  "aura": 20000,
+  "time": 100
+}

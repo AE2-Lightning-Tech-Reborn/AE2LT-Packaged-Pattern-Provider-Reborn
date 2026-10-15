@@ -29,8 +29,12 @@ public record PackagedCoreDefinition(
     private static final String AVARITIA = "avaritia";
     private static final String BLOOD_MAGIC = "bloodmagic";
     private static final String FORBIDDEN_ARCANUS = "forbidden_arcanus";
+    private static final String NATURES_AURA = "naturesaura";
 
     private static final List<PackagedCoreDefinition> ALL = List.of(
+            core("naturesaura_altar_packaged_core", NATURES_AURA, "nature_altar"),
+            core("naturesaura_tree_ritual_packaged_core", NATURES_AURA, "wood_stand"),
+            core("naturesaura_offering_packaged_core", NATURES_AURA, "offering_table"),
             core("aa_reconstructor_packaged_core", ACTUALLY_ADDITIONS, "atomic_reconstructor"),
             core("aa_empowerer_packaged_core", ACTUALLY_ADDITIONS, "empowerer"),
             core("ars_apparatus_packaged_core", ARS_NOUVEAU, "enchanting_apparatus"),
@@ -62,7 +66,9 @@ public record PackagedCoreDefinition(
             core("avaritia_extreme_smithing_packaged_core", AVARITIA, "extreme_smithing_table"),
             core("bloodmagic_altar_packaged_core", BLOOD_MAGIC, "altar"),
             core("forbidden_arcanus_clibano_packaged_core", FORBIDDEN_ARCANUS, "clibano_main_part"),
-            core("forbidden_arcanus_hephaestus_forge_packaged_core", FORBIDDEN_ARCANUS, "hephaestus_forge"));
+            core("forbidden_arcanus_hephaestus_forge_packaged_core", FORBIDDEN_ARCANUS, "hephaestus_forge"),
+            core("chiseling_packaged_core", "chisel", "chisel"),
+            core("resonant_packaged_core", "ae2cs", "resonating_pattern_provider"));
 
     public static List<PackagedCoreDefinition> all() {
         return ALL;
@@ -70,12 +76,17 @@ public record PackagedCoreDefinition(
 
     public static List<PackagedCoreDefinition> visibleWhen(Predicate<String> isModLoaded) {
         return ALL.stream()
-                .filter(definition -> isModLoaded.test(definition.targetModId()))
+                .filter(definition -> definition.itemId().equals("chiseling_packaged_core")
+                        ? isModLoaded.test("chipped") || isModLoaded.test("rechiseled") || isModLoaded.test("chisel")
+                        : isModLoaded.test(definition.targetModId()))
                 .toList();
     }
 
     public RegistryObject<MultiblockAdapterItem> runtimeItem() {
         return switch (itemId) {
+            case "naturesaura_altar_packaged_core" -> PPItems.NATURES_AURA_ALTAR_ADAPTER;
+            case "naturesaura_tree_ritual_packaged_core" -> PPItems.NATURES_AURA_TREE_ADAPTER;
+            case "naturesaura_offering_packaged_core" -> PPItems.NATURES_AURA_OFFERING_ADAPTER;
             case "aa_reconstructor_packaged_core" -> PPItems.AA_RECONSTRUCTOR_ADAPTER;
             case "aa_empowerer_packaged_core" -> PPItems.AA_EMPOWERER_ADAPTER;
             case "ars_apparatus_packaged_core" -> PPItems.ARS_APPARATUS_ADAPTER;
@@ -108,8 +119,21 @@ public record PackagedCoreDefinition(
             case "bloodmagic_altar_packaged_core" -> PPItems.BLOOD_MAGIC_ALTAR_ADAPTER;
             case "forbidden_arcanus_clibano_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_CLIBANO_ADAPTER;
             case "forbidden_arcanus_hephaestus_forge_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE_ADAPTER;
+            case "chiseling_packaged_core" -> PPItems.CHISELING_ADAPTER;
+            case "resonant_packaged_core" -> PPItems.RESONANT_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };
+    }
+
+    public ResourceLocation displayItemId() {
+        if (itemId.equals("chiseling_packaged_core")) {
+            for (var id : List.of("chisel:chisel", "chisel:iron_chisel", "rechiseled:chisel", "chipped:chisel",
+                    "chipped:mason_table")) {
+                var candidate = new ResourceLocation(id);
+                if (net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(candidate)) return candidate;
+            }
+        }
+        return targetItemId;
     }
 
     private static PackagedCoreDefinition core(

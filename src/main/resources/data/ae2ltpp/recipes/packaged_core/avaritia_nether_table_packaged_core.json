@@ -3,8 +3,7 @@
     {
       "type": "forge:mod_loaded",
       "modid": "avaritia"
-    }
-,
+    },
     {
       "type": "forge:item_exists",
       "item": "avaritia:neutron_ingot"
@@ -13,24 +12,16 @@
   "type": "avaritia:shaped_table",
   "tier": 2,
   "pattern": [
-    "IPIPI",
-    "PDNDP",
-    "INCNI",
-    "PDNDP",
-    "IPIPI"
+    "ABA",
+    "BCB",
+    "ABA"
   ],
   "key": {
-    "I": {
-      "item": "avaritia:neutron_ingot"
+    "A": {
+      "item": "minecraft:nether_brick"
     },
-    "P": {
-      "item": "avaritia:neutron_pile"
-    },
-    "N": {
-      "item": "avaritia:neutron_nugget"
-    },
-    "D": {
-      "item": "minecraft:diamond"
+    "B": {
+      "item": "minecraft:blaze_powder"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

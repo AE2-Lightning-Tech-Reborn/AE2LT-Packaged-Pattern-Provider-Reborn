@@ -14,15 +14,16 @@ item_ids:
 **Mod:** Ars Nouveau
 
 Automatically performs Imbuement Chamber recipes. Place the provider against the Chamber, then place **enough** Arcane Pedestals and/or Arcane Platforms anywhere within the one-block-radius cube around it.
-The core ingredient goes into the Chamber, catalysts go on the pedestals, and the result is retrieved when imbuing finishes.
+The reagent goes into the Chamber, and the result is retrieved when imbuing finishes. Ars checks pedestal catalysts without consuming them. Choose one of the following setups.
 
-## ⚠ Catalysts are recycled
+## Resident catalysts
 
-Ars does **not** consume the pedestal items for an Imbuement recipe — it only checks that they are
-present. So this provider treats them as **reusable catalysts**: it places them on the pedestals for
-the craft, then **pulls them back into your ME network together with the finished product**.
+For a dedicated recipe, place its catalysts on the pedestals yourself. Encode a processing pattern with **only the reagent as input and the finished product as output**. The provider inserts the reagent and collects the product; it leaves the catalysts on the pedestals for subsequent crafts, including after a save/reload.
 
-You still need the catalyst items in stock so they can be placed, but they are not lost. You must therefore include these catalysts as **byproducts** in the encoded outputs of the pattern.
+The Chamber must be empty before dispatch. The occupied pedestals must match the recipe exactly; missing, wrong, or extra catalyst items on separate pedestals block dispatch. Resident catalysts do not belong in the pattern's inputs or byproducts.
 
-Before starting, the Chamber and every Arcane Pedestal within 1 block must be empty; any occupied pedestal in that range blocks the craft.
-`Like a clam, a delicate imbuement ritual cannot tolerate even a grain of sand.`
+## Borrow and return catalysts
+
+To switch recipes on one Chamber, include **the reagent and all catalysts as inputs**, and include **the product and those same catalysts as byproducts**. The provider places the catalysts, then returns them to the ME network with the finished product. Returned catalyst keys must preserve the input items' NBT and quantities.
+
+Before starting this mode, the Chamber and every Arcane Pedestal or Arcane Platform within 1 block must be empty. Keep the catalysts in ME stock so the craft can borrow them. Clear resident catalysts before switching to this mode.

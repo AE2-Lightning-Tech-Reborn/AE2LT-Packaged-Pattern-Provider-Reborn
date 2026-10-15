@@ -49,13 +49,8 @@ import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
- * Runtime adapter for Mystical Agriculture's Awakening Altar.
- * Pure reflection: MA is not a compile dependency.
- *
- * Layout: 1 altar + 8 sub-positions. Each sub-position must hold either an
- * AwakeningPedestal (item slot, capacity 1) or an EssenceVessel (essence slot,
- * capacity 40). The recipe requires exactly 4 pedestals + 4 vessels; their
- * physical placement among the 8 positions does not matter.
+ * Reflection adapter for an Awakening Altar with four pedestals and four essence vessels.
+ * Their order among the eight sub-positions is unrestricted.
  */
 public final class AwakeningAltarAdapter implements MultiblockAdapter {
 
