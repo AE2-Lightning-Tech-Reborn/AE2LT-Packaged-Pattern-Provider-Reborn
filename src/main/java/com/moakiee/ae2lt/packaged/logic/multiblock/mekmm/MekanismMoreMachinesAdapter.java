@@ -48,19 +48,13 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekmmMachineSpec.PortGr
 import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekmmMachineSpec.PortType;
 
 /**
- * Single adapter that drives every Mekanism: More Machines multiblock
- * controller (large variants of chemical infuser, electrolytic separator,
- * antiprotonic nucleosynthesizer, rotary condensentrator, solar neutron
- * activator, pigment mixer). All per-machine differences live in
- * {@link MekmmMachines} as declarative {@link MekmmMachineSpec} entries.
- *
- * <p>All machines share the same packaged core ({@link AdapterIds#MEKMM}) so the
- * user only needs one item in the provider regardless of which large machine
- * sits in front of it.
+ * Adapter for large MekMM controllers sharing one packaged core.
+ * Machine identities, modes and port layouts are defined by MekmmMachines.
  */
 public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
 
     private static final String HARVEST_STATE = "mekmm:harvest";
+    private static final String HARVEST_MODE = "mekmm:mode";
     private static final long STATE_TTL_TICKS = 20L * 60L * 60L * 6L;
 
     @Override
@@ -106,7 +100,7 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         return null;
     }
 
-    private static BlockPos resolveMainPos(ServerLevel level, BlockPos pos) {
+    public static BlockPos resolveMainPos(ServerLevel level, BlockPos pos) {
         var be = level.getBlockEntity(pos);
         if (be != null && MekReflection.isBoundingBlock(be)) {
             BlockPos resolved = MekReflection.getMainPos(be);
@@ -179,10 +173,17 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         mainPos = resolveMainPos(level, mainPos);
         var be = level.getBlockEntity(mainPos);
         if (be == null || !MekReflection.isTileEntityClass(be, spec.tileClass())) return false;
-        if (spec.idleGated() && MekReflection.isActive(be)) return false;
         boolean outputsEmpty = outputPortsEmpty(level, mainPos, MekReflection.getFacing(be),
                 spec.activeMode(be));
         maybeClearExpiredHarvest(level, mainPos, scope, outputsEmpty);
+        var claim = ExpectedStackHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
+        if (claim != null && !claim.isEmpty()) {
+            // The original empty baseline still belongs to this provider. New crafts
+            // extend its receipt, provided the machine has not switched port modes.
+            return !ExpectedStackHarvestOwnership.expired(level, claim)
+                    && spec.activeMode(be).toString().equals(scope.getState(mainPos,
+                            ExpectedStackHarvestOwnership.qualifiedKey(level, HARVEST_MODE)));
+        }
         if (harvestPending(level, mainPos, scope)) return false;
 
         // Output attribution precondition: this craft may only be harvested
@@ -210,7 +211,6 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         mainPos = resolveMainPos(level, mainPos);
         var be = level.getBlockEntity(mainPos);
         if (be == null || !MekReflection.isTileEntityClass(be, spec.tileClass())) return null;
-        if (spec.idleGated() && MekReflection.isActive(be)) return null;
 
         PortGroup mode = spec.activeMode(be);
         Direction facing = MekReflection.getFacing(be);
@@ -237,6 +237,9 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         }
         var expected = copyPatternOutputs(pattern);
         if (expected.isEmpty()) return null;
+        var previous = ExpectedStackHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
+        var combined = mergeExpected(previous == null ? List.of() : previous.remaining(), expected);
+        if (combined == null) return null;
         Map<PortType, Integer> cursor = new EnumMap<>(PortType.class);
         var targets = new ArrayList<TargetSlot>();
         for (PortDef port : mode.inputs()) {
@@ -264,9 +267,12 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         }
 
         var resolvedMainPos = mainPos;
-        return new DispatchPlan(List.copyOf(targets), () ->
-                ExpectedStackHarvestOwnership.store(
-                        level, resolvedMainPos, scope, HARVEST_STATE, expected),
+        return new DispatchPlan(List.copyOf(targets), () -> {
+                ExpectedStackHarvestOwnership.store(level, resolvedMainPos, scope, HARVEST_STATE,
+                        previous == null ? level.getGameTime() : previous.createdTick(), combined);
+                scope.setState(resolvedMainPos,
+                        ExpectedStackHarvestOwnership.qualifiedKey(level, HARVEST_MODE), mode.toString());
+            },
                 (accepted, recovered) -> recoverPartialDispatch(
                         level, resolvedMainPos, targets, accepted, recovered));
     }
@@ -288,7 +294,6 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         if (be == null) return List.of();
         MekmmMachineSpec spec = findSpec(level, be);
         if (spec == null) return List.of();
-        if (spec.idleGated() && MekReflection.isActive(be)) return List.of();
         var claim = ExpectedStackHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
         if (claim == null || ExpectedStackHarvestOwnership.expired(level, claim) || claim.isEmpty()) {
             return List.of();
@@ -296,6 +301,9 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
 
         Direction facing = MekReflection.getFacing(be);
         PortGroup mode = spec.activeMode(be);
+        var claimedMode = scope.getState(mainPos,
+                ExpectedStackHarvestOwnership.qualifiedKey(level, HARVEST_MODE));
+        if (claimedMode != null && !mode.toString().equals(claimedMode)) return List.of();
         var remaining = new ArrayList<>(claim.remaining());
         var results = new ArrayList<GenericStack>();
         for (PortDef port : mode.outputs()) {
@@ -319,6 +327,68 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
     }
 
     // ---------- key / port helpers ----------
+
+    /** Consolidate receipts without losing earlier in-flight outputs or wrapping quantities. */
+    @Nullable
+    static List<GenericStack> mergeExpected(List<GenericStack> previous, List<GenericStack> added) {
+        var amounts = new java.util.LinkedHashMap<AEKey, Long>();
+        try {
+            for (var stacks : List.of(previous, added)) {
+                for (var stack : stacks) {
+                    if (stack.what() == null || stack.amount() <= 0) return null;
+                    amounts.merge(stack.what(), stack.amount(), Math::addExact);
+                }
+            }
+        } catch (ArithmeticException overflow) { return null; }
+        return amounts.entrySet().stream().map(entry -> new GenericStack(entry.getKey(), entry.getValue())).toList();
+    }
+
+    public Object dispatchMode(ServerLevel level, BlockPos pos) {
+        var be = level.getBlockEntity(resolveMainPos(level, pos));
+        var spec = be == null ? null : findSpec(level, be);
+        return spec == null ? null : spec.activeMode(be);
+    }
+
+    public boolean containsPatternInput(ServerLevel level, BlockPos pos, java.util.Set<AEKey> inputs) {
+        pos = resolveMainPos(level, pos);
+        var be = level.getBlockEntity(pos);
+        var spec = be == null ? null : findSpec(level, be);
+        if (spec == null) return true;
+        var facing = MekReflection.getFacing(be);
+        for (var port : spec.activeMode(be).inputs()) {
+            var target = portPos(pos, facing, port.spec());
+            var side = portSide(facing, port.spec());
+            if (!level.isLoaded(target)) return true;
+            switch (port.type()) {
+                case ITEM -> {
+                    var handler = BlockCapabilities.find(level, target, ForgeCapabilities.ITEM_HANDLER, side);
+                    if (handler != null) for (int i = 0; i < handler.getSlots(); i++) {
+                        var stack = handler.getStackInSlot(i);
+                        if (!stack.isEmpty() && inputs.contains(AEItemKey.of(stack).dropSecondary())) return true;
+                    }
+                }
+                case FLUID -> {
+                    var handler = BlockCapabilities.find(level, target, ForgeCapabilities.FLUID_HANDLER, side);
+                    if (handler != null) for (int i = 0; i < handler.getTanks(); i++) {
+                        var stack = handler.getFluidInTank(i);
+                        if (!stack.isEmpty() && inputs.contains(AEFluidKey.of(stack).dropSecondary())) return true;
+                    }
+                }
+                case CHEMICAL -> {
+                    var handlers = MekReflection.getChemicalHandlers(level, target, side);
+                    if (handlers != null) for (var handler : handlers) {
+                        for (int i = 0; i < MekReflection.getChemicalTanks(handler); i++) {
+                            var stack = MekReflection.getChemicalInTank(handler, i);
+                            if (MekReflection.isChemicalEmpty(stack)) continue;
+                            var key = AppmekReflection.fromChemicalStack(stack);
+                            if (key != null && inputs.contains(key.dropSecondary())) return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
     @Nullable
     private static PortType classify(AEKey key) {

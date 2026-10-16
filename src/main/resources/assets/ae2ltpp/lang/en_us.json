@@ -1,8 +1,8 @@
 {
   "ae2ltpp.connector.missing_core": "Install a packaged core before connecting machines.",
   "ae2ltpp.connector.incompatible_target": "This machine is not supported by the installed packaged core.",
-  "itemGroup.ae2ltpp": "AE2LT Packaged Pattern Provider Reborn",
-  "ae2ltpp.guide.title": "AE2LT Packaged Pattern Provider Reborn",
+  "itemGroup.ae2ltpp": "AE2LT Packaged Pattern Provider",
+  "ae2ltpp.guide.title": "AE2LT Packaged Pattern Provider",
   "block.ae2ltpp.packaged_pattern_provider": "Packaged Pattern Provider",
   "block.ae2ltpp.wireless_packaged_pattern_provider": "Wireless Packaged Pattern Provider",
   "ae2ltpp.gui.title.packaged_pattern_provider": "Packaged Provider",
@@ -46,5 +46,6 @@
   "item.ae2ltpp.forbidden_arcanus_hephaestus_forge_packaged_core": "Hephaestus Forge Packaged Core",
   "item.ae2ltpp.hephaestus_upgrade_receipt": "Hephaestus Forge Upgrade Receipt",
   "item.ae2ltpp.hephaestus_upgrade_receipt.tier": "Hephaestus Forge Tier %s Upgrade Receipt",
-  "tooltip.ae2ltpp.packaged_core.covers": "Covers %s packaged cores"
+  "tooltip.ae2ltpp.packaged_core.covers": "Covers %s packaged cores",
+  "item.ae2ltpp.chiseling_packaged_core": "Chiseling Packaged Core"
 }

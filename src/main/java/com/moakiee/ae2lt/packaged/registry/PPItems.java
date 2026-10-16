@@ -188,6 +188,9 @@ public final class PPItems {
                     Set.of(AdapterIds.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE));
     public static final RegistryObject<HephaestusUpgradeReceiptItem> HEPHAESTUS_UPGRADE_RECEIPT =
             ITEMS.register("hephaestus_upgrade_receipt", () -> new HephaestusUpgradeReceiptItem(new Item.Properties()));
+    public static final RegistryObject<MultiblockAdapterItem> CHISELING_ADAPTER =
+            registerPackagedCore("chiseling_packaged_core", AdapterIds.CHISELING, Set.of(AdapterIds.CHISELING));
+
     // ===== Crafting intermediates =====
 
     /** Generic crafting base for the per-machine packaged cores. */

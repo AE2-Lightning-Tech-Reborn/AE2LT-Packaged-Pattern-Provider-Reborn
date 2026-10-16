@@ -1,27 +1,21 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.ec;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.fml.ModList;
-import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.config.Actionable;
@@ -39,34 +33,20 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
-import com.moakiee.ae2lt.packaged.logic.multiblock.BoundedConstraintMatcher;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionSupport;
 import com.moakiee.ae2lt.packaged.logic.multiblock.SlotHarvestOwnership;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
+import com.moakiee.ae2lt.packaged.logic.multiblock.ec.ExtendedCraftingTableGridPlanner.Assignment;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
- * Runtime adapter for ExtendedCrafting's Flux Crafter — structurally the
- * same 3x3 layout as the Ender Crafter but progress-driven by FE pulled from
- * nearby {@code flux_alternator} blocks instead of time. Pure reflection.
- *
- * <p>Binding mode is {@link BindingMode#REAL}: completion depends on the
- * recipe's {@code powerRequired} budget being met by alternator extraction.
- * We dispatch ingredients to slots 0-8 and let the BE tick drain the
- * alternator energy storages until the result lands in slot 9.
- *
- * <p>FE balance is *not* checked at dispatch time. Alternators may receive
- * power lazily from external sources after the craft starts; pre-screening
- * would needlessly stall the lane, and the Flux Crafter's own tick is happy
- * to wait for power without dropping items.
+ * Real dispatch into the Flux Crafter's 3x3 grid; harvest from slot 9.
+ * The machine draws FE from flux alternators while ticking, so dispatch does
+ * not require them to be powered already. ExtendedCrafting uses reflection.
  */
 public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapter {
-
-    private static final Logger LOG = LoggerFactory.getLogger("ae2ltpp/ec-flux-crafter");
 
     private static final String MOD_ID = "extendedcrafting";
     private static final ResourceLocation CRAFTER_BLOCK = ecId("flux_crafter");
@@ -114,7 +94,7 @@ public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapt
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)) return false;
 
-        var inv = EcReflection.getInventory(be);
+        var inv = EcCrafterSupport.getInventory(be);
         if (inv == null || inv.getSlots() < GRID_SIZE + 1) return false;
 
         for (int i = 0; i < GRID_SIZE; i++) {
@@ -144,20 +124,20 @@ public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapt
         if (!(handle instanceof FluxBindHandle bind) || !canDispatch(level, mainPos, handle, scope)) return null;
         var be = level.getBlockEntity(mainPos);
         if (be == null) return null;
-        var inv = EcReflection.getInventory(be);
+        var inv = EcCrafterSupport.getInventory(be);
         if (inv == null || inv.getSlots() < GRID_SIZE + 1) return null;
-        var expectedOutput = EcReflection.getResultItem(bind.recipe(), level);
+        var expectedOutput = EcCrafterSupport.getResultItem(bind.recipe(), level);
         if (expectedOutput == null || expectedOutput.isEmpty()) return null;
-        var layout = assignGrid(bind.recipe(), inputs);
+        var layout = EcCrafterSupport.assignGrid(bind.recipe(), inputs);
         if (layout == null) return null;
 
         var targets = new ArrayList<TargetSlot>(layout.size());
         for (var placement : layout) {
             targets.add(new TargetSlot(
                     level, mainPos, null,
-                    List.of(placement.unit().toGenericStack()),
+                    List.of(new GenericStack(placement.value(), 1)),
                     InsertionStrategy.CUSTOM,
-                    gridInserter(level, mainPos, placement.slot(), placement.unit())));
+                    gridInserter(level, mainPos, placement.slot(), placement.value())));
         }
         return new DispatchPlan(
                 List.copyOf(targets),
@@ -181,7 +161,7 @@ public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapt
                                              AdapterPersistentScope scope) {
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)) return List.of();
-        var inv = EcReflection.getInventory(be);
+        var inv = EcCrafterSupport.getInventory(be);
         if (inv == null || inv.getSlots() <= OUTPUT_SLOT) return List.of();
         var ownership = SlotHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
         if (ownership == null || SlotHarvestOwnership.expired(level, ownership)) return List.of();
@@ -213,7 +193,7 @@ public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapt
     @Nullable
     private static Object findCandidateRecipe(ServerLevel level, IPatternDetails pattern) {
         for (var recipe : recipes(level)) {
-            var result = EcReflection.getResultItem(recipe, level);
+            var result = EcCrafterSupport.getResultItem(recipe, level);
             if (result == null || result.isEmpty()) continue;
             if (!outputMatches(pattern, result)) continue;
             return recipe;
@@ -221,103 +201,18 @@ public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapt
         return null;
     }
 
-    /**
-     * Mirror of the Ender Crafter layout: shaped variants honour the inner
-     * {@link net.minecraft.world.item.crafting.ShapedRecipePattern} row/col
-     * placement (reflected via {@code getDeclaredField} since the field is
-     * private); shapeless packs into the first N slots. A 9-element
-     * ingredient list is also treated as 3x3 padded shape as a fallback for
-     * cases where pattern reflection misses. The BE's matches() runs via
-     * {@code toCraftingInput(3,3,0,9)} so we need the in-grid positions to
-     * line up with the recipe's actual shape.
-     */
-    @Nullable
-    private static List<GridPlacement> assignGrid(Object recipe, KeyCounter[] inputs) {
-        var ingredients = recipeIngredients(recipe);
-        if (ingredients == null || ingredients.isEmpty() || ingredients.size() > GRID_SIZE) return null;
-
-        var units = expandUnits(inputs);
-        if (units == null || units.size() != countNonEmpty(ingredients)) return null;
-
-        var orderedIngredients = new ArrayList<Ingredient>();
-        var gridSlots = new ArrayList<Integer>();
-
-        int width = EcReflection.getShapedWidth(recipe);
-        int height = EcReflection.getShapedHeight(recipe);
-        boolean isShaped = width > 0 && height > 0 && width <= 3 && height <= 3;
-
-        if (!isShaped && ingredients.size() == GRID_SIZE) {
-            width = 3;
-            height = 3;
-            isShaped = true;
-        }
-
-        if (isShaped) {
-            for (int row = 0; row < height; row++) {
-                for (int col = 0; col < width; col++) {
-                    int recipeIndex = row * width + col;
-                    if (recipeIndex >= ingredients.size()) continue;
-                    var ingredient = ingredients.get(recipeIndex);
-                    if (!ingredient.isEmpty()) {
-                        orderedIngredients.add(ingredient);
-                        gridSlots.add(row * 3 + col);
-                    }
-                }
-            }
-        } else {
-            int gridSlot = 0;
-            for (var ingredient : ingredients) {
-                if (!ingredient.isEmpty()) {
-                    orderedIngredients.add(ingredient);
-                    gridSlots.add(gridSlot++);
-                }
-            }
-        }
-        var assigned = BoundedConstraintMatcher.matchExactly(units,
-                orderedIngredients.stream().<java.util.function.Predicate<PlannedUnit>>map(
-                        ingredient -> unit -> ingredient.test(unit.stack())).toList());
-        if (assigned == null || assigned.size() != gridSlots.size()) {
-            return null;
-        }
-        var placements = new ArrayList<GridPlacement>(assigned.size());
-        for (int i = 0; i < assigned.size(); i++) {
-            placements.add(new GridPlacement(gridSlots.get(i), assigned.get(i)));
-        }
-        return List.copyOf(placements);
-    }
-
-    private static int countNonEmpty(List<Ingredient> ingredients) {
-        int n = 0;
-        for (var ing : ingredients) {
-            if (!ing.isEmpty()) n++;
-        }
-        return n;
-    }
-
-    @Nullable
-    private static List<Ingredient> recipeIngredients(Object recipe) {
-        if (!(recipe instanceof Recipe<?> r)) return null;
-        try {
-            return new ArrayList<>(r.getIngredients());
-        } catch (RuntimeException | LinkageError ignored) {
-            return null;
-        }
-    }
-
-    // ===== Inserter =====
-
     private static BiFunction<GenericStack, Actionable, Long> gridInserter(
-            ServerLevel level, BlockPos pos, int slot, PlannedUnit unit) {
+            ServerLevel level, BlockPos pos, int slot, AEItemKey key) {
         return (stack, mode) -> {
-            if (stack.amount() != 1 || !unit.key().equals(stack.what())) return 0L;
+            if (stack.amount() != 1 || !key.equals(stack.what())) return 0L;
             var be = level.getBlockEntity(pos);
             if (be == null || !blockId(be.getBlockState()).equals(CRAFTER_BLOCK)) return 0L;
-            var inv = EcReflection.getInventory(be);
+            var inv = EcCrafterSupport.getInventory(be);
             if (!(inv instanceof IItemHandlerModifiable modifiable)) return 0L;
             if (modifiable.getSlots() <= slot) return 0L;
             if (!modifiable.getStackInSlot(slot).isEmpty()) return 0L;
             if (mode == Actionable.MODULATE) {
-                modifiable.setStackInSlot(slot, unit.stack());
+                modifiable.setStackInSlot(slot, key.toStack(1));
                 be.setChanged();
             }
             return 1L;
@@ -325,12 +220,12 @@ public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapt
     }
 
     private static void recoverPartialDispatch(ServerLevel level, BlockPos mainPos,
-                                               List<TargetSlot> targets, List<GridPlacement> layout,
+                                               List<TargetSlot> targets, List<Assignment<AEItemKey>> layout,
                                                List<AcceptedInsertion> accepted,
                                                Consumer<GenericStack> recovered) {
         var be = level.getBlockEntity(mainPos);
         if (be == null || !blockId(be.getBlockState()).equals(CRAFTER_BLOCK)) return;
-        var inv = EcReflection.getInventory(be);
+        var inv = EcCrafterSupport.getInventory(be);
         if (!(inv instanceof IItemHandlerModifiable modifiable)
                 || inv.getSlots() <= OUTPUT_SLOT
                 || !inv.getStackInSlot(OUTPUT_SLOT).isEmpty()) {
@@ -365,27 +260,6 @@ public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapt
         if (changed) {
             be.setChanged();
         }
-    }
-
-    // ===== Helpers =====
-
-    @Nullable
-    private static List<PlannedUnit> expandUnits(KeyCounter[] inputs) {
-        var units = new ArrayList<PlannedUnit>();
-        long total = 0;
-        for (var counter : inputs) {
-            for (var entry : counter) {
-                if (!(entry.getKey() instanceof AEItemKey itemKey)) return null;
-                long amount = entry.getLongValue();
-                if (amount <= 0) continue;
-                total += amount;
-                if (total > GRID_SIZE) return null;
-                for (long i = 0; i < amount; i++) {
-                    units.add(new PlannedUnit(itemKey));
-                }
-            }
-        }
-        return units;
     }
 
     private static boolean hasSingleItemOutput(IPatternDetails pattern) {
@@ -430,140 +304,6 @@ public final class ExtendedCraftingFluxCrafterAdapter implements MultiblockAdapt
         return recipe instanceof Recipe<?> r ? r.getId() : ecId("unknown");
     }
 
-    // ===== Records =====
-
-    private record PlannedUnit(AEItemKey key) {
-        PlannedUnit {
-            Objects.requireNonNull(key, "key");
-        }
-
-        ItemStack stack() {
-            return key.toStack(1);
-        }
-
-        GenericStack toGenericStack() {
-            return new GenericStack(key, 1);
-        }
-    }
-
-    private record GridPlacement(int slot, PlannedUnit unit) {}
-
     private record FluxBindHandle(Object recipe) {}
 
-    // ===== Reflection =====
-
-    private static final class EcReflection {
-        private static final String BASE_INVENTORY_CLASS =
-                "com.blakebr0.cucumber.tileentity.BaseInventoryTileEntity";
-        private static final String SHAPED_RECIPE_PATTERN =
-                "net.minecraft.world.item.crafting.ShapedRecipePattern";
-
-        private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("ec-flux-crafter");
-        private static volatile @Nullable Method getInventoryMethod;
-        private static volatile @Nullable Method shapedWidthMethod;
-        private static volatile @Nullable Method shapedHeightMethod;
-        private static volatile @Nullable Class<?> shapedRecipePatternClass;
-
-        @Nullable
-        static IItemHandler getInventory(BlockEntity be) {
-            ensureLookup();
-            if (getInventoryMethod == null) return null;
-            try {
-                var value = getInventoryMethod.invoke(be);
-                return value instanceof IItemHandler h ? h : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static ItemStack getResultItem(Object recipe, ServerLevel level) {
-            if (!(recipe instanceof Recipe<?> r)) return null;
-            try {
-                return r.getResultItem(level.registryAccess());
-            } catch (RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        static int getShapedWidth(Object recipe) {
-            return getShapedDimension(recipe, shapedWidthMethod, "getWidth");
-        }
-
-        static int getShapedHeight(Object recipe) {
-            return getShapedDimension(recipe, shapedHeightMethod, "getHeight");
-        }
-
-        /**
-         * 1.20.5+ keeps shaped dimensions in {@code ShapedRecipePattern}; on
-         * 1.20.x EC's shaped recipes declare {@code getWidth()}/{@code
-         * getHeight()} directly (shapeless variants have neither, which
-         * classifies them as shapeless).
-         */
-        private static int getShapedDimension(Object recipe, @Nullable Method patternMethod,
-                                              String directName) {
-            if (patternMethod != null && shapedRecipePatternClass != null) {
-                var pattern = findPattern(recipe);
-                if (pattern != null) {
-                    try {
-                        var value = patternMethod.invoke(pattern);
-                        if (value instanceof Integer i) return i;
-                    } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                    }
-                }
-            }
-            var direct = ReflectionSupport.findMethodCached(recipe.getClass(), directName).orElse(null);
-            if (direct == null) return -1;
-            try {
-                var value = direct.invoke(recipe);
-                return value instanceof Integer i ? i : -1;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                return -1;
-            }
-        }
-
-        /** Same recipe-class walk as EnderCrafter — see that adapter's doc. */
-        @Nullable
-        private static Object findPattern(Object recipe) {
-            var patternClass = shapedRecipePatternClass;
-            if (patternClass == null) return null;
-            for (Class<?> c = recipe.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
-                for (var f : c.getDeclaredFields()) {
-                    if (patternClass.isAssignableFrom(f.getType())) {
-                        try {
-                            f.setAccessible(true);
-                            return f.get(recipe);
-                        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-                            return null;
-                        }
-                    }
-                }
-            }
-            return null;
-        }
-
-        private static void ensureLookup() {
-            LOOKUP.run(() -> {
-                try {
-                    var baseInventoryClass = Class.forName(BASE_INVENTORY_CLASS);
-                    getInventoryMethod = baseInventoryClass.getMethod("getInventory");
-                } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                    LOG.warn("FluxCrafter reflection: BaseInventoryTileEntity#getInventory lookup failed: {}",
-                            e.toString());
-                }
-                try {
-                    var patternClass = Class.forName(SHAPED_RECIPE_PATTERN);
-                    shapedRecipePatternClass = patternClass;
-                    shapedWidthMethod = patternClass.getMethod("width");
-                    shapedHeightMethod = patternClass.getMethod("height");
-                } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                    // 1.20.x: no ShapedRecipePattern; shaped EC recipes carry
-                    // their own getWidth()/getHeight() — resolved per call.
-                    shapedRecipePatternClass = null;
-                    shapedWidthMethod = null;
-                    shapedHeightMethod = null;
-                }
-            });
-        }
-    }
 }

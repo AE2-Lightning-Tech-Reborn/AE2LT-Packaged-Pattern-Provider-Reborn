@@ -53,24 +53,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     private static final String TAG_ADAPTER_FLAGS = "ae2ltpp_adapter_flags";
     private static final String TAG_ADAPTER_STATES = "ae2ltpp_adapter_states";
 
-    /**
-     * Per-(key, target-position) boolean flag store backing
-     * {@link AdapterPersistentScope}. We keep it as a flat {@code key -> set of
-     * packed BlockPos longs} map so the on-disk shape is the cheapest possible
-     * (one {@code long[]} per key, mostly empty in practice), and so the same
-     * provider can host flags from several adapters concurrently without
-     * clashing &mdash; namespacing is the adapter's responsibility, which is
-     * spelled out in {@link AdapterPersistentScope}.
-     */
-    /**
-     * Per-adapter persistent flags, keyed by adapter-namespaced String.
-     *
-     * <p><b>Namespacing contract:</b> the key string MUST be prefixed with the
-     * calling adapter's mod id (e.g. {@code "mysticalagriculture:altar_used"}).
-     * A bare key like {@code "altar"} will collide across adapters and the
-     * {@code adapterFlags} map will grow without bound as different adapters
-     * pick their own keys. See {@link AdapterPersistentScope} for the public API.
-     */
+    /** Persistent flags by adapter-namespaced key and packed target position. */
     private final java.util.HashMap<String, java.util.HashSet<Long>> adapterFlags = new java.util.HashMap<>();
     private final java.util.HashMap<String, java.util.HashMap<Long, String>> adapterStates =
             new java.util.HashMap<>();
@@ -78,16 +61,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     private final ProviderMode fixedProviderMode;
     private final FrequencyBindingAccess frequencyBinding = FrequencyApi.createBinding(this);
 
-    /**
-     * Single-slot inventory holding the {@link MultiblockAdapterItem} packaged core
-     * that unlocks this provider's machine family. Empty slot = no adapter
-     * installed = nothing matches in {@link PackagedPatternProviderLogic}'s
-     * binding stage.
-     *
-     * <p>Mirrors AE2LT's {@code OverloadedInterface.filterInv} pattern: a
-     * dedicated {@link AppEngInternalInventory} with a per-slot type filter
-     * and an inventory listener that re-runs the binding pipeline on change.
-     */
+    /** Installed core; inventory changes invalidate machine bindings. */
     private final InternalInventoryHost adapterInvHost = new InternalInventoryHost() {
         @Override
         public void saveChanges() {

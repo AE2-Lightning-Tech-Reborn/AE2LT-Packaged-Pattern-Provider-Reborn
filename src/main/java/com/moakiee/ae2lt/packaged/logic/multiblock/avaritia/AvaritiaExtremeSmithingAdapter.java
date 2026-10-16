@@ -5,8 +5,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -35,7 +33,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.PatternInputAlternatives;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
-import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -44,7 +42,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 /**
  * Virtual adapter for Re-Avaritia's Extreme Smithing Table.
  */
-public final class AvaritiaExtremeSmithingAdapter implements VirtualCraftingAdapter {
+public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCraftingAdapter {
 
     private static final org.slf4j.Logger LOG =
             org.slf4j.LoggerFactory.getLogger("ae2ltpp/avaritia-extreme-smithing");
@@ -462,16 +460,8 @@ public final class AvaritiaExtremeSmithingAdapter implements VirtualCraftingAdap
         }
 
         /**
-         * Ingredient.test against the recipe's public {@code template}/{@code
-         * base}/{@code additions} field. The isXxxIngredient methods cannot be
-         * used here: they override Forge's net.minecraft-hosted SmithingRecipe
-         * interface, whose members are part of the SRG mapping, so a
-         * production (reobfuscated) jar renames the implementations and
-         * reflective lookups by the mojmap name fail (observed as a
-         * NoSuchMethodException at runtime). The fields are Avaritia-own
-         * members and keep their names; the Avaritia overrides are exactly
-         * {@code field.test(stack)}, so testing the field directly preserves
-         * the semantics.
+         * Test Avaritia-owned ingredient fields: their names survive reobfuscation,
+         * unlike SmithingRecipe override names remapped to SRG in production.
          */
         private static boolean fieldIngredientTest(@Nullable Field field, Object recipe, ItemStack stack) {
             var ingredient = readIngredient(field, recipe);

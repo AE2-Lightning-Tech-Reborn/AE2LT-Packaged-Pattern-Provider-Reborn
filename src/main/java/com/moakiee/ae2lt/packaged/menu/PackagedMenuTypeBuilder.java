@@ -1,8 +1,6 @@
 package com.moakiee.ae2lt.packaged.menu;
 
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraftforge.common.extensions.IForgeMenuType;
 
@@ -13,14 +11,8 @@ import appeng.menu.implementations.MenuTypeBuilder;
 import com.moakiee.ae2lt.packaged.mixin.MenuTypeBuilderAccessor;
 
 /**
- * Reproduces 1.21's {@code MenuTypeBuilder.buildUnregistered(ResourceLocation)}
- * on Forge 1.20.1.
- *
- * <p>1.20.1 only offers {@code build(String)}, which forces the {@code ae2:}
- * namespace and queues the menu type into AE2's own registration list. This
- * addon owns its menu type and registers it through {@code PPMenuTypes}, so the
- * builder's network factory and menu opener are wired up here directly via
- * {@link MenuTypeBuilderAccessor}.
+ * Builds an addon-owned menu type from AE2's network factory and opener.
+ * AE2 1.20.1 build(String) forces the ae2 namespace and its own registration list.
  */
 public final class PackagedMenuTypeBuilder {
 
@@ -35,18 +27,9 @@ public final class PackagedMenuTypeBuilder {
             throw new IllegalStateException("buildUnregistered already called for " + id);
         }
         accessor.ae2ltpp$setId(id);
-        MenuType<M> menuType = IForgeMenuType.create(
-                (containerId, inv, buf) -> fromNetwork(accessor, containerId, inv, buf));
+        MenuType<M> menuType = IForgeMenuType.create(accessor::ae2ltpp$invokeFromNetwork);
         accessor.ae2ltpp$setMenuType(menuType);
         MenuOpener.addOpener(menuType, accessor::ae2ltpp$invokeOpen);
         return menuType;
-    }
-
-    private static <M extends AEBaseMenu, I> M fromNetwork(
-            MenuTypeBuilderAccessor<M, I> accessor,
-            int containerId,
-            Inventory inv,
-            FriendlyByteBuf buf) {
-        return accessor.ae2ltpp$invokeFromNetwork(containerId, inv, buf);
     }
 }

@@ -5,29 +5,13 @@ import net.minecraft.resources.ResourceLocation;
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 
 /**
- * Central registry of adapter ids used as a contract between:
- * <ul>
- *   <li>{@code MultiblockAdapter.requiredAdapterId} &mdash; what an adapter needs.</li>
- *   <li>{@link MultiblockAdapterItem} &mdash; what an installed packaged core covers.</li>
- * </ul>
- *
- * <p>Naming convention:
- * <pre>
- *   ae2ltpp:&lt;target_mod_id&gt;/&lt;recipe_type&gt;_packaged_core
- * </pre>
- * The target mod id is the upstream mod (e.g. {@code actuallyadditions}), the
- * recipe type is the upstream-side recipe registry name (e.g. {@code laser}),
- * and the {@code _packaged_core} suffix marks this as a provider-core
- * namespace rather than a raw resource.
- *
- * <p>EC's four table tiers share the {@code extendedcrafting/table} recipe
- * type, so they're distinguished by a {@code _tierN} infix inside the recipe
- * portion to keep the scheme uniform.
- *
- * <p>These strings are stable: changing one orphans any existing in-world key
- * core holding the old id.
+ * Stable ids shared by adapters and packaged cores. Paths follow
+ * {@code <target_mod>/<recipe_type>[_tierN]_packaged_core}.
+ * Changing an existing id breaks saved cores and provider bindings.
  */
 public final class AdapterIds {
+
+    public static final ResourceLocation CHISELING = new ResourceLocation("ae2ltpp", "chiseling_packaged_core");
 
     private AdapterIds() {
     }
@@ -68,13 +52,7 @@ public final class AdapterIds {
             id("occultism/ritual_packaged_core");
     public static final ResourceLocation OCCULTISM_SPIRIT_FIRE =
             id("occultism/spirit_fire_packaged_core");
-    /**
-     * Single packaged core covering every Mekanism: More Machines large multiblock
-     * (chemical infuser, electrolytic separator, antiprotonic nucleosynthesizer,
-     * rotary condensentrator, solar neutron activator, pigment mixer). The
-     * generic {@code MekanismMoreMachinesAdapter} dispatches between them at
-     * runtime via {@code MekmmMachines}.
-     */
+    /** Shared core for Mekanism: More Machines large multiblocks. */
     public static final ResourceLocation MEKMM =
             id("mekmm/large_machine_packaged_core");
     public static final ResourceLocation BOTANIA_PETAL_APOTHECARY =

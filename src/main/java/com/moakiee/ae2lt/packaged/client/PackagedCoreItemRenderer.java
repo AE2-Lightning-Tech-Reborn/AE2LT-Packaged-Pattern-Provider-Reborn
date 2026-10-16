@@ -71,7 +71,7 @@ public final class PackagedCoreItemRenderer extends BlockEntityWithoutLevelRende
     private static Map<Item, ItemStack> buildTargetStacks() {
         var map = new HashMap<Item, ItemStack>();
         for (var definition : PackagedCoreDefinition.all()) {
-            var id = definition.targetItemId();
+            var id = definition.displayItemId();
             if (!BuiltInRegistries.ITEM.containsKey(id)) {
                 continue;
             }

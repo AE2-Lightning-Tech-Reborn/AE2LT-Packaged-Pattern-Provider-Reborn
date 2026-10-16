@@ -28,7 +28,6 @@ final class MekReflection {
     private static final Logger LOG = LogUtils.getLogger();
 
     private static final String MEKMM_MOD_ID = "mekmm";
-    private static final String MEKANISM_MOD_ID = "mekanism";
 
     private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("mekanism");
     private static volatile @Nullable Class<?> tileEntityMekanismClass;
@@ -50,18 +49,11 @@ final class MekReflection {
     private static volatile @Nullable Method getChemicalTanksMethod;
     private static volatile @Nullable Method chemicalGetAmountMethod;
     private static volatile @Nullable Method chemicalIsEmptyMethod;
-    private static volatile @Nullable Method chemicalCopyWithAmountMethod;
-    private static volatile @Nullable Method chemicalCopyMethod;
-    private static volatile @Nullable Method chemicalSetAmountMethod;
 
     private MekReflection() {}
 
     static boolean isModLoaded() {
         return ModList.get().isLoaded(MEKMM_MOD_ID);
-    }
-
-    static boolean isMekanismLoaded() {
-        return ModList.get().isLoaded(MEKANISM_MOD_ID);
     }
 
     static boolean isTileEntityClass(Object o, String className) {
@@ -211,28 +203,6 @@ final class MekReflection {
         }
     }
 
-    @Nullable
-    static Object copyChemicalWithAmount(@Nullable Object chemicalStack, long amount) {
-        ensureLookup();
-        if (chemicalStack == null) return null;
-        if (chemicalCopyWithAmountMethod != null) {
-            try {
-                return chemicalCopyWithAmountMethod.invoke(chemicalStack, amount);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-            }
-        }
-        // 1.20.x has no copyWithAmount; copy() + setAmount(long) is equivalent.
-        if (chemicalCopyMethod == null || chemicalSetAmountMethod == null) return null;
-        try {
-            Object copy = chemicalCopyMethod.invoke(chemicalStack);
-            if (copy == null) return null;
-            chemicalSetAmountMethod.invoke(copy, amount);
-            return copy;
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
-            return null;
-        }
-    }
-
     private static void ensureLookup() {
         LOOKUP.run(MekReflection::doLookup);
     }
@@ -334,16 +304,9 @@ final class MekReflection {
         if (chemicalStackClass != null) {
             chemicalGetAmountMethod = tryMethod(chemicalStackClass, "getAmount");
             chemicalIsEmptyMethod = tryMethod(chemicalStackClass, "isEmpty");
-            chemicalCopyWithAmountMethod = tryMethod(chemicalStackClass, "copyWithAmount", long.class);
-            chemicalCopyMethod = tryMethod(chemicalStackClass, "copy");
-            chemicalSetAmountMethod = tryMethod(chemicalStackClass, "setAmount", long.class);
-            if (chemicalGetAmountMethod == null || chemicalIsEmptyMethod == null
-                    || (chemicalCopyWithAmountMethod == null
-                        && (chemicalCopyMethod == null || chemicalSetAmountMethod == null))) {
-                LOG.warn("[ae2ltpp] Incomplete ChemicalStack resolution: amount={}, empty={}, copyWithAmount={}, copy={}, setAmount={}",
-                        chemicalGetAmountMethod != null, chemicalIsEmptyMethod != null,
-                        chemicalCopyWithAmountMethod != null, chemicalCopyMethod != null,
-                        chemicalSetAmountMethod != null);
+            if (chemicalGetAmountMethod == null || chemicalIsEmptyMethod == null) {
+                LOG.warn("[ae2ltpp] Incomplete ChemicalStack resolution: amount={}, empty={}",
+                        chemicalGetAmountMethod != null, chemicalIsEmptyMethod != null);
             }
         }
     }

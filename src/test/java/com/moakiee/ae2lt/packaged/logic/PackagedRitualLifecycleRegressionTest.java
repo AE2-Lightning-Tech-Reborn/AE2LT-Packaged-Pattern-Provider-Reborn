@@ -34,7 +34,15 @@ public class PackagedRitualLifecycleRegressionTest {
                 + extract(ritual, Set.of("canDispatch"), 4)
                 + extract(ritual, Set.of("extractOutputs"), 5);
         String polling = extract(provider,
-                Set.of("runAutoReturnTick", "autoReturnNormal", "autoReturnWireless"), -1);
+                Set.of("runAutoReturnTick", "autoReturnNormal", "autoReturnWireless"), -1)
+                + """
+                    // This harness covers ordinary/ritual forwarding. Mek polling has separate tests.
+                    private void pollOutputs(MultiblockAdapter adapter, ServerLevel level, BlockPos pos,
+                            AllowedOutputFilter filter, long tick) {
+                        var outputs = adapter.extractOutputs(level, pos, filter, getActionSource(), adapterScope());
+                        if (!outputs.isEmpty()) enqueueVirtualOutputs(insertOutputsToReturnInv(outputs));
+                    }
+                  """;
         run(HARNESS.replace("/* RITUAL */", methods).replace("/* PROVIDER */", polling));
 
         // Verify the harness rejects the two original lifecycle regressions.
@@ -74,7 +82,8 @@ public class PackagedRitualLifecycleRegressionTest {
         String provider = Files.readString(BASE.resolve("PackagedPatternProviderLogic.java"));
         String host = Files.readString(BASE.resolve("../blockentity/PackagedPatternProviderBlockEntity.java"));
         String methods = extract(provider,
-                Set.of("onNeighborChanged", "clearRemovedAdjacentTargetState"), -1);
+                Set.of("onNeighborChanged", "clearRemovedAdjacentTargetState"), -1)
+                + "private void resetMekScheduling() {}";
         String source = NEIGHBOR_HARNESS.replace("/* PROVIDER */", methods)
                 .replace("/* HOST */", extract(host, Set.of("clearFlagsForTarget"), -1));
         run(source);

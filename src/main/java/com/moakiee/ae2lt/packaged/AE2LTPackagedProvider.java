@@ -93,6 +93,17 @@ public class AE2LTPackagedProvider {
             MultiblockAdapterRegistry.register(new AlfheimPortalAdapter());
             MultiblockAdapterRegistry.register(new TerraPlateAdapter());
             MultiblockAdapterRegistry.register(new RunicAltarAdapter());
+            if (net.minecraftforge.fml.ModList.get().isLoaded("chipped")) {
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.chisel.ChippedWorkbenchAdapter());
+            }
+            if (net.minecraftforge.fml.ModList.get().isLoaded("rechiseled")) {
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.chisel.HandheldChiselAdapter(true));
+            }
+            if (net.minecraftforge.fml.ModList.get().isLoaded("chisel")) {
+                var adapter = new com.moakiee.ae2lt.packaged.logic.multiblock.chisel.HandheldChiselAdapter(false);
+                MultiblockAdapterRegistry.register(com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRegistration.of(
+                        new net.minecraft.resources.ResourceLocation(MODID, "handheld_chisel"), adapter));
+            }
 
             var packagedBlock = PPBlocks.PACKAGED_PATTERN_PROVIDER.get();
             var packagedBeType = PPBlockEntities.PACKAGED_PATTERN_PROVIDER.get();

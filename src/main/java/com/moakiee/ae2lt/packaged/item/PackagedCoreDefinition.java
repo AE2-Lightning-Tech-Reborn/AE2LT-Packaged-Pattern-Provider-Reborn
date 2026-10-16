@@ -62,7 +62,8 @@ public record PackagedCoreDefinition(
             core("avaritia_extreme_smithing_packaged_core", AVARITIA, "extreme_smithing_table"),
             core("bloodmagic_altar_packaged_core", BLOOD_MAGIC, "altar"),
             core("forbidden_arcanus_clibano_packaged_core", FORBIDDEN_ARCANUS, "clibano_main_part"),
-            core("forbidden_arcanus_hephaestus_forge_packaged_core", FORBIDDEN_ARCANUS, "hephaestus_forge"));
+            core("forbidden_arcanus_hephaestus_forge_packaged_core", FORBIDDEN_ARCANUS, "hephaestus_forge"),
+            core("chiseling_packaged_core", "chisel", "chisel"));
 
     public static List<PackagedCoreDefinition> all() {
         return ALL;
@@ -70,7 +71,9 @@ public record PackagedCoreDefinition(
 
     public static List<PackagedCoreDefinition> visibleWhen(Predicate<String> isModLoaded) {
         return ALL.stream()
-                .filter(definition -> isModLoaded.test(definition.targetModId()))
+                .filter(definition -> definition.itemId().equals("chiseling_packaged_core")
+                        ? isModLoaded.test("chipped") || isModLoaded.test("rechiseled") || isModLoaded.test("chisel")
+                        : isModLoaded.test(definition.targetModId()))
                 .toList();
     }
 
@@ -108,8 +111,20 @@ public record PackagedCoreDefinition(
             case "bloodmagic_altar_packaged_core" -> PPItems.BLOOD_MAGIC_ALTAR_ADAPTER;
             case "forbidden_arcanus_clibano_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_CLIBANO_ADAPTER;
             case "forbidden_arcanus_hephaestus_forge_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE_ADAPTER;
+            case "chiseling_packaged_core" -> PPItems.CHISELING_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };
+    }
+
+    public ResourceLocation displayItemId() {
+        if (itemId.equals("chiseling_packaged_core")) {
+            for (var id : List.of("chisel:chisel", "chisel:iron_chisel", "rechiseled:chisel", "chipped:chisel",
+                    "chipped:mason_table")) {
+                var candidate = new ResourceLocation(id);
+                if (net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(candidate)) return candidate;
+            }
+        }
+        return targetItemId;
     }
 
     private static PackagedCoreDefinition core(
