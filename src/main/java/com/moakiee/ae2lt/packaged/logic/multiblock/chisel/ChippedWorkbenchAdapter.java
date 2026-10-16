@@ -12,7 +12,7 @@ import appeng.api.stacks.KeyCounter;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.logic.multiblock.CompatibilityDiagnostics;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
-import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -32,7 +32,7 @@ import net.minecraft.world.level.block.state.properties.Property;
 import org.jetbrains.annotations.Nullable;
 
 /** Chipped 3.x uses a recipe type per workbench and requires both physical halves. */
-public final class ChippedWorkbenchAdapter implements VirtualCraftingAdapter {
+public final class ChippedWorkbenchAdapter implements LinearVirtualCraftingAdapter {
     private static final Set<String> BENCHES = Set.of("botanist_workbench", "glassblower", "carpenters_table",
             "loom_table", "mason_table", "alchemy_bench", "tinkering_table");
     private static Method recipeType;

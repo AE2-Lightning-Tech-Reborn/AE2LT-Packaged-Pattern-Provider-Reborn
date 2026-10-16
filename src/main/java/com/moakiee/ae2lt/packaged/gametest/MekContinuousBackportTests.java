@@ -10,11 +10,14 @@ import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import appeng.core.definitions.AEBlocks;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchExecutor;
 import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekanismMoreMachinesAdapter;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
+import com.moakiee.ae2lt.packaged.registry.PPItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -73,6 +76,69 @@ public final class MekContinuousBackportTests {
 
     private static boolean available() {
         return ModList.get().isLoaded("mekmm") && ModList.get().isLoaded("appmek");
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 160)
+    public static void providerSends64PhysicalCopiesWithoutChangingBorrowedInputs(GameTestHelper h)
+            throws ReflectiveOperationException {
+        h.assertTrue(available(), "MekMM and Applied Mekanistics are required for physical batch testing");
+        var tile = machine(h, "large_electrolytic_separator");
+        var providerPos = tile.getBlockPos().north(2);
+        h.getLevel().setBlockAndUpdate(providerPos, PPBlocks.PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
+        h.getLevel().setBlockAndUpdate(providerPos.north(), AEBlocks.CREATIVE_ENERGY_CELL.block().defaultBlockState());
+        var provider = (PackagedPatternProviderBlockEntity) h.getLevel().getBlockEntity(providerPos);
+        provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.MEKMM_ADAPTER.get()));
+        var input = new GenericStack(AEFluidKey.of(Fluids.WATER), 20);
+        var outputs = List.of(gas("hydrogen", 20), gas("oxygen", 10));
+        provider.getLogic().getPatternInv().setItemDirect(0, PatternDetailsHelper.encodeProcessingPattern(
+                new GenericStack[]{input}, outputs.toArray(GenericStack[]::new)));
+        provider.getLogic().updatePatterns();
+        h.runAfterDelay(40, () -> {
+            try {
+                var logic = (PackagedPatternProviderLogic) provider.getLogic();
+                var pattern = logic.getAvailablePatterns().get(0);
+                var template = counters(input);
+                h.assertTrue(logic.getBatchCapacity(pattern) == 64,
+                        "Native input lane capacity=" + logic.getBatchCapacity(pattern));
+                h.assertTrue(logic.pushBatch(pattern, template, 130) == 66, "Native input lane did not accept exactly 64 copies");
+                h.assertTrue(template[0].get(input.what()) == 20, "Physical batch changed borrowed inputs");
+                var fluid = tile.getClass().getField("fluidTank").get(tile);
+                h.assertTrue(((Number) fluid.getClass().getMethod("getFluidAmount").invoke(fluid)).longValue() == 1280,
+                        "Physical batch inserted the wrong fluid amount");
+                provider.load(provider.saveWithFullMetadata());
+                h.assertTrue(((Number) fluid.getClass().getMethod("getFluidAmount").invoke(fluid)).longValue() == 1280,
+                        "Provider reload replayed completed batch inputs");
+                h.succeed();
+            } catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
+        });
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void nativeRecipesRejectWrongOutputsAndArrangeReversedChemicalInputs(GameTestHelper h)
+            throws ReflectiveOperationException {
+        h.assertTrue(available(), "MekMM and Applied Mekanistics are required for native recipe testing");
+        var tile = machine(h, "large_chemical_infuser");
+        var hydrogen = gas("hydrogen", 1);
+        var chlorine = gas("chlorine", 1);
+        var output = gas("hydrogen_chloride", 1);
+        var pattern = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
+                new GenericStack[]{chlorine, hydrogen}, new GenericStack[]{output}), h.getLevel());
+        var adapter = new MekanismMoreMachinesAdapter();
+        var binding = adapter.bind(h.getLevel(), tile.getBlockPos(), pattern);
+        h.assertTrue(binding != null, "Reversed native chemical recipe inputs did not bind");
+        var inputs = new KeyCounter[]{counters(chlorine)[0], counters(hydrogen)[0]};
+        var plan = adapter.planBatchWithBinding(h.getLevel(), tile.getBlockPos(), pattern, inputs,
+                binding.handle(), IActionSource.empty(), scope(h));
+        h.assertTrue(plan != null && plan.targets().size() == 2 && plan.onCommit() == null,
+                "Native two-port batch plan was rejected");
+        h.assertTrue(plan.targets().get(0).stacks().equals(List.of(hydrogen))
+                        && plan.targets().get(1).stacks().equals(List.of(chlorine)),
+                "Native chemical inputs were routed in pattern order instead of recipe order");
+        var wrong = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
+                new GenericStack[]{chlorine, hydrogen}, new GenericStack[]{gas("oxygen", 1)}), h.getLevel());
+        h.assertTrue(adapter.bind(h.getLevel(), tile.getBlockPos(), wrong) == null,
+                "Native recipe binding accepted an unrelated declared output");
+        h.succeed();
     }
 
     @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 800)

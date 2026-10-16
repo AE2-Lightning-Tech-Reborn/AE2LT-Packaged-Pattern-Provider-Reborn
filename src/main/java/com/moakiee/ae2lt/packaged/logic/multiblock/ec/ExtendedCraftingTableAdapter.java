@@ -48,9 +48,19 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
- * Virtual crafting for EC tables (3x3, 5x5, 7x7 and 9x9 tiers).
- * Validates recipes and returns assembled outputs plus remainders without writing to the grid.
- * ExtendedCrafting is accessed through reflection.
+ * Runtime adapter for ExtendedCrafting's ordinary crafting tables.
+ * Pure reflection: ExtendedCrafting is not a compile dependency.
+ *
+ * Supported blocks:
+ *   basic_table    3x3, tier 1
+ *   advanced_table 5x5, tier 2
+ *   elite_table    7x7, tier 3
+ *   ultimate_table 9x9, tier 4
+ *
+ * These tables act as virtual crafting lanes for packaged providers. Inputs are
+ * consumed by AE, while this adapter validates the matching table recipe and
+ * returns the assembled result plus remaining items without inserting into the
+ * table grid.
  */
 public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraftingAdapter {
 
@@ -367,7 +377,20 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
         return count;
     }
 
-    /** Builds a representative grid, preserving shaped gaps or packing shapeless inputs. */
+    /**
+     * Places one ingredient's representative stack into a grid layout the
+     * EC {@code TableCraftingContainer.of} factory can trim and feed to
+     * {@link Recipe#matches}.
+     *
+     * <p>For shaped recipes we walk the ingredient list in its native
+     * {@code width × height} order and copy non-empty cells to the top-left
+     * of the table grid. EC's input wrapper trims the empty borders, so the
+     * absolute placement doesn't matter as long as the relative shape is
+     * preserved.
+     *
+     * <p>For shapeless recipes we drop the stacks row-major into the top of
+     * the grid; shapeless matching ignores positions.
+     */
     @Nullable
     private static List<PlannedUnit> layoutGridFromIngredients(Object recipe,
                                                                List<ItemStack> perCraftStacks,

@@ -184,4 +184,33 @@ public final class ChiselingBackportTests {
             h.succeed();
         });
     }
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 120)
+    public static void rechiseledLinearBatchHonors64CopyQuotaAndPreservesTemplate(GameTestHelper h) {
+        h.assertTrue(ModList.get().isLoaded("rechiseled"), "Rechiseled is required for native batch verification");
+        var input = stack("minecraft:acacia_planks", 3);
+        var output = stack("rechiseled:acacia_planks_beams_slab", 6);
+        var relative = new BlockPos(4, 2, 4);
+        h.setBlock(relative, PPBlocks.PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
+        h.setBlock(relative.east(), AEBlocks.CREATIVE_ENERGY_CELL.block().defaultBlockState());
+        var provider = (PackagedPatternProviderBlockEntity) h.getLevel().getBlockEntity(h.absolutePos(relative));
+        provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.CHISELING_ADAPTER.get()));
+        var logic = (PackagedPatternProviderLogic) provider.getLogic();
+        logic.getPatternInv().setItemDirect(0, encoded(input, output));
+        logic.updatePatterns();
+        h.runAfterDelay(40, () -> {
+            var pattern = logic.getAvailablePatterns().get(0);
+            var template = counters(input);
+            h.assertTrue(logic.getBatchCapacity(pattern) == 64, "Linear conversion must expose 64 copies per tick");
+            h.assertTrue(logic.pushBatch(pattern, template, 100) == 36, "Batch must accept exactly 64 of 100 copies");
+            h.assertTrue(template[0].get(input.what()) == 3, "Batch mutated borrowed template inputs");
+            h.assertTrue(logic.getBatchCapacity(pattern) == 0, "Linear lane quota was not consumed");
+            h.assertTrue(logic.drainVirtualBatch().equals(List.of(new GenericStack(output.what(), 384))),
+                    "Linear batch lost or inflated outputs");
+            h.runAfterDelay(1, () -> {
+                h.assertTrue(logic.getBatchCapacity(pattern) == 64, "Linear quota did not reset next tick");
+                h.succeed();
+            });
+        });
+    }
+
 }

@@ -13,11 +13,22 @@ import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.item.HephaestusUpgradeReceiptItem;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
+import com.moakiee.ae2lt.packaged.item.ResonantPackagedCoreItem;
 import com.moakiee.ae2lt.packaged.item.PackagedCoreBaseItem;
 
 public final class PPItems {
     public static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(Registries.ITEM, AE2LTPackagedProvider.MODID);
+
+    public static final RegistryObject<MultiblockAdapterItem> NATURES_AURA_ALTAR_ADAPTER =
+            registerPackagedCore("naturesaura_altar_packaged_core",
+                    AdapterIds.NATURES_AURA_ALTAR, Set.of(AdapterIds.NATURES_AURA_ALTAR));
+    public static final RegistryObject<MultiblockAdapterItem> NATURES_AURA_TREE_ADAPTER =
+            registerPackagedCore("naturesaura_tree_ritual_packaged_core",
+                    AdapterIds.NATURES_AURA_TREE, Set.of(AdapterIds.NATURES_AURA_TREE));
+    public static final RegistryObject<MultiblockAdapterItem> NATURES_AURA_OFFERING_ADAPTER =
+            registerPackagedCore("naturesaura_offering_packaged_core",
+                    AdapterIds.NATURES_AURA_OFFERING, Set.of(AdapterIds.NATURES_AURA_OFFERING));
 
     // ===== Packaged cores (1 per slot, max-stack 1) =====
     //
@@ -191,6 +202,9 @@ public final class PPItems {
     public static final RegistryObject<MultiblockAdapterItem> CHISELING_ADAPTER =
             registerPackagedCore("chiseling_packaged_core", AdapterIds.CHISELING, Set.of(AdapterIds.CHISELING));
 
+    public static final RegistryObject<MultiblockAdapterItem> RESONANT_ADAPTER =
+            registerPackagedCore("resonant_packaged_core", AdapterIds.RESONANT, Set.of(AdapterIds.RESONANT));
+
     // ===== Crafting intermediates =====
 
     /** Generic crafting base for the per-machine packaged cores. */
@@ -216,7 +230,9 @@ public final class PPItems {
             ResourceLocation primaryId,
             Set<ResourceLocation> coveredIds) {
         return ITEMS.register(name,
-                () -> new MultiblockAdapterItem(
+                () -> primaryId.equals(AdapterIds.RESONANT)
+                        ? new ResonantPackagedCoreItem(new Item.Properties().stacksTo(1))
+                        : new MultiblockAdapterItem(
                         new Item.Properties().stacksTo(1),
                         primaryId,
                         coveredIds));

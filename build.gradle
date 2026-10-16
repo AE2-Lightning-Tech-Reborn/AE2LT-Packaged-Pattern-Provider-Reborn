@@ -266,8 +266,14 @@ dependencies {
         transitive = false
     }
 
-    // Optional adapter test runtimes; reflection keeps them off the compile classpath.
-    // Enable with -Penable_integration_runtime=true.
+    // ============================================================
+    // Runtime mods for multiblock adapter integration testing.
+    //
+    // Every adapter under logic/multiblock/<mod>/ reaches its target mod purely by
+    // reflection, so none of these are needed to compile. They stay opt-in so that
+    // a plain `gradlew build` does not depend on third-party availability. Enable
+    // with -Penable_integration_runtime=true .
+    // ============================================================
     // Forge-specific Modrinth version IDs avoid selecting a Fabric/NeoForge file.
     if ((findProperty('enable_chiseling_runtime') ?: 'false').toBoolean()) {
         def chiselingMods = (findProperty('chiseling_runtime_mods') ?: 'chipped,rechiseled').toString().split(',') as Set
@@ -283,11 +289,14 @@ dependencies {
             runtimeOnly fg.deobf('maven.modrinth:fusion-connected-textures:w0vXLzFW') // Forge 1.3.16
         }
     }
-    if ((findProperty('enable_appmek_runtime') ?: 'false').toBoolean()) {
+    if ((findProperty('enable_appmek_runtime') ?: 'false').toBoolean()
+            || (findProperty('enable_integration_runtime') ?: 'false').toBoolean()) {
         runtimeOnly fg.deobf('maven.modrinth:applied-mekanistics:9n9p68Qq')       // Forge 1.4.3
     }
     if ((findProperty('enable_integration_runtime') ?: 'false').toBoolean()) {
-        // Shared libraries pinned to Forge 1.20.1 builds.
+        // Library dependencies shared by multiple target mods. Versions are the
+        // actual Modrinth release numbers for the 1.20.1 Forge line (the
+        // original pins referenced versions that were never published).
         runtimeOnly fg.deobf("maven.modrinth:cucumber:7.0.16")                    // MA + EC (7.0.7+ fixes the Watering Can sound code loading client classes on dedicated servers)
         runtimeOnly fg.deobf("maven.modrinth:patchouli:1.20.1-84-forge")          // AA + Botania
         runtimeOnly fg.deobf("maven.modrinth:geckolib:4.8.4-forge")               // Occultism + Ars (Forge build; the Maven endpoint serves Fabric for plain 4.8.4)
@@ -301,6 +310,7 @@ dependencies {
         // Target mods (one adapter package per mod)
         runtimeOnly fg.deobf("maven.modrinth:actually-subtractions:1.2.14.20+mc1.20.1") // aa/ (Actually Additions 1.20.1 is published under this project)
         runtimeOnly fg.deobf("maven.modrinth:ars-nouveau:4.12.6")                 // ars/
+        runtimeOnly fg.deobf("maven.modrinth:natures-aura:39.4")                // naturesaura/
         runtimeOnly fg.deobf("maven.modrinth:mystical-agriculture:7.0.9")         // ma/
         runtimeOnly fg.deobf("maven.modrinth:extended-crafting:6.0.5")            // ec/
         runtimeOnly fg.deobf("maven.modrinth:occultism:1.20.1-1.100.0")           // occultism/
@@ -340,15 +350,14 @@ test {
     stressOptions.each { name, option ->
         systemProperty option.systemName, option.value.toString()
     }
-    // This migration test requires a deobfuscated AE2LT development jar;
-    // the production jar available to this branch is post-reobf.
-    filter {
-        excludeTestsMatching 'StablePatternProviderNbtMigrationTest'
-    }
 }
 
-// Forge 1.20.1 reads SNBT templates from the run directory's gameteststructures folder;
-// ordinary datapack structures accept only binary NBT.
+// GameTests load structure templates in 1.20.1 from the SNBT folder
+// `gameteststructures/` relative to the run directory: the datapack
+// `structures/` lookup only accepts compiled binary .nbt, so the text
+// templates cannot ship as ordinary resources. Keep the repo copies under
+// src/gameteststructures and mirror them into the run directory before any
+// dev run that can host game tests.
 tasks.register('syncGameTestStructures', Copy) {
     from 'src/gameteststructures'
     include '*.snbt'
@@ -361,6 +370,7 @@ tasks.register('syncGameTestStructures', Copy) {
     }
 }
 
+// Expand the declared replace properties in the mod metadata resources.
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
             minecraft_version        : minecraft_version,
@@ -453,6 +463,7 @@ publishing {
     }
 }
 
+// IDEA no longer automatically downloads sources/javadoc jars for dependencies.
 idea {
     module {
         downloadSources = true

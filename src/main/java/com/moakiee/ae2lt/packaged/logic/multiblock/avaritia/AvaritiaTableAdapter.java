@@ -56,6 +56,7 @@ public final class AvaritiaTableAdapter implements UnboundedVirtualCraftingAdapt
     private static final org.slf4j.Logger LOG =
             org.slf4j.LoggerFactory.getLogger("ae2ltpp/avaritia-table");
     private static final String MOD_ID = "avaritia";
+    private static final ResourceLocation SCULK_TABLE_BLOCK = avaritiaId("sculk_crafting_table");
     private static final ResourceLocation NETHER_TABLE_BLOCK = avaritiaId("nether_crafting_table");
     private static final ResourceLocation END_TABLE_BLOCK = avaritiaId("end_crafting_table");
     private static final ResourceLocation EXTREME_TABLE_BLOCK = avaritiaId("extreme_crafting_table");

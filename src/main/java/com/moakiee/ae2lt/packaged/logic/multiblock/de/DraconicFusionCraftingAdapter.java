@@ -302,6 +302,13 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
         return assignments;
     }
 
+    private static boolean hasAvailableInjectors(
+            List<InjectorInfo> injectors,
+            int recipeTierIndex,
+            int requiredCount) {
+        return selectAvailableInjectors(injectors, recipeTierIndex, requiredCount).isPresent();
+    }
+
     private static Optional<List<InjectorInfo>> selectAvailableInjectors(
             List<InjectorInfo> injectors,
             int recipeTierIndex,

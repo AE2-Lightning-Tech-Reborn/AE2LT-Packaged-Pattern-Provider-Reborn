@@ -150,6 +150,10 @@ public abstract class StablePatternProviderBlockEntity
         super(type, pos, blockState);
     }
 
+    public int getPatternSlotCount() {
+        return SLOTS_PER_PAGE;
+    }
+
     public static void serverTick(
             Level level,
             BlockPos pos,
@@ -312,7 +316,7 @@ public abstract class StablePatternProviderBlockEntity
             return false;
         }
         var updated = new WirelessConnection(dimension, pos.immutable(), boundFace);
-        if (validateConnection(serverLevel, worldPosition, updated,
+        if (validateHostConnection(serverLevel, worldPosition, updated,
                 WirelessPatternProviderPolicy.maxDistance()) != WirelessConnectionValidator.Status.VALID) {
             return false;
         }
@@ -372,6 +376,22 @@ public abstract class StablePatternProviderBlockEntity
     /** PP permits block-only adapters without weakening AE2LT's global validator. */
     static WirelessConnectionValidator.Status validateConnection(
             ServerLevel hostLevel, BlockPos hostPos, WirelessConnectionRef target, int maxDistance) {
+        return validateWithTarget(hostLevel, hostPos, target, maxDistance,
+                (targetLevel, pos) -> defaultWirelessTargetPresent(targetLevel, pos));
+    }
+
+    private WirelessConnectionValidator.Status validateHostConnection(
+            ServerLevel hostLevel, BlockPos hostPos, WirelessConnectionRef target, int maxDistance) {
+        return validateWithTarget(hostLevel, hostPos, target, maxDistance, this::isWirelessTargetPresent);
+    }
+
+    protected boolean isWirelessTargetPresent(ServerLevel targetLevel, BlockPos pos) {
+        return defaultWirelessTargetPresent(targetLevel, pos);
+    }
+
+    private static WirelessConnectionValidator.Status validateWithTarget(
+            ServerLevel hostLevel, BlockPos hostPos, WirelessConnectionRef target, int maxDistance,
+            java.util.function.BiPredicate<ServerLevel, BlockPos> targetPresent) {
         if (!WirelessConnectionRange.isInRange(
                 hostLevel.dimension(), hostPos, target.dimension(), target.pos(), maxDistance)) {
             return WirelessConnectionValidator.Status.REMOVE;
@@ -384,14 +404,17 @@ public abstract class StablePatternProviderBlockEntity
             // Retain existing connections while unloaded, but do not add new ones.
             return WirelessConnectionValidator.Status.UNLOADED;
         }
-        var state = targetLevel.getBlockState(target.pos());
-        var be = targetLevel.getBlockEntity(target.pos());
+        return targetPresent.test(targetLevel, target.pos())
+                ? WirelessConnectionValidator.Status.VALID : WirelessConnectionValidator.Status.REMOVE;
+    }
+
+    private static boolean defaultWirelessTargetPresent(ServerLevel targetLevel, BlockPos pos) {
+        var state = targetLevel.getBlockState(pos);
+        var be = targetLevel.getBlockEntity(pos);
         if (!state.isAir() && be != null) {
-            return WirelessConnectionValidator.Status.VALID;
+            return true;
         }
-        return MultiblockAdapterRegistry.find(targetLevel, target.pos(), be) != null
-                ? WirelessConnectionValidator.Status.VALID
-                : WirelessConnectionValidator.Status.REMOVE;
+        return MultiblockAdapterRegistry.find(targetLevel, pos, be) != null;
     }
 
     public int clearInvalidConnections() {
@@ -411,7 +434,7 @@ public abstract class StablePatternProviderBlockEntity
                 invalidConnectionScanCursor,
                 maxChecks,
                 connection -> {
-                    if (validateConnection(serverLevel, worldPosition, connection, maxDistance)
+                    if (validateHostConnection(serverLevel, worldPosition, connection, maxDistance)
                             != WirelessConnectionValidator.Status.REMOVE) {
                         return false;
                     }
@@ -674,7 +697,7 @@ public abstract class StablePatternProviderBlockEntity
         var counts = new LinkedHashMap<PatternContainerGroup, Integer>();
         int maxDistance = WirelessPatternProviderPolicy.maxDistance();
         for (var connection : connections) {
-            if (validateConnection(
+            if (validateHostConnection(
                     hostLevel,
                     worldPosition,
                     connection,

@@ -10,20 +10,17 @@
   "pattern": [
     "LTL",
     "BCB",
-    "LXL"
+    "LTL"
   ],
   "key": {
     "L": {
       "item": "extendedcrafting:luminessence"
     },
+    "T": {
+      "item": "extendedcrafting:basic_component"
+    },
     "B": {
       "item": "extendedcrafting:black_iron_ingot"
-    },
-    "T": {
-      "item": "extendedcrafting:basic_catalyst"
-    },
-    "X": {
-      "item": "extendedcrafting:crystaltine_catalyst"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

@@ -11,6 +11,8 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import appeng.blockentity.AEBaseBlockEntity;
 
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.packaged.blockentity.ExtendedPackagedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.packaged.network.ResonantCoreSelectPacket;
 import com.moakiee.ae2lt.packaged.blockentity.WirelessPackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
 import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsAtomicReconstructorAdapter;
@@ -39,6 +41,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.compat.BloodMagicAltarAdapter
 import com.moakiee.ae2lt.packaged.logic.multiblock.compat.ForbiddenArcanusClibanoAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.compat.ForbiddenArcanusHephaestusForgeAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekanismMoreMachinesAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.naturesaura.NaturesAuraAdapter;
 import com.moakiee.ae2lt.packaged.registry.PPBlockEntities;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
 import com.moakiee.ae2lt.packaged.registry.PPCreativeTabs;
@@ -63,6 +66,7 @@ public class AE2LTPackagedProvider {
         PPCreativeTabs.CREATIVE_MODE_TABS.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
+        ResonantCoreSelectPacket.register();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -71,6 +75,13 @@ public class AE2LTPackagedProvider {
             MultiblockAdapterRegistry.register(new ActuallyAdditionsEmpowererAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauEnchantingApparatusAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauImbuementChamberAdapter());
+            if (net.minecraftforge.fml.ModList.get().isLoaded("naturesaura")) {
+                for (NaturesAuraAdapter.Kind kind : NaturesAuraAdapter.Kind.values()) {
+                    var adapter = new NaturesAuraAdapter(kind);
+                    MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRegistration(
+                            adapter.requiredAdapterId(null, null), adapter.priority(), () -> true, adapter));
+                }
+            }
             MultiblockAdapterRegistry.register(new DraconicFusionCraftingAdapter());
             MultiblockAdapterRegistry.register(new ExtendedCraftingTableAdapter());
             MultiblockAdapterRegistry.register(new ExtendedCraftingEnderCrafterAdapter());
@@ -124,6 +135,15 @@ public class AE2LTPackagedProvider {
             AEBaseBlockEntity.registerBlockEntityItem(
                     wirelessPackagedBeType,
                     wirelessPackagedBlock.asItem());
+
+            var extendedBlock = PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get();
+            var extendedBeType = PPBlockEntities.EXTENDED_PACKAGED_PATTERN_PROVIDER.get();
+            extendedBlock.setBlockEntity(
+                    ExtendedPackagedPatternProviderBlockEntity.class,
+                    extendedBeType,
+                    null,
+                    StablePatternProviderBlockEntity::serverTick);
+            AEBaseBlockEntity.registerBlockEntityItem(extendedBeType, extendedBlock.asItem());
 
             LOGGER.info("AE2LT Packaged Pattern Provider Reborn initialized");
         });

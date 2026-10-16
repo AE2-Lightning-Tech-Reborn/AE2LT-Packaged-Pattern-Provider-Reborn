@@ -12,8 +12,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 class ArsReusableCatalystTest {
-    @BeforeAll static void bootstrap() { MinecraftTestBootstrap.initialize(); }
-    private static final ItemStack PRODUCT = new ItemStack(Items.DIAMOND, 2);
+    @BeforeAll static void bootstrap() {
+        MinecraftTestBootstrap.initialize();
+        PRODUCT = new ItemStack(Items.DIAMOND, 2);
+    }
+    private static ItemStack PRODUCT;
     private static GenericStack product(long n) { return new GenericStack(AEItemKey.of(PRODUCT), n); }
     private static GenericStack catalyst(long n) { return new GenericStack(AEItemKey.of(Items.STONE), n); }
 

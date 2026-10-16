@@ -6,7 +6,7 @@
     }
   ],
   "type": "actuallyadditions:laser",
-  "energy": 100000,
+  "energy": 1000,
   "ingredient": {
     "item": "ae2ltpp:basic_packaged_core"
   },

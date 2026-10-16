@@ -25,3 +25,5 @@ The provider does not access a player's inventory.
 
 The installed mod's live recipes determine valid conversions, including registered addon recipes.
 Normal provider power costs and the per-tick limit apply.
+
+With blocking and crafting locks disabled, Chipped and internal chiseling accept batches with identical concrete inputs. Each lane shares a limit of 64 copies per tick.

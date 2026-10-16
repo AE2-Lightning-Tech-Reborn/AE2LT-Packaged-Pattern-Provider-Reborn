@@ -5,6 +5,7 @@ import java.util.List;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -12,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import appeng.api.inventories.InternalInventory;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.menu.guisync.GuiSync;
+import appeng.menu.SlotSemantics;
 import appeng.menu.implementations.PatternProviderMenu;
 import appeng.menu.implementations.MenuTypeBuilder;
 import appeng.menu.slot.AppEngSlot;
@@ -21,6 +23,8 @@ import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ReturnMode;
+import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ProviderMode;
+import static com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.SLOTS_PER_PAGE;
 
 public class PackagedPatternProviderMenu extends PatternProviderMenu
         implements FrequencyBindingMenuHost {
@@ -37,6 +41,12 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
     @GuiSync(22001)
     public String titleTranslationKey =
             "ae2ltpp.gui.title.packaged_pattern_provider";
+
+    @GuiSync(22002)
+    public int providerMode;
+
+    @GuiSync(22003)
+    public int currentPage;
 
     private final PackagedPatternProviderBlockEntity host;
     private final Slot adapterSlot;
@@ -55,6 +65,10 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
         this.adapterSlot = addSlot(adapterSlot, PackagedPatternProviderSlotSemantics.ADAPTER_CARD);
 
         registerClientAction("toggleAutoReturn", this::toggleAutoReturn);
+        registerClientAction("toggleMode", this::toggleMode);
+        registerClientAction("nextPage", () -> changePage(1));
+        registerClientAction("prevPage", () -> changePage(-1));
+        showPage(0);
     }
 
     public Slot getAdapterSlot() {
@@ -65,9 +79,73 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
     public void broadcastChanges() {
         if (isServerSide()) {
             returnMode = host.getReturnMode().ordinal();
+            providerMode = host.getProviderMode().ordinal();
             titleTranslationKey = host.ae2lt$titleTranslationKey();
         }
+        showPage(currentPage);
         super.broadcastChanges();
+    }
+
+    public int getTotalPages() {
+        return Math.max(1, (host.getPatternSlotCount() + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE);
+    }
+
+    @Override
+    public ItemStack quickMoveStack(Player player, int slotIndex) {
+        // AE2's MOVE_REGION action calls this directly without checking mayPickup.
+        if (slotIndex >= 0 && slotIndex < slots.size() && !getSlot(slotIndex).isActive()) {
+            return ItemStack.EMPTY;
+        }
+        return super.quickMoveStack(player, slotIndex);
+    }
+
+    public void showPage(int page) {
+        currentPage = Math.max(0, Math.min(page, getTotalPages() - 1));
+        var patternSlots = getSlots(SlotSemantics.ENCODED_PATTERN);
+        int start = currentPage * SLOTS_PER_PAGE;
+        for (int i = 0; i < patternSlots.size(); i++) {
+            if (patternSlots.get(i) instanceof AppEngSlot slot) {
+                boolean visible = i >= start && i < start + SLOTS_PER_PAGE;
+                slot.setActive(visible);
+                // Disabled AE2 slots ignore incoming slot updates. Keep every page
+                // synchronized even when its slots are hidden and cannot be edited.
+                if (slot instanceof appeng.menu.slot.RestrictedInputSlot restricted) {
+                    restricted.setAllowEdit(visible);
+                }
+            }
+        }
+    }
+
+    private void changePage(int delta) {
+        if (isServerSide()) {
+            showPage(currentPage + delta);
+        }
+    }
+
+    private void toggleMode() {
+        if (isServerSide() && host.isProviderModeSwitchable()) {
+            host.setProviderMode(host.isWirelessProvider() ? ProviderMode.NORMAL : ProviderMode.WIRELESS);
+        }
+    }
+
+    public boolean isModeSwitchVisible() {
+        return host.isProviderModeSwitchable();
+    }
+
+    public boolean isWirelessMode() {
+        return providerMode == ProviderMode.WIRELESS.ordinal();
+    }
+
+    public void clientToggleMode() {
+        sendClientAction("toggleMode");
+    }
+
+    public void clientNextPage() {
+        sendClientAction("nextPage");
+    }
+
+    public void clientPrevPage() {
+        sendClientAction("prevPage");
     }
 
     private void toggleAutoReturn() {

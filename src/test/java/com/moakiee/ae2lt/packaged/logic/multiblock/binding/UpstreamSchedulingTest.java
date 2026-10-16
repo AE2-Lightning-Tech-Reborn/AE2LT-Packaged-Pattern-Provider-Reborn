@@ -26,13 +26,18 @@ class UpstreamSchedulingTest {
         assertFalse(schedule.isDue("target", tick));
         assertTrue(schedule.isDue("target", tick + 1));
     }
-    @Test void rejectedPatternDoesNotThrottleAnotherPattern() {
-        var retry = new RequestCooldownTable<String>();
-        retry.recordFailure("bad recipe", 0);
-        assertFalse(retry.isReady("bad recipe", 0));
-        assertTrue(retry.isReady("good recipe", 0));
-        retry.recordSuccess("bad recipe");
-        assertTrue(retry.isReady("bad recipe", 0));
+    @Test void rejectedPatternRetriesEveryNextTickWithoutThrottlingOtherPatterns() {
+        var retry = new TickFailureSet<String>();
+        for (long tick = 0; tick < 100; tick++) {
+            assertTrue(retry.isReady("blocked", tick));
+            retry.recordFailure("blocked", tick);
+            assertFalse(retry.isReady("blocked", tick));
+            assertTrue(retry.isReady("other", tick));
+        }
+        assertTrue(retry.isReady("blocked", 10), "clock rollback starts a fresh tick");
+        retry.recordFailure("blocked", 10);
+        retry.clear();
+        assertTrue(retry.isReady("blocked", 10));
     }
     @Test void longBatchSearchFindsEnergyBudgetWithoutIntTruncation() {
         assertEquals(1L << 35, BatchCopies.fittingLong(Long.MAX_VALUE, n -> n <= (1L << 35)));

@@ -39,7 +39,7 @@ import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ExpectedStackHarvestOwnership;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
-import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -48,14 +48,35 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekmmMachineSpec.PortGr
 import com.moakiee.ae2lt.packaged.logic.multiblock.mekmm.MekmmMachineSpec.PortType;
 
 /**
- * Adapter for large MekMM controllers sharing one packaged core.
- * Machine identities, modes and port layouts are defined by MekmmMachines.
+ * Single adapter that drives every Mekanism: More Machines multiblock
+ * controller (large variants of chemical infuser, electrolytic separator,
+ * antiprotonic nucleosynthesizer, rotary condensentrator, solar neutron
+ * activator, pigment mixer). All per-machine differences live in
+ * {@link MekmmMachines} as declarative {@link MekmmMachineSpec} entries.
+ *
+ * <p>All machines share the same packaged core ({@link AdapterIds#MEKMM}) so the
+ * user only needs one item in the provider regardless of which large machine
+ * sits in front of it.
  */
-public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
+public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdapter {
 
     private static final String HARVEST_STATE = "mekmm:harvest";
     private static final String HARVEST_MODE = "mekmm:mode";
     private static final long STATE_TTL_TICKS = 20L * 60L * 60L * 6L;
+
+    @Override
+    public ResourceLocation batchAdapterId() {
+        return AdapterIds.MEKMM;
+    }
+
+    @Override
+    public long insertBatchInput(ServerLevel level, BlockPos pos, Direction side,
+                                 GenericStack stack, Actionable mode, IActionSource source) {
+        PortType type = classify(stack.what());
+        if (type == null || stack.amount() <= 0) return 0L;
+        if (type != PortType.CHEMICAL && stack.amount() > Integer.MAX_VALUE) return 0L;
+        return inserterFor(type, level, pos, side).apply(stack, mode);
+    }
 
     @Override
     public int priority() {
@@ -122,43 +143,8 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
         mainPos = resolveMainPos(level, mainPos);
         MekmmMachineSpec spec = specAt(level, mainPos);
         if (spec == null) return null;
-        if (!patternFitsPorts(level, mainPos, spec, pattern)) return null;
-        return new BindingResult(spec, BindingMode.REAL);
-    }
-
-    /**
-     * Bind-time gate: a pattern may only obtain a handle when every declared
-     * input classifies to a port type the machine actually exposes and the
-     * input-port type arity matches exactly. Unmatched diagnostic patterns and
-     * patterns encoded for other machines must not claim a live handle here.
-     * Per-port layout, amounts and port ambiguity are still validated at
-     * plan time where the gathered inputs are known.
-     */
-    private static boolean patternFitsPorts(ServerLevel level, BlockPos mainPos,
-                                            MekmmMachineSpec spec, IPatternDetails pattern) {
-        var be = level.getBlockEntity(mainPos);
-        if (be == null) return false;
-        PortGroup mode = spec.activeMode(be);
-        var required = new EnumMap<PortType, Integer>(PortType.class);
-        for (var input : pattern.getInputs()) {
-            PortType type = null;
-            for (var possible : input.getPossibleInputs()) {
-                var candidate = classify(possible.what());
-                if (candidate == null) return false;
-                if (type == null) {
-                    type = candidate;
-                } else if (type != candidate) {
-                    return false;
-                }
-            }
-            if (type == null) return false;
-            required.merge(type, 1, Integer::sum);
-        }
-        var portCounts = new EnumMap<PortType, Integer>(PortType.class);
-        for (PortDef port : mode.inputs()) {
-            portCounts.merge(port.type(), 1, Integer::sum);
-        }
-        return portCounts.equals(required);
+        var binding = MekRecipeBinding.find(level, level.getBlockEntity(mainPos), spec, pattern);
+        return binding == null ? null : new BindingResult(binding, BindingMode.REAL);
     }
 
     @Override
@@ -169,10 +155,13 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
     @Override
     public boolean canDispatch(ServerLevel level, BlockPos mainPos, Object handle,
                                AdapterPersistentScope scope) {
-        if (!(handle instanceof MekmmMachineSpec spec)) return false;
+        MekmmMachineSpec spec = handle instanceof MekRecipeBinding binding
+                ? binding.spec() : handle instanceof MekmmMachineSpec direct ? direct : null;
+        if (spec == null) return false;
         mainPos = resolveMainPos(level, mainPos);
         var be = level.getBlockEntity(mainPos);
         if (be == null || !MekReflection.isTileEntityClass(be, spec.tileClass())) return false;
+        if (handle instanceof MekRecipeBinding binding && !binding.supports(spec.activeMode(be))) return false;
         boolean outputsEmpty = outputPortsEmpty(level, mainPos, MekReflection.getFacing(be),
                 spec.activeMode(be));
         maybeClearExpiredHarvest(level, mainPos, scope, outputsEmpty);
@@ -206,6 +195,9 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
                                         IPatternDetails pattern, KeyCounter[] inputs,
                                         Object handle, IActionSource source,
                                         AdapterPersistentScope scope) {
+        if (handle instanceof MekRecipeBinding binding) {
+            return planNativeRecipe(level, mainPos, pattern, inputs, binding, scope, true);
+        }
         if (!(handle instanceof MekmmMachineSpec spec)
                 || !canDispatch(level, mainPos, handle, scope)) return null;
         mainPos = resolveMainPos(level, mainPos);
@@ -275,6 +267,82 @@ public final class MekanismMoreMachinesAdapter implements MultiblockAdapter {
             },
                 (accepted, recovered) -> recoverPartialDispatch(
                         level, resolvedMainPos, targets, accepted, recovered));
+    }
+
+    @Override
+    public DispatchPlan planBatchWithBinding(ServerLevel level, BlockPos mainPos,
+                                              IPatternDetails pattern, KeyCounter[] inputs,
+                                              Object handle, IActionSource source,
+                                              AdapterPersistentScope scope) {
+        if (!(handle instanceof MekRecipeBinding binding)) return null;
+        return planNativeRecipe(level, mainPos, pattern, inputs, binding, scope, false);
+    }
+
+    @Override
+    public boolean onBatchAccepted(ServerLevel level, BlockPos mainPos, IPatternDetails pattern,
+                                   Object handle, int copies, AdapterPersistentScope scope) {
+        if (!(handle instanceof MekRecipeBinding binding) || copies <= 0) return false;
+        try {
+            mainPos = resolveMainPos(level, mainPos);
+            var be = level.getBlockEntity(mainPos);
+            if (be == null || !binding.supports(binding.spec().activeMode(be))) return false;
+            var expected = new ArrayList<GenericStack>();
+            for (var output : pattern.getOutputs()) {
+                if (output == null || output.amount() <= 0
+                        || output.amount() > Long.MAX_VALUE / copies) return false;
+                expected.add(new GenericStack(output.what(), output.amount() * copies));
+            }
+            var previous = ExpectedStackHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
+            var combined = mergeExpected(previous == null ? List.of() : previous.remaining(), expected);
+            if (combined == null || combined.isEmpty()) return false;
+            ExpectedStackHarvestOwnership.store(level, mainPos, scope, HARVEST_STATE,
+                    previous == null ? level.getGameTime() : previous.createdTick(), combined);
+            scope.setState(mainPos, ExpectedStackHarvestOwnership.qualifiedKey(level, HARVEST_MODE),
+                    binding.spec().activeMode(be).toString());
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            return false;
+        }
+    }
+
+    @Nullable
+    private DispatchPlan planNativeRecipe(ServerLevel level, BlockPos mainPos,
+                                          IPatternDetails pattern, KeyCounter[] inputs,
+                                          MekRecipeBinding binding, AdapterPersistentScope scope,
+                                          boolean recordOwnership) {
+        mainPos = resolveMainPos(level, mainPos);
+        var be = level.getBlockEntity(mainPos);
+        var spec = binding.spec();
+        if (be == null || !spec.equals(findSpec(level, be)) || !binding.supports(spec.activeMode(be))) {
+            return null;
+        }
+        var mode = spec.activeMode(be);
+        var arranged = binding.arrange(level, mode, pattern, inputs);
+        if (arranged == null) return null;
+        var facing = MekReflection.getFacing(be);
+        var targets = new ArrayList<TargetSlot>();
+        for (int i = 0; i < mode.inputs().size(); i++) {
+            var port = mode.inputs().get(i);
+            var portPos = portPos(mainPos, facing, port.spec());
+            var portSide = portSide(facing, port.spec());
+            if (!level.isLoaded(portPos)) return null;
+            targets.add(new TargetSlot(level, portPos, portSide,
+                    List.of(arranged.get(i)), InsertionStrategy.CUSTOM,
+                    inserterFor(port.type(), level, portPos, portSide)));
+        }
+        if (!recordOwnership) return new DispatchPlan(List.copyOf(targets), null);
+        var resolvedMainPos = mainPos;
+        var previous = ExpectedStackHarvestOwnership.load(level, resolvedMainPos, scope, HARVEST_STATE);
+        var expected = copyPatternOutputs(pattern);
+        var combined = mergeExpected(previous == null ? List.of() : previous.remaining(), expected);
+        if (combined == null || combined.isEmpty()) return null;
+        return new DispatchPlan(List.copyOf(targets), () -> {
+            ExpectedStackHarvestOwnership.store(level, resolvedMainPos, scope, HARVEST_STATE,
+                    previous == null ? level.getGameTime() : previous.createdTick(), combined);
+            scope.setState(resolvedMainPos,
+                    ExpectedStackHarvestOwnership.qualifiedKey(level, HARVEST_MODE), mode.toString());
+        }, (accepted, recovered) -> recoverPartialDispatch(level, resolvedMainPos, targets,
+                accepted, recovered));
     }
 
     @Override

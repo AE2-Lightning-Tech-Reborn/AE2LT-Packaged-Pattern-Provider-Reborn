@@ -35,14 +35,12 @@ class PackagedProviderPersistenceContractTest {
                 "src/main/java/com/moakiee/ae2lt/packaged/blockentity/"
                         + "PackagedPatternProviderBlockEntity.java");
 
-        assertTrue(source.contains(
-                "frequencyBinding.exportMemorySettings("));
-        assertTrue(source.contains(
-                "this::writeStableMemoryCardSettings"));
-        assertTrue(source.contains(
-                "frequencyBinding.importMemorySettings("));
-        assertTrue(source.contains(
-                "this::readStableMemoryCardSettings"));
+        assertTrue(source.contains("\"AE2LTMachineConfig\""));
+        assertTrue(source.contains("\"Frequency\""));
+        assertTrue(source.contains("writeStableMemoryCardSettings(settings)"));
+        assertTrue(source.contains("readStableMemoryCardSettings(settings)"));
+        assertTrue(source.contains("frequencyBinding.getFrequencyId()"));
+        assertTrue(source.contains("frequencyBinding.setFrequency(settings.getInt(TAG_MEMORY_FREQUENCY))"));
     }
 
     @Test
