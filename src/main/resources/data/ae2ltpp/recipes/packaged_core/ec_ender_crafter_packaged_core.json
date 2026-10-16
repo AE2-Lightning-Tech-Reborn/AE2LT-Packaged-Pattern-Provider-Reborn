@@ -13,10 +13,10 @@
   ],
   "key": {
     "E": {
-      "item": "extendedcrafting:enhanced_ender_ingot"
+      "item": "extendedcrafting:ender_ingot"
     },
     "S": {
-      "item": "extendedcrafting:ender_star"
+      "item": "minecraft:ender_pearl"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

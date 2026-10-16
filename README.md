@@ -220,11 +220,11 @@ Verified locally on this branch:
 
 - `gradlew build -Puse_local_upstream=true -Penable_avaritia_tests=true
   --no-daemon --max-workers=1` runs the full build and optional AvaritiaNeo tests
-  on JDK 17; the verified local run passed all 271 unit tests. The migration test
+  on JDK 17; the verified local run passed all 282 unit tests. The migration test
   requiring a deobfuscated AE2LT development jar is excluded from this suite.
   Add `--offline` only after all dependencies are cached.
 - `gradlew runGameTestServer -Penable_integration_runtime=true --offline --no-daemon`
-  passes all 66 required GameTests with the checked-in integration runtime set.
+  passes all 70 required GameTests with the checked-in integration runtime set.
 - Powered ME-network recovery tests cover both provider variants: output amounts
   remain unchanged while storage is unavailable, then reach a real ME chest
   exactly once after installing its cell, including reloads before and after delivery.
@@ -235,12 +235,30 @@ Verified locally on this branch:
 - A powered ME CPU executes two Blood Magic tier-one altar crafts, verifies exact
   LP-backed input and output delivery across a provider reload, and rejects a
   follow-up order after the stone supply is exhausted.
+- A powered ME CPU executes native AvaritiaNeo `endest_pearl` shaped and
+  `cosmic_meatballs` shapeless recipes, each in orders of one and three crafts.
+  Tests verify manual-table occupancy blocks dispatch without altering manual
+  items, exact ingredient and multi-item output quantities, provider reloads
+  without duplicate delivery, and rejection with exact missing-input counts.
 - A powered ME CPU executes two Hephaestus Forge ferrognetic-mixture rituals,
   waits for missing essences, and checks all five ingredient amounts, essence
   consumption, pedestal cleanup, and exact output delivery across provider
   reloads during and after each ritual. A depleted-ingredient order is rejected.
-- The full integration-runtime client reaches the main menu with 36 loaded mods
-  and exits normally. This verifies startup; it does not verify in-world dispatch.
+- The full integration-runtime client loads 36 mods and passes the same 70
+  GameTests inside a real integrated-server world, including the CPU orders
+  above. It renders all 32 packaged cores, opens both provider screens through
+  client block interaction, saves the world, returns to the menu, and exits.
+  This is automated client coverage, not manual acceptance of every recipe.
+- Mekanism More Machine's optional config-parser Mixin changes only null recipe
+  maps to mutable empty maps, preventing the empty-config JEI registration crash
+  for item/fluid replicators and preserving configured recipes. Client validation
+  checks all seven JEI categories with empty configs and with one configured
+  item recipe and one configured fluid recipe; both client runs pass 70 GameTests.
+- Malum's known malformed conditional recipe advancements receive missing
+  inventory criteria and recipe rewards before parsing. Their original tag
+  conditions stay intact; healthy/custom definitions and other namespaces are
+  not rewritten. GameTests verify enabled advancements load with real recipes
+  and disabled tag branches stay absent. Neither dependency jar is modified.
 - A separate client with fresh configuration also reaches the main menu with
   all 36 mods. The earlier GuideME config-loading failure did not recur in this
   run; one successful fresh start does not establish that the race is fixed.
@@ -249,7 +267,7 @@ Verified locally on this branch:
 
 Not yet verified:
 
-- In-game behaviour of the provider blocks (a `runClient` session).
+- Full manual in-game acceptance of both provider blocks and every recipe family.
 - The cause and permanent resolution of the intermittent GuideME 20.1.15
   config-loading failure.
 - Full interactive ME-network dispatch for every optional-mod recipe family;

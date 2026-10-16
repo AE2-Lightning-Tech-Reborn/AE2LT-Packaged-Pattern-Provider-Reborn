@@ -6,13 +6,8 @@ import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 
 /**
- * Client-side supplier for the packaged-core item renderer.
- *
- * <p>Forge 1.20.1 has no {@code RegisterClientExtensionsEvent}: an item hands
- * out its own client extensions from {@code Item#initializeClient}, which the
- * loader only ever calls on the client. The renderer itself is built on first
- * use rather than eagerly, because its constructor reaches into
- * {@code Minecraft.getInstance()} and must not run before the client is up.
+ * Client extensions supplied through Forge 1.20.1 Item.initializeClient.
+ * Construct the renderer lazily, after Minecraft client initialization.
  */
 public final class PackagedCoreClientExtensions {
 
@@ -26,10 +21,7 @@ public final class PackagedCoreClientExtensions {
     private static final class LazyRenderer implements IClientItemExtensions {
         static final LazyRenderer INSTANCE = new LazyRenderer();
 
-        // volatile + double-checked locking so the renderer's publication is
-        // safe across the (rare) case of multiple render threads during chunk
-        // load. BlockEntityWithoutLevelRenderer holds a reference to a
-        // Minecraft singleton, so a torn read here would NPE.
+        // Publish the lazily initialized renderer safely across threads.
         private volatile PackagedCoreItemRenderer renderer;
 
         @Override

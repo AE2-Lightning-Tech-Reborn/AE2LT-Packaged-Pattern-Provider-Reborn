@@ -519,6 +519,7 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
         private static volatile @Nullable Method isCraftingMethod;
         private static volatile @Nullable Method startCraftMethod;
         private static volatile @Nullable Method getInjectorsMethod;
+        private static volatile @Nullable Method updateInjectorsMethod;
         private static volatile @Nullable Method getInjectorStackMethod;
         private static volatile @Nullable Method setInjectorStackMethod;
         private static volatile @Nullable Method getInjectorTierMethod;
@@ -691,8 +692,11 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
         @SuppressWarnings("unchecked")
         static List<InjectorInfo> getInjectors(BlockEntity core, ServerLevel level) {
             ensureLookup();
-            if (getInjectorsMethod == null) return null;
+            if (getInjectorsMethod == null || updateInjectorsMethod == null) return null;
             try {
+                // DE caches injector positions; a new/rebuilt setup needs a native scan
+                // before the pre-dispatch gate can see it. startCraft is too late.
+                updateInjectorsMethod.invoke(core);
                 var raw = getInjectorsMethod.invoke(core);
                 if (!(raw instanceof List<?> list)) return null;
                 var result = new ArrayList<InjectorInfo>(list.size());
@@ -846,6 +850,7 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
                 getOutputStackMethod = coreClass.getMethod("getOutputStack");
                 setOutputStackMethod = coreClass.getMethod("setOutputStack", ItemStack.class);
                 getInjectorsMethod = coreClass.getMethod("getInjectors");
+                updateInjectorsMethod = coreClass.getMethod("updateInjectors");
             } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
                 LOG.warn("[ae2ltpp] DE fusion: failed to resolve TileFusionCraftingCore members: {}", e.getMessage());
             }

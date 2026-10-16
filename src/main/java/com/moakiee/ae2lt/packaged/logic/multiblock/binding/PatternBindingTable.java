@@ -9,25 +9,9 @@ import org.jetbrains.annotations.Nullable;
 import appeng.api.crafting.IPatternDetails;
 
 /**
- * Lazy cache of {@link PatternBinding} for each pattern slot.
- *
- * <p>Bindings are computed on the first push that needs them (lazy bind) and
- * invalidated as a unit when any structural premise changes:
- * <ul>
- *   <li>pattern slot edited &mdash; {@link #invalidateAll()} from {@code updatePatterns}</li>
- *   <li>neighbor block changed &mdash; {@link #invalidateAll()} from {@code onNeighborChanged}</li>
- *   <li>wireless connection list changed &mdash; {@link #invalidateAll()} from {@code onHostStateChanged}</li>
- *   <li>recipe table reloaded &mdash; {@link #invalidateAllForRecipeReload()} from the server reload listener</li>
- * </ul>
- *
- * <p>The cache stores {@code PatternBinding} objects (which may be empty
- * &laquo;UNMATCHED&raquo; instances) so negative lookups are also cached and
- * not retried until invalidation.
- *
- * <p>Keyed by pattern identity (the {@code IPatternDetails} returned by
- * {@code PatternDetailsHelper.decodePattern}) rather than equality, because
- * {@code updatePatterns} rebuilds the pattern list wholesale and replaces every
- * instance &mdash; identity matches the cache invalidation lifecycle exactly.
+ * Lazy cache keyed by pattern identity, since pattern updates replace instances.
+ * Matched entries expire after 200 ticks; unmatched entries after 40 ticks.
+ * Structure changes and recipe reloads also invalidate bindings.
  */
 public final class PatternBindingTable {
 
@@ -42,10 +26,7 @@ public final class PatternBindingTable {
         RECIPE_GENERATION.incrementAndGet();
     }
 
-    // IdentityHashMap is not thread-safe; synchronize all access to keep the
-    // get+remove in getFresh atomic and to avoid CME under concurrent grid
-    // events. The lock is per-table (instance), so providers don't block each
-    // other.
+    // The per-provider lock protects map access and atomic expiry/removal.
     private final Map<IPatternDetails, PatternBinding> bindings = new IdentityHashMap<>();
     private final Object lock = new Object();
 

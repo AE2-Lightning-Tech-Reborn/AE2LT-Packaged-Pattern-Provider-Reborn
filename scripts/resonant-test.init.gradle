@@ -1,0 +1,33 @@
+// Optional Forge integration suite; test code stays outside the release jar.
+gradle.afterProject { p ->
+    if (!p.plugins.hasPlugin('net.minecraftforge.gradle')) return
+    p.sourceSets.create('resonantTest') {
+        compileClasspath += p.sourceSets.main.output + p.sourceSets.main.compileClasspath
+        runtimeClasspath += output + p.sourceSets.main.runtimeClasspath
+    }
+    def crystalJar = p.findProperty('ppCrystalScienceJar')
+    if (crystalJar != null) {
+        if (!p.file(crystalJar).isFile()) throw new GradleException('ppCrystalScienceJar must be a Forge development jar')
+        p.dependencies.add('runtimeOnly', p.files(crystalJar))
+    }
+    p.minecraft.runs.gameTestServer {
+        property 'forge.enabledGameTestNamespaces',
+                (p.findProperty('ppTestNamespaces') ?: 'ae2ltpp_resonant').toString()
+        mods { ae2ltpp { source p.sourceSets.resonantTest } }
+    }
+}
+
+// Keep worlds from different optional-mod combinations separate.
+gradle.projectsEvaluated {
+    allprojects { p ->
+        if (!p.plugins.hasPlugin('net.minecraftforge.gradle')) return
+        def runDir = p.findProperty('ppTestRunDir')
+        if (runDir != null) {
+            def directory = p.file(runDir)
+            p.minecraft.runs.gameTestServer { workingDirectory directory }
+            p.tasks.named('syncGameTestStructures').configure {
+                into new File(directory, 'gameteststructures')
+            }
+        }
+    }
+}

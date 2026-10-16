@@ -10,7 +10,12 @@
     "PatternProviderLogicMixin",
     "ClibanoBlockEntityLoadMixin",
     "HephaestusRitualManagerMixin",
-    "AE2LightningTechCoreConfigCompatMixin"
+    "MekmmRecipeConfigMixin",
+    "MalumRecipeAdvancementMixin",
+    "AE2LightningTechCoreConfigCompatMixin",
+    "NaturesAuraAltarMixin",
+    "NaturesAuraOfferingMixin",
+    "NaturesAuraTreeRitualMixin"
   ],
   "client": [
     "WirelessConnectorItemMixin"

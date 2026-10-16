@@ -11,22 +11,15 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.KeyCounter;
 
 /**
- * Marker for adapters whose recipes have no in-world delay: outputs are
- * computed and returned directly without a physical dispatch cycle.
- *
- * <p>Virtual lanes feed the batch accumulator instead of the real cooldown
- * machinery; they can be filled by every connected provider in parallel.
+ * Recipes without an in-world delay; outputs enter the provider's batch accumulator.
+ * Virtual lanes bypass real-machine cooldowns and may serve multiple providers.
  */
 public interface VirtualCraftingAdapter extends MultiblockAdapter {
 
     /**
-     * Compute the virtual result with an existing binding handle.
-     * Returns {@code null} when current world state invalidates the binding
-     * (e.g. recipe no longer matches, source pool / charge insufficient).
-     *
-     * <p>Must not mutate world state. Machine side-effects belong in
-     * {@link VirtualCraftingResult#commit()}, which runs only after the
-     * provider has acquired the virtual lane.
+     * Plans from the binding, or returns {@code null} if the live state cannot craft.
+     * Must not mutate the world; effects belong in {@link VirtualCraftingResult#commit()}
+     * after the provider acquires the virtual lane.
      */
     @Nullable
     VirtualCraftingResult planVirtualWithBinding(ServerLevel level, BlockPos mainPos,
@@ -34,17 +27,8 @@ public interface VirtualCraftingAdapter extends MultiblockAdapter {
                                                  Object handle, IActionSource source);
 
     /**
-     * Sound event id played at the provider when a virtual batch from this
-     * adapter actually delivers items into the return inventory. Used by
-     * {@code PackagedPatternProviderLogic#playFlushSound} to mimic the audio
-     * cue the player would hear from the underlying machine.
-     *
-     * <p>The id is looked up against {@code BuiltInRegistries.SOUND_EVENT}
-     * at flush time, so an unloaded mod (or a renamed sound) silently falls
-     * back to the generic "products arrived" cue.
-     *
-     * <p>Returning {@code null} means "use the generic fallback" — appropriate
-     * for adapters with no signature sound (e.g. plain crafting tables).
+     * Sound played when a virtual batch reaches the return inventory.
+     * {@code null} or an unavailable sound leaves the provider silent.
      */
     @Nullable
     default ResourceLocation flushSoundId() {
@@ -52,14 +36,8 @@ public interface VirtualCraftingAdapter extends MultiblockAdapter {
     }
 
     /**
-     * Optional machine-side effect to run when the virtual batch actually
-     * surfaces in the provider return inventory.
-     *
-     * <p>This is intentionally tied to flush time rather than push time: a
-     * virtual push only admits work into the accumulator, while flush is when
-     * the player sees products arrive. Adapters can use this for visual-only
-     * machine feedback, e.g. firing a laser once without placing dropped
-     * inputs in the world.
+     * Machine feedback when the batch reaches the return inventory.
+     * This hook must not place or consume recipe inputs.
      */
     default void onVirtualBatchFlush(ServerLevel level, BlockPos mainPos,
                                      Object handle, IActionSource source) {

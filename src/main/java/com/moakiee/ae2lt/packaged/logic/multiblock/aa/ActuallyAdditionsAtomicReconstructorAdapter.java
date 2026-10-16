@@ -13,10 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.fml.ModList;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.security.IActionSource;
@@ -26,7 +23,6 @@ import appeng.api.stacks.KeyCounter;
 
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
-import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
@@ -36,36 +32,14 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
- * Virtual adapter for Actually Additions' Atomic Reconstructor laser
- * conversions.
- *
- * <p>The Atomic Reconstructor is "instant" in spirit — once the beam fires
- * (every redstone pulse or once per tick when continuously powered) a single
- * item passes through the laser AABB and converts in the same tick. The mod's
- * baseline {@code MethodHandler.invokeReconstructor} contains no animation
- * delay; the ~visual delay players see is the item-entity drop / settle, not
- * the conversion itself.
- *
- * <p>So we equivalent-virtualize it: compute the output, consume the input
- * from AE, and surface the result through the virtual batch — but still
- * <b>extract the machine's internal RF/CF</b> via the AA API (the canonical
- * {@code IEnergyTile.extractEnergy(int)}), keeping the cost side-effect
- * faithful so the player still has to feed the reconstructor power. If the
- * reconstructor is starved, the batch returns null and the next push reattempts.
- *
- * <p>The default conversion-lens check is preserved as well: only the stock
- * conversion lens triggers vanilla recipes, so other lenses (death, miner,
- * color, …) are silently ignored — those have side effects that aren't safely
- * virtualizable.
+ * Virtual laser conversions using the stock conversion lens. Each craft
+ * charges the reconstructor's real energy storage; insufficient energy rejects the batch.
  */
 public final class ActuallyAdditionsAtomicReconstructorAdapter implements VirtualCraftingAdapter {
 
     private static final ResourceLocation ATOMIC_RECONSTRUCTOR_BLOCK = AaSupport.aaId("atomic_reconstructor");
     private static final ResourceLocation LASER_RECIPE_TYPE = AaSupport.aaId("laser");
-    /**
-     * Per-craft baseline RF charged by the reconstructor regardless of recipe
-     * (matches AA's headroom over {@code recipe.getEnergy()} in 1.21 builds).
-     */
+    /** Baseline energy charged in addition to the recipe cost. */
     private static final int BASE_ENERGY_USE = 1000;
     private static final int MAX_INPUT_AMOUNT = 64;
 
