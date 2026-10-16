@@ -23,7 +23,7 @@ class PackagedPatternProviderPowerCostRegressionTest {
                 "src/main/java/com/moakiee/ae2lt/packaged/logic/PackagedPatternProviderLogic.java"));
 
         int realPush = source.indexOf("private boolean tryRealDispatch(");
-        int realEnd = source.indexOf("protected boolean hasAutoReturnWork()", realPush);
+        int realEnd = source.indexOf("\n    // ===== Tick =====", realPush);
         assertTrue(realPush >= 0 && realEnd > realPush, "real dispatch method must exist");
         String method = source.substring(realPush, realEnd);
 
@@ -58,7 +58,7 @@ class PackagedPatternProviderPowerCostRegressionTest {
                 "real input power must be consumed only after dispatch succeeds");
 
         int realPush = source.indexOf("private boolean tryRealDispatch(");
-        int realEnd = source.indexOf("protected boolean hasAutoReturnWork()", realPush);
+        int realEnd = source.indexOf("\n    // ===== Tick =====", realPush);
         assertTrue(realPush >= 0 && realEnd > realPush, "real dispatch method must exist");
         assertTrue(!source.substring(realPush, realEnd).contains("consumeRaw("),
                 "real dispatch must not consume input power before push success is reported");

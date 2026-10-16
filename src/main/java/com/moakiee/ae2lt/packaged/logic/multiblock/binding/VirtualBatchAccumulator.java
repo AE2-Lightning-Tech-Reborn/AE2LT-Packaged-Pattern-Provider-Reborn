@@ -2,6 +2,7 @@ package com.moakiee.ae2lt.packaged.logic.multiblock.binding;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -12,8 +13,6 @@ import org.slf4j.LoggerFactory;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-
-import com.moakiee.ae2lt.packaged.logic.PendingAmounts;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEFluidKey;
@@ -28,9 +27,9 @@ import appeng.api.stacks.GenericStack;
  * pattern only contributes one entry per key per flush window, keeping the
  * inserted stack count bounded even when push frequency is very high.
  *
- * <p>The push path checks {@link #maxCopies} before accepting a craft so
- * each accepted craft, including duplicate remainder keys, stays within a long.
- * Totals beyond a long are retained as multiple chunks, including after reload.
+ * <p>The class itself enforces no upper bound on accumulated amount; the
+ * outer push path is expected to apply a per-tick admission cap (e.g. 64
+ * outputs per lane per tick) before calling {@link #enqueue}.
  */
 public final class VirtualBatchAccumulator {
 
@@ -43,7 +42,7 @@ public final class VirtualBatchAccumulator {
 
     public static final int FLUSH_INTERVAL_TICKS = 10;
 
-    private final PendingAmounts<AEKey> pending = new PendingAmounts<>();
+    private final Map<AEKey, Long> pending = new LinkedHashMap<>();
     private long lastFlushTick = Long.MIN_VALUE;
 
     /** Merge {@code outputs} into the pending buffer keyed by {@link AEKey}. */
@@ -126,8 +125,8 @@ public final class VirtualBatchAccumulator {
         tag.remove(TAG_PENDING);
         tag.remove(TAG_LAST_FLUSH_TICK);
         var entries = new ListTag();
-        for (var entry : pending.snapshot()) {
-            entries.add(writeStack(entry.key(), entry.amount()));
+        for (var entry : pending.entrySet()) {
+            entries.add(writeStack(entry.getKey(), entry.getValue()));
         }
         if (!entries.isEmpty()) {
             tag.put(TAG_PENDING, entries);
@@ -156,24 +155,6 @@ public final class VirtualBatchAccumulator {
                 LOG.warn("Ignoring malformed virtual batch entry at index {}", i, exception);
             }
         }
-    }
-
-    /** Capacity is checked before accepting inputs; pending products must never saturate. */
-    public long maxCopies(List<GenericStack> outputs) {
-        var oneCopy = new HashMap<AEKey, Long>();
-        try {
-            for (var stack : outputs) {
-                if (stack == null || stack.what() == null || stack.amount() <= 0) return 0;
-                oneCopy.merge(stack.what(), stack.amount(), Math::addExact);
-            }
-        } catch (ArithmeticException overflow) { return 0; }
-        if (oneCopy.isEmpty()) return 0;
-        long maximum = Long.MAX_VALUE;
-        for (var entry : oneCopy.entrySet()) {
-            maximum = Math.min(maximum,
-                    (Long.MAX_VALUE - pending.cappedAmount(entry.getKey())) / entry.getValue());
-        }
-        return maximum;
     }
 
     private static CompoundTag writeStack(AEKey key, long amount) {
@@ -222,13 +203,23 @@ public final class VirtualBatchAccumulator {
         if (key == null || amount <= 0) {
             return;
         }
-        pending.add(key, amount);
+        var previous = pending.get(key);
+        if (previous == null) {
+            pending.put(key, amount);
+            return;
+        }
+        try {
+            pending.put(key, Math.addExact(previous, amount));
+        } catch (ArithmeticException overflow) {
+            pending.put(key, Long.MAX_VALUE);
+            LOG.warn("Virtual batch amount saturated at Long.MAX_VALUE for {}", key);
+        }
     }
 
     private List<GenericStack> snapshotStacks() {
-        var merged = new ArrayList<GenericStack>();
-        for (var entry : pending.snapshot()) {
-            merged.add(new GenericStack(entry.key(), entry.amount()));
+        var merged = new ArrayList<GenericStack>(pending.size());
+        for (var entry : pending.entrySet()) {
+            merged.add(new GenericStack(entry.getKey(), entry.getValue()));
         }
         return merged;
     }
@@ -246,12 +237,8 @@ public final class VirtualBatchAccumulator {
         lastFlushTick = Long.MIN_VALUE;
     }
 
-    /** Debug totals capped per key at Long.MAX_VALUE; drain and NBT preserve all chunks. */
+    /** Snapshot for debug / inspection. Not part of the steady-state hot path. */
     public Map<AEKey, Long> snapshot() {
-        var amounts = new HashMap<AEKey, Long>();
-        for (var entry : pending.snapshot()) {
-            amounts.put(entry.key(), pending.cappedAmount(entry.key()));
-        }
-        return amounts;
+        return new HashMap<>(pending);
     }
 }

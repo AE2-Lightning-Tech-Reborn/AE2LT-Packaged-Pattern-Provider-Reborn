@@ -13,12 +13,6 @@ public final class OverloadPatternSemantics {
     private OverloadPatternSemantics() {
     }
 
-    public static boolean isIdOnlyInput(IPatternDetails pattern, int inputIndex) {
-        return inputIndex >= 0
-                && pattern instanceof OverloadedPatternDetails overload
-                && overload.isFuzzyInput(inputIndex);
-    }
-
     public static boolean isIdOnlyOutput(IPatternDetails pattern, int outputIndex) {
         return outputIndex >= 0
                 && pattern instanceof OverloadedPatternDetails overload

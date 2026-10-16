@@ -28,17 +28,29 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.PatternInputAlternatives;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
-import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
- * Virtual Spirit Fire conversion: validates the recipe and returns its output
- * without spawning item entities. Occultism is accessed through reflection.
+ * Runtime adapter for Occultism's Spirit Fire item-conversion blocks.
+ *
+ * <p>Spirit Fire is the "throw item into colored fire to convert it" mechanic
+ * (block: {@code occultism:spirit_fire}, recipe class: {@code SpiritFireRecipe}
+ * &mdash; a {@code Recipe<ItemStackFakeInventory>}). Players normally drop
+ * an item into the fire and wait ~40 ticks for the conversion to fire-trigger.
+ *
+ * <p>Spirit Fire has **no fuel/energy/cooldown** — the wait is purely visual.
+ * That makes it a virtual-craft candidate by the equivalence principle: the
+ * packaged provider can compute the result without ever spawning a real
+ * ItemEntity, and the player sees the converted product appear instantly in
+ * the return inventory just as they would from picking it up off the floor.
+ *
+ * <p>Pure reflection: Occultism is not a compile dependency.
  */
-public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAdapter {
+public final class OccultismSpiritFireAdapter implements VirtualCraftingAdapter {
 
     private static final String MOD_ID = "occultism";
     private static final ResourceLocation SPIRIT_FIRE_BLOCK = occultismId("spirit_fire");

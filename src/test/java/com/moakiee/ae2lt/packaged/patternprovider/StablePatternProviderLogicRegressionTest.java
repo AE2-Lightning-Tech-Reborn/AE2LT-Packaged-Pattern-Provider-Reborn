@@ -50,8 +50,7 @@ public final class StablePatternProviderLogicRegressionTest {
     void hostValidationPreservesOnlyRecognizedBlockOnlyTargets() throws Exception {
         String source = Files.readString(Path.of(
                 "src/main/java/com/moakiee/ae2lt/packaged/patternprovider/StablePatternProviderBlockEntity.java"));
-        String validator = extractMembers(source, Set.of(),
-                Set.of("validateConnection", "validateWithTarget", "defaultWirelessTargetPresent"), Set.of());
+        String validator = extractMembers(source, Set.of(), Set.of("validateConnection"), Set.of());
         String spiritFire = Files.readString(Path.of(
                 "src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/occultism/OccultismSpiritFireAdapter.java"));
         String recognition = extractMembers(spiritFire, Set.of(), Set.of("recognizesMain"), Set.of());
@@ -59,11 +58,11 @@ public final class StablePatternProviderLogicRegressionTest {
 
         // Wiring contracts supplement behavior: all server mutations use the same validator.
         String add = extractMembers(source, Set.of(), Set.of("addOrUpdateConnection"), Set.of());
-        org.junit.jupiter.api.Assertions.assertTrue(add.indexOf("validateHostConnection(")
+        org.junit.jupiter.api.Assertions.assertTrue(add.indexOf("validateConnection(")
                 < add.indexOf("connections.set("));
         org.junit.jupiter.api.Assertions.assertTrue(add.contains("Status.VALID"));
         String prune = extractMembers(source, Set.of(), Set.of("pruneInvalidConnections"), Set.of());
-        org.junit.jupiter.api.Assertions.assertTrue(prune.contains("validateHostConnection("));
+        org.junit.jupiter.api.Assertions.assertTrue(prune.contains("validateConnection("));
         org.junit.jupiter.api.Assertions.assertTrue(prune.contains("Status.REMOVE"));
         org.junit.jupiter.api.Assertions.assertFalse(source.contains("WirelessConnectionValidator.validate("));
         String cleanup = extractMembers(source, Set.of(), Set.of("tickWirelessConnectionCleanup"), Set.of());
@@ -220,7 +219,7 @@ public final class StablePatternProviderLogicRegressionTest {
         void notifyLogicStateChanged() { events.add("notify"); }
         void saveChanges() { events.add("save"); }
         void markForUpdate() { events.add("update"); }
-        WirelessConnectionValidator.Status validateHostConnection(
+        WirelessConnectionValidator.Status validateConnection(
                 ServerLevel serverLevel, BlockPos origin, WirelessConnection connection, int distance) {
             checked.add(connection.pos());
             return connection.status();

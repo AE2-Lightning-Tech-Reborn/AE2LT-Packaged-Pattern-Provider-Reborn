@@ -32,5 +32,3 @@ Build the machine, place the provider against it, install the Packaged Core, and
 ## Notes
 
 * The machine still needs its own **energy**. Keep it adequately powered.
-
-Failed requests can retry on the next tick; duplicate failures within one tick are suppressed without blocking other patterns. Both chemical inputs to the Large Chemical Infuser are consumed according to the recipe. They are not resident catalysts; auto-return reads only output ports.

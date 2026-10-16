@@ -3,7 +3,8 @@
     {
       "type": "forge:mod_loaded",
       "modid": "avaritia"
-    },
+    }
+,
     {
       "type": "forge:item_exists",
       "item": "avaritia:sculk_crafting_table"
@@ -12,16 +13,16 @@
   "type": "avaritia:shaped_table",
   "tier": 1,
   "pattern": [
-    "ABA",
-    "BCB",
-    "ABA"
+    "NPN",
+    "PCP",
+    "NPN"
   ],
   "key": {
-    "A": {
-      "item": "minecraft:sculk"
+    "N": {
+      "item": "avaritia:neutron_nugget"
     },
-    "B": {
-      "item": "ae2:certus_quartz_crystal"
+    "P": {
+      "item": "avaritia:neutron_pile"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

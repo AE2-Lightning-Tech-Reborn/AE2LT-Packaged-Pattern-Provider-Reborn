@@ -19,9 +19,6 @@ import net.minecraft.resources.ResourceLocation;
 
 class PackagedCoreNamingTest {
     private static final List<String> MACHINE_CORE_ITEM_IDS = List.of(
-            "naturesaura_altar_packaged_core",
-            "naturesaura_tree_ritual_packaged_core",
-            "naturesaura_offering_packaged_core",
             "aa_reconstructor_packaged_core",
             "aa_empowerer_packaged_core",
             "ars_apparatus_packaged_core",
@@ -53,8 +50,7 @@ class PackagedCoreNamingTest {
             "avaritia_extreme_smithing_packaged_core",
             "bloodmagic_altar_packaged_core",
             "forbidden_arcanus_clibano_packaged_core",
-            "forbidden_arcanus_hephaestus_forge_packaged_core",
-            "chiseling_packaged_core", "resonant_packaged_core");
+            "forbidden_arcanus_hephaestus_forge_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
             "basic_packaged_core");

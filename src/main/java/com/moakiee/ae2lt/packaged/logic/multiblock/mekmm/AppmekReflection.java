@@ -6,12 +6,15 @@ import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import net.minecraftforge.fml.ModList;
+
 import appeng.api.stacks.AEKey;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 final class AppmekReflection {
 
     private static final Logger LOG = LogUtils.getLogger();
+    private static final String APPMEK_MOD_ID = "appmek";
 
     private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("appmek");
     private static volatile @Nullable Class<?> mekanismKeyClass;
@@ -23,9 +26,24 @@ final class AppmekReflection {
 
     private AppmekReflection() {}
 
+    static boolean isAppmekLoaded() {
+        return ModList.get().isLoaded(APPMEK_MOD_ID);
+    }
+
     static boolean isMekanismKey(AEKey key) {
         ensureLookup();
         return mekanismKeyClass != null && mekanismKeyClass.isInstance(key);
+    }
+
+    @Nullable
+    static Object toChemicalStack(AEKey key) {
+        ensureLookup();
+        if (getStackMethod == null || !isMekanismKey(key)) return null;
+        try {
+            return getStackMethod.invoke(key);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+            return null;
+        }
     }
 
     @Nullable

@@ -40,10 +40,44 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 
 /**
- * Dispatches one real terra-plate cycle, letting Botania accumulate mana.
- * Readiness also checks pending item entities during the plate's startup latch tick.
- * Inputs spawn inside the plate's [Y, Y+1) scan volume and carry an ownership tag.
- * Harvest includes the plate's own Y level because outputs spawn at Y + 0.2.
+ * Real-mode adapter for the Terrestrial Agglomeration Plate &mdash; the
+ * Botania multi-block that fuses Terrasteel from Manasteel ingots,
+ * Mana Pearl, and Mana Diamond while consuming a fixed amount of mana
+ * from the surrounding mana sources.
+ *
+ * <p>The plate has a genuine in-world delay (mana must be accumulated
+ * before the output spawns) and produces an {@link ItemEntity} when
+ * done, so it can't be virtualised faithfully without inventing mana.
+ * We therefore route it through the REAL dispatch path:
+ *
+ * <ol>
+ *   <li>{@link #bind}: locate the matching {@code TerrestrialAgglomerationRecipe}
+ *       by pattern output.</li>
+ *   <li>{@link #canDispatch}: plate must be idle <i>and</i> its 1x1x1
+ *       inhabit volume must contain no {@link ItemEntity} &mdash;
+ *       Botania's {@code tryStartProcessing} has a latch tick between
+ *       "items dropped" and "manaToGet set", so the bare
+ *       {@code terraIsIdle} would happily re-dispatch into a plate
+ *       that already has ingredients waiting to be picked up.</li>
+ *   <li>{@link #planWithBinding}: spawn each ingredient as an
+ *       {@link ItemEntity} <i>inside</i> the plate's own 1x1x1 AABB
+ *       (Botania scans {@code new AABB(BlockPos)} = [Y, Y+1) for
+ *       inputs &mdash; spawning higher than that is invisible to
+ *       {@code tryStartProcessing}). The entity is marked with a
+ *       persistent tag so {@link #extractOutputs} can ignore stray
+ *       items from other automation.</li>
+ *   <li>{@link #extractOutputs}: once the plate goes idle again, sweep
+ *       the air column above it for the recipe's result item and pull
+ *       it back into the provider. The scan starts at the plate's
+ *       <i>own</i> Y level &mdash; Botania spawns the output at
+ *       {@code pos.Y + 0.2} (the plate is only 0.1875 blocks tall),
+ *       so anything above {@code pos.Y + 0.5} would already be
+ *       outside the search window.</li>
+ * </ol>
+ *
+ * <p>Batch policy: K=1 only. Each push commits one terra plate cycle;
+ * cycles cannot overlap because the plate only holds one recipe state
+ * at a time.
  */
 public final class TerraPlateAdapter implements MultiblockAdapter {
 

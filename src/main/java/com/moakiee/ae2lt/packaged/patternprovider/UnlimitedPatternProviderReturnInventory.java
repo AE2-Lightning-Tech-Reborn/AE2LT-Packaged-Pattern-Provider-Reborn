@@ -35,11 +35,16 @@ public final class UnlimitedPatternProviderReturnInventory
         }
         for (int i = 0; i < size(); i++) {
             if (what.equals(getKey(i))) {
-                long accepted = Math.min(amount, Long.MAX_VALUE - getAmount(i));
-                if (mode == Actionable.MODULATE && accepted > 0) {
-                    setStack(i, new GenericStack(what, getAmount(i) + accepted));
+                if (mode == Actionable.MODULATE) {
+                    long merged;
+                    try {
+                        merged = Math.addExact(getAmount(i), amount);
+                    } catch (ArithmeticException overflow) {
+                        merged = Long.MAX_VALUE;
+                    }
+                    setStack(i, new GenericStack(what, merged));
                 }
-                return accepted;
+                return amount;
             }
         }
         for (int i = 0; i < size(); i++) {

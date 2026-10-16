@@ -3,7 +3,8 @@
     {
       "type": "forge:mod_loaded",
       "modid": "avaritia"
-    },
+    }
+,
     {
       "type": "forge:item_exists",
       "item": "avaritia:neutron_ingot"
@@ -12,16 +13,26 @@
   "type": "avaritia:shaped_table",
   "tier": 3,
   "pattern": [
-    "ABA",
-    "BCB",
-    "ABA"
+    "IMIMIMI",
+    "MPPPPPM",
+    "IPIWIPI",
+    "MPWCWPM",
+    "IPIWIPI",
+    "MPPPPPM",
+    "IMIMIMI"
   ],
   "key": {
-    "A": {
-      "item": "minecraft:end_stone"
+    "M": {
+      "item": "avaritia:crystal_matrix_ingot"
     },
-    "B": {
-      "item": "minecraft:ender_pearl"
+    "I": {
+      "item": "avaritia:neutron_ingot"
+    },
+    "P": {
+      "item": "avaritia:neutron_pile"
+    },
+    "W": {
+      "item": "minecraft:netherite_ingot"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

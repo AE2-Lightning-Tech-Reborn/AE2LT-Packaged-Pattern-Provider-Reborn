@@ -310,24 +310,4 @@ class VirtualBatchAccumulatorStressTest {
             assertEquals(outputs, restored.drainAll());
         }
     }
-    @Test
-    void overflowChunksSurvivePartialDeliverySaveAndReload() {
-        var key = AEItemKey.of(Items.IRON_INGOT);
-        var accumulator = new VirtualBatchAccumulator();
-        accumulator.enqueue(List.of(new GenericStack(key, Long.MAX_VALUE), new GenericStack(key, 9)));
-        var tag = new CompoundTag();
-        accumulator.writeToNBT(tag);
-        var restored = new VirtualBatchAccumulator();
-        restored.readFromNBT(tag);
-        assertEquals(List.of(new GenericStack(key, Long.MAX_VALUE), new GenericStack(key, 9)), restored.drainAll());
-        restored.readFromNBT(tag);
-        restored.tickFlush(0, stacks -> stacks);
-        restored.tickFlush(10, stacks -> List.of(new GenericStack(key, Long.MAX_VALUE - 1), new GenericStack(key, 9)));
-        restored.writeToNBT(tag);
-        restored.readFromNBT(tag);
-        var total = restored.drainAll().stream().map(stack -> java.math.BigInteger.valueOf(stack.amount()))
-                .reduce(java.math.BigInteger.ZERO, java.math.BigInteger::add);
-        assertEquals(java.math.BigInteger.valueOf(Long.MAX_VALUE).add(java.math.BigInteger.valueOf(8)), total);
-    }
-
 }

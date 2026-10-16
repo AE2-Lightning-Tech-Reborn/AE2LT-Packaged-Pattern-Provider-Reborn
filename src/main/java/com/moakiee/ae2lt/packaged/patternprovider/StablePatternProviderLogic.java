@@ -37,9 +37,15 @@ import com.moakiee.ae2lt.packaged.mixin.PatternProviderLogicAccessor;
 import com.moakiee.thunderbolt.core.crafting.overload.OverloadedPatternDetails;
 
 /**
- * PP-owned foundation extracted from AE2LT's 1.1/main logic: overload patterns,
- * return-inventory power, result locks, wireless validation and grid ticking.
- * Machine-specific dispatch belongs to the addon subclass.
+ * PP-owned pattern-provider foundation extracted from AE2LT's 1.1/main logic.
+ *
+ * <p>This class intentionally owns only behavior used by compatible provider
+ * addons: overload-aware pattern loading, return-inventory power accounting,
+ * lock-until-result matching, wireless endpoint validation and the AE2 grid
+ * ticker bridge. Machine-specific dispatch remains in the addon subclass.
+ * AE2LT supplies overload-pattern primitives, while Thunderbolt owns generic
+ * infrastructure only; neither dependency owns this packaged-provider
+ * implementation.
  */
 public class StablePatternProviderLogic extends PatternProviderLogic {
     private static final int GRID_TICK_MIN = 1;
@@ -71,7 +77,7 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
     public StablePatternProviderLogic(
             IManagedGridNode mainNode,
             StablePatternProviderBlockEntity host) {
-        super(mainNode, host, host.getPatternSlotCount());
+        super(mainNode, host, StablePatternProviderBlockEntity.SLOTS_PER_PAGE);
         this.providerHost = host;
         this.gridNode = mainNode;
         this.actionSource = new MachineSource(mainNode::getNode);

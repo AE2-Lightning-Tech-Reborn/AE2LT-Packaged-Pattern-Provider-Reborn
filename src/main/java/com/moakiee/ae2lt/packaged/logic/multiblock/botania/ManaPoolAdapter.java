@@ -24,10 +24,53 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 
 /**
- * Virtual mana infusion. Bind checks output eligibility without pinning a recipe;
- * Botania selects the live recipe using the input and catalyst block at plan time.
- * The selected result key and batch count must match the pattern.
- * Mana is debited on commit; batch flush uses the pool's own crafting feedback.
+ * Virtual adapter for the Mana Pool's <i>Mana Infusion</i> recipes.
+ *
+ * <p>Mana Pool infusion converts a single input stack into a single
+ * output stack and consumes a fixed amount of mana per craft. Some
+ * recipes require a catalyst block under the pool (e.g. Alchemy or
+ * Conjuration Catalyst), and Botania's own
+ * {@code ManaPoolBlockEntity#getMatchingRecipe(ItemStack, BlockState)}
+ * picks <i>catalyst-required</i> recipes over non-catalyst ones when
+ * the catalyst block is present (and falls back the other way when it
+ * is not).
+ *
+ * <p><b>Critical design note:</b> bind does <i>not</i> pin a specific
+ * recipe id. Two recipes can share the same item-stack output (e.g.
+ * <code>wheat → bread</code> with and without an Alchemy Catalyst); the
+ * one that fires depends on the catalyst block under the pool, which
+ * can change between bind and dispatch. Bind only verifies that
+ * <i>some</i> mana-infusion recipe produces the pattern's declared
+ * output key. The live recipe is decided at plan time via Botania's
+ * own matcher, and we validate the pattern key against whichever
+ * recipe Botania picks &mdash; preserving anti-dup while letting users
+ * use a single pattern for both catalysed and non-catalysed flavours.
+ *
+ * <p>Anti-duplication rules:
+ * <ul>
+ *   <li>bind verifies that at least one mana-infusion recipe's
+ *       {@code getResultItem(...)} key equals the pattern's declared
+ *       output (NBT-strict under STRICT, item-id-only under ID_ONLY).
+ *       </li>
+ *   <li>plan re-runs {@code BE.getMatchingRecipe} against the runtime
+ *       KeyCounter stack + the live block under the pool. The picked
+ *       recipe's {@code matches(ItemStack)} is NBT-aware, so a
+ *       NBT-bearing variant that bypassed bind under ID_ONLY still has
+ *       to satisfy it or the dispatch is refused.</li>
+ *   <li>The returned stack key + total amount are checked against the
+ *       pattern by {@link BotaniaRecipeLookup#validatePatternBatchOutput}
+ *       (STRICT NBT or dropSecondary under ID_ONLY).</li>
+ *   <li>The returned stack is {@code AEItemKey.of(recipe.result)},
+ *       never the pattern's declared key.</li>
+ * </ul>
+ *
+ * <p>Side effect (committed at plan time, mirroring
+ * ActuallyAdditions reconstructor convention): {@code receiveMana(-cost)}
+ * is applied to the pool. {@code onVirtualBatchFlush} fires Botania's own
+ * {@code craftingEffect(true)} which plays {@code botania:manaPoolCraft}
+ * + 25 sparkle particles at the pool, throttled by the BE's internal
+ * {@code soundTicks=6} cooldown. No {@code flushSoundId} is set: a
+ * second cue at the provider would clash with the pool's own audio.
  */
 public final class ManaPoolAdapter implements VirtualCraftingAdapter {
 
@@ -207,7 +250,10 @@ public final class ManaPoolAdapter implements VirtualCraftingAdapter {
     private record SingleInput(AEItemKey key, long amount) {
     }
 
-    /** No recipe id is cached because the catalyst can change before planning. */
+    /**
+     * Marker handle: contains no recipe id because the live recipe is
+     * resolved at plan time (depends on catalyst block under the pool).
+     */
     private record ManaPoolBindHandle() {
     }
 }

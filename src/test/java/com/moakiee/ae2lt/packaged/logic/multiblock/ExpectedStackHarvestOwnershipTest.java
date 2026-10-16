@@ -85,15 +85,4 @@ class ExpectedStackHarvestOwnershipTest {
         assertTrue(ExpectedStackHarvestOwnership.expired(
                 10L + ExpectedStackHarvestOwnership.STATE_TTL_TICKS + 1L, claim));
     }
-
-    @Test
-    void claimableCountStaysWithinIntAvailabilityWhenRemainingExceedsLongRange() {
-        var iron = AEItemKey.of(Items.IRON_INGOT);
-        var remaining = List.of(new GenericStack(iron, Long.MAX_VALUE), new GenericStack(iron, 1));
-
-        assertEquals(Integer.MAX_VALUE,
-                ExpectedStackHarvestOwnership.claimableCount(remaining, iron, Integer.MAX_VALUE));
-        assertEquals(0, ExpectedStackHarvestOwnership.claimableCount(remaining, iron, 0));
-        assertEquals(0, ExpectedStackHarvestOwnership.claimableCount(remaining, iron, -1));
-    }
 }

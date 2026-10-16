@@ -37,7 +37,6 @@ import com.moakiee.ae2lt.api.frequency.FrequencyBindingAccess;
 import com.moakiee.ae2lt.api.frequency.FrequencyBindingHost;
 import com.moakiee.ae2lt.api.pattern.PatternProviderUiProfile;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
-import com.moakiee.ae2lt.packaged.item.ResonantPackagedCoreItem;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
@@ -53,21 +52,42 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     private static final String TAG_ADAPTER_INV = "ae2ltpp_adapter_inv";
     private static final String TAG_ADAPTER_FLAGS = "ae2ltpp_adapter_flags";
     private static final String TAG_ADAPTER_STATES = "ae2ltpp_adapter_states";
-    private static final String TAG_MEMORY_SETTINGS = "AE2LTMachineConfig";
-    private static final String TAG_MEMORY_FREQUENCY = "Frequency";
 
-    /** Persistent flags by adapter-namespaced key and packed target position. */
+    /**
+     * Per-(key, target-position) boolean flag store backing
+     * {@link AdapterPersistentScope}. We keep it as a flat {@code key -> set of
+     * packed BlockPos longs} map so the on-disk shape is the cheapest possible
+     * (one {@code long[]} per key, mostly empty in practice), and so the same
+     * provider can host flags from several adapters concurrently without
+     * clashing &mdash; namespacing is the adapter's responsibility, which is
+     * spelled out in {@link AdapterPersistentScope}.
+     */
+    /**
+     * Per-adapter persistent flags, keyed by adapter-namespaced String.
+     *
+     * <p><b>Namespacing contract:</b> the key string MUST be prefixed with the
+     * calling adapter's mod id (e.g. {@code "mysticalagriculture:altar_used"}).
+     * A bare key like {@code "altar"} will collide across adapters and the
+     * {@code adapterFlags} map will grow without bound as different adapters
+     * pick their own keys. See {@link AdapterPersistentScope} for the public API.
+     */
     private final java.util.HashMap<String, java.util.HashSet<Long>> adapterFlags = new java.util.HashMap<>();
     private final java.util.HashMap<String, java.util.HashMap<Long, String>> adapterStates =
             new java.util.HashMap<>();
 
-    private final java.util.Map<Long, net.minecraft.resources.ResourceLocation> resonantAnchorBlocks = new java.util.HashMap<>();
-    private static final String TAG_RESONANT_ANCHORS = "ae2ltpp_resonant_anchors";
-
     private final ProviderMode fixedProviderMode;
     private final FrequencyBindingAccess frequencyBinding = FrequencyApi.createBinding(this);
 
-    /** Installed core; inventory changes invalidate machine bindings. */
+    /**
+     * Single-slot inventory holding the {@link MultiblockAdapterItem} packaged core
+     * that unlocks this provider's machine family. Empty slot = no adapter
+     * installed = nothing matches in {@link PackagedPatternProviderLogic}'s
+     * binding stage.
+     *
+     * <p>Mirrors AE2LT's {@code OverloadedInterface.filterInv} pattern: a
+     * dedicated {@link AppEngInternalInventory} with a per-slot type filter
+     * and an inventory listener that re-runs the binding pipeline on change.
+     */
     private final InternalInventoryHost adapterInvHost = new InternalInventoryHost() {
         @Override
         public void saveChanges() {
@@ -123,11 +143,6 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
             return false;
         }
         var installed = getInstalledAdapterStack();
-        if (installed.getItem() instanceof ResonantPackagedCoreItem) {
-            var layout = ResonantPackagedCoreItem.layout(installed);
-            return serverLevel.isLoaded(pos) && layout != null && !pos.equals(getBlockPos())
-                    && layout.matchesAnchor(serverLevel.getBlockState(pos));
-        }
         if (installed.isEmpty() || !(installed.getItem() instanceof MultiblockAdapterItem)
                 || !serverLevel.isLoaded(pos)) {
             return false;
@@ -148,40 +163,9 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     @Override
     public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
-        if (level == null || dimension == null || !dimension.equals(level.dimension())
-                || !acceptsWirelessTarget(level, pos)
-                || !super.addOrUpdateConnection(dimension, pos, boundFace)) return false;
-        if (ResonantPackagedCoreItem.layout(getInstalledAdapterStack()) != null) {
-            resonantAnchorBlocks.put(pos.asLong(), net.minecraft.core.registries.BuiltInRegistries.BLOCK
-                    .getKey(level.getBlockState(pos).getBlock()));
-        } else resonantAnchorBlocks.remove(pos.asLong());
-        pruneResonantAnchorRecords();
-        saveChanges();
-        return true;
-    }
-
-    @Override
-    public boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos) {
-        if (!super.removeConnection(dimension, pos)) return false;
-        resonantAnchorBlocks.remove(pos.asLong());
-        saveChanges();
-        return true;
-    }
-
-    private void pruneResonantAnchorRecords() {
-        var positions = new java.util.HashSet<Long>();
-        for (var connection : getConnections()) positions.add(connection.pos().asLong());
-        resonantAnchorBlocks.keySet().retainAll(positions);
-    }
-
-    @Override
-    protected boolean isWirelessTargetPresent(ServerLevel targetLevel, BlockPos pos) {
-        var recorded = resonantAnchorBlocks.get(pos.asLong());
-        if (recorded != null) return recorded.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK
-                .getKey(targetLevel.getBlockState(pos).getBlock()));
-        var layout = ResonantPackagedCoreItem.layout(getInstalledAdapterStack());
-        if (layout != null && layout.matchesAnchor(targetLevel.getBlockState(pos))) return true;
-        return super.isWirelessTargetPresent(targetLevel, pos);
+        return level != null && dimension != null && dimension.equals(level.dimension())
+                && acceptsWirelessTarget(level, pos)
+                && super.addOrUpdateConnection(dimension, pos, boundFace);
     }
 
     /**
@@ -244,12 +228,12 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     @Override
     public ProviderMode getProviderMode() {
-        return isProviderModeSwitchable() ? super.getProviderMode() : fixedProviderMode();
+        return fixedProviderMode();
     }
 
     @Override
     public void setProviderMode(ProviderMode providerMode) {
-        super.setProviderMode(isProviderModeSwitchable() ? providerMode : fixedProviderMode());
+        super.setProviderMode(fixedProviderMode());
     }
 
     @Override
@@ -265,7 +249,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     @Override
     public EnumSet<Direction> getTargets() {
-        if (getProviderMode() == ProviderMode.WIRELESS) {
+        if (fixedProviderMode() == ProviderMode.WIRELESS) {
             return EnumSet.noneOf(Direction.class);
         }
         return EnumSet.allOf(Direction.class);
@@ -296,13 +280,9 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         return true;
     }
 
-    public boolean isProviderModeSwitchable() {
-        return false;
-    }
-
     @Override
     public boolean ae2lt$isModeSwitchVisible() {
-        return isProviderModeSwitchable();
+        return false;
     }
 
     @Override
@@ -333,13 +313,6 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         if (data.contains(TAG_ADAPTER_INV)) {
             adapterInv.readFromNBT(data, TAG_ADAPTER_INV);
         }
-        resonantAnchorBlocks.clear();
-        for (var entry : data.getList(TAG_RESONANT_ANCHORS, Tag.TAG_COMPOUND)) {
-            if (!(entry instanceof CompoundTag anchor)) continue;
-            var id = net.minecraft.resources.ResourceLocation.tryParse(anchor.getString("block"));
-            if (id != null) resonantAnchorBlocks.put(anchor.getLong("pos"), id);
-        }
-        pruneResonantAnchorRecords();
         adapterFlags.clear();
         if (data.contains(TAG_ADAPTER_FLAGS, Tag.TAG_COMPOUND)) {
             var flagsTag = data.getCompound(TAG_ADAPTER_FLAGS);
@@ -385,15 +358,6 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         super.saveAdditional(data);
         frequencyBinding.save(data);
         adapterInv.writeToNBT(data, TAG_ADAPTER_INV);
-        pruneResonantAnchorRecords();
-        var anchors = new net.minecraft.nbt.ListTag();
-        resonantAnchorBlocks.forEach((pos, block) -> {
-            var anchor = new CompoundTag();
-            anchor.putLong("pos", pos);
-            anchor.putString("block", block.toString());
-            anchors.add(anchor);
-        });
-        data.put(TAG_RESONANT_ANCHORS, anchors);
         data.remove(TAG_ADAPTER_FLAGS);
         data.remove(TAG_ADAPTER_STATES);
         if (!adapterFlags.isEmpty()) {
@@ -525,7 +489,6 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
                             pos, stack.what(), stack.amount());
                 }
             }
-            packaged.clearDroppedBatchInputs();
         }
         var card = adapterInv.getStackInSlot(0);
         if (!card.isEmpty()) {
@@ -549,27 +512,15 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
             CompoundTag output,
             @Nullable Player player) {
         super.exportSettings(mode, output, player);
-        if (mode == SettingsFrom.MEMORY_CARD) {
-            var settings = new CompoundTag();
-            writeStableMemoryCardSettings(settings);
-            int frequency = frequencyBinding.getFrequencyId();
-            if (frequency > 0) {
-                settings.putInt(TAG_MEMORY_FREQUENCY, frequency);
-            }
-            output.put(TAG_MEMORY_SETTINGS, settings);
-        }
+        frequencyBinding.exportMemorySettings(
+                mode, output, this::writeStableMemoryCardSettings);
     }
 
     @Override
     public void importSettings(SettingsFrom mode, CompoundTag input, @Nullable Player player) {
         super.importSettings(mode, input, player);
-        if (mode == SettingsFrom.MEMORY_CARD && input.contains(TAG_MEMORY_SETTINGS, Tag.TAG_COMPOUND)) {
-            var settings = input.getCompound(TAG_MEMORY_SETTINGS);
-            readStableMemoryCardSettings(settings);
-            if (settings.contains(TAG_MEMORY_FREQUENCY, Tag.TAG_ANY_NUMERIC)) {
-                frequencyBinding.setFrequency(settings.getInt(TAG_MEMORY_FREQUENCY));
-            }
-        }
+        frequencyBinding.importMemorySettings(
+                mode, input, this::readStableMemoryCardSettings);
         sanitizePackagedModes();
     }
 
@@ -621,7 +572,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     }
 
     private void sanitizePackagedModes() {
-        super.setProviderMode(getProviderMode());
+        super.setProviderMode(fixedProviderMode());
         if (super.getReturnMode() == ReturnMode.EJECT) {
             super.setReturnMode(ReturnMode.OFF);
         }

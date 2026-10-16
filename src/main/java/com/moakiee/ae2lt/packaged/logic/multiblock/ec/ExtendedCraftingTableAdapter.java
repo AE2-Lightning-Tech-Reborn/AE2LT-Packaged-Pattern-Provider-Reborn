@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.CraftingContainer;
@@ -38,10 +39,9 @@ import com.moakiee.ae2lt.packaged.patternprovider.OverloadPatternSemantics;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
+import com.moakiee.ae2lt.packaged.logic.multiblock.PatternInputAlternatives;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
-import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
-import com.moakiee.ae2lt.packaged.logic.multiblock.shared.TablePatternMatcher;
-import com.moakiee.ae2lt.packaged.logic.multiblock.shared.TablePatternMatcher.BoundRecipe;
+import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -62,7 +62,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
  * returns the assembled result plus remaining items without inserting into the
  * table grid.
  */
-public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraftingAdapter {
+public final class ExtendedCraftingTableAdapter implements VirtualCraftingAdapter {
 
     private static final String MOD_ID = "extendedcrafting";
     private static final ResourceLocation BASIC_TABLE_BLOCK = ecId("basic_table");
@@ -162,6 +162,15 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
             return null;
         }
 
+        var ingredients = ingredients(bind.recipe());
+        if (ingredients == null) {
+            return null;
+        }
+        int nonEmpty = countNonEmpty(ingredients);
+        if (nonEmpty == 0 || nonEmpty > spec.slots()) {
+            return null;
+        }
+
         var available = new LinkedHashMap<AEItemKey, Long>();
         for (var counter : inputs) {
             for (var entry : counter) {
@@ -172,8 +181,7 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
                 if (amount <= 0) {
                     continue;
                 }
-                try { available.merge(itemKey, amount, Math::addExact); }
-                catch (ArithmeticException overflow) { return null; }
+                available.merge(itemKey, amount, Long::sum);
             }
         }
         if (available.isEmpty()) {
@@ -184,42 +192,23 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
         // preserves same-item variants with different DataComponents/NBT and
         // lets ambiguous ingredients backtrack instead of stealing the only
         // key a later ingredient can use.
-        for (var candidate : bind.recipes()) {
-            var result = planRecipe(level, pattern, available, spec, candidate);
-            if (result != null) return result;
-        }
-        return null;
-    }
-
-    @Nullable
-    private static VirtualCraftingResult planRecipe(ServerLevel level, IPatternDetails pattern,
-            LinkedHashMap<AEItemKey, Long> available, TableSpec spec, BoundRecipe candidate) {
-        var ingredients = ingredients(candidate.recipe());
-        if (ingredients == null) {
-            return null;
-        }
-        int nonEmpty = countNonEmpty(ingredients);
-        if (nonEmpty == 0 || nonEmpty > spec.slots()) {
-            return null;
-        }
-
-        int k = candidate.craftRatio();
+        int k = bind.craftRatio();
         var perCraftStacks = assignIngredientsStrict(ingredients, available, k);
         if (perCraftStacks == null) {
             return null;
         }
 
-        var planned = layoutGridFromIngredients(candidate.recipe(), perCraftStacks, spec);
+        var planned = layoutGridFromIngredients(bind.recipe(), perCraftStacks, spec);
         if (planned == null) {
             return null;
         }
 
         var input = EcReflection.createTableInput(spec.gridSize(), stacksForPlan(spec.slots(), planned), spec.tier());
-        if (input == null || !recipeMatches(candidate.recipe(), input, level)) {
+        if (input == null || !recipeMatches(bind.recipe(), input, level)) {
             return null;
         }
 
-        var result = assemble(candidate.recipe(), input, level);
+        var result = assemble(bind.recipe(), input, level);
         if (result == null || result.isEmpty()) {
             return null;
         }
@@ -231,7 +220,7 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
             return null;
         }
 
-        var remaining = remainingItems(candidate.recipe(), input);
+        var remaining = remainingItems(bind.recipe(), input);
         if (remaining == null) {
             return null;
         }
@@ -301,31 +290,109 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
     }
 
     /**
-     * Cache every compatible recipe and craft ratio. Each input keeps its own
-     * fuzzy flag; output strictness is independent. Planning checks native
-     * matches and assemble against the exact delivered NBT for each candidate.
+     * One-shot recipe + K search executed at bind time. Walks every EC
+     * table recipe whose result item id matches the pattern's primary
+     * output, derives the batch multiplier {@code K = patternOutAmount /
+     * resultCount}, and verifies each non-empty ingredient can be satisfied
+     * by the pattern's declared inputs. The matched (recipe, K) plus the
+     * pattern's output match mode are cached on the binding so plan-time
+     * dispatch can skip the full recipe-table scan.
+     *
+     * <p>Strictness is split by the pattern's output match mode:
+     * <ul>
+     *   <li>Strict mode (default for vanilla patterns):
+     *       ingredient.test must accept the pattern's declared input stack
+     *       with its DataComponents/NBT intact, and the pattern output key
+     *       must equal {@code AEItemKey.of(recipe.result)} exactly. This
+     *       locks in the precise recipe variant so plan time can trust the
+     *       KeyCounter without re-running ingredient.test.</li>
+     *   <li>ID-only mode (AE2LT overload opt-in): bind only
+     *       requires the ingredient to accept some item-id-equal variant
+     *       (via {@link Ingredient#getItems()}). The runtime KeyCounter may
+     *       carry a different NBT variant, so plan time falls back to a
+     *       per-dispatch strict {@code ingredient.test} against the actual
+     *       KeyCounter stack as the final anti-dup gate.</li>
+     * </ul>
+     *
+     * <p>Anti-duplication invariant: neither path ever falls back to
+     * {@code item.getDefaultInstance()} or any other representative stack
+     * for the grid &mdash; the per-craft grid stack is always the exact
+     * {@link KeyCounter} key (with its DataComponents/NBT) at plan time.
      */
     @Nullable
     private static EcBindHandle searchHandle(ServerLevel level, IPatternDetails pattern, TableSpec spec) {
-        var output = pattern.getOutputs()[0];
-        if (!(output.what() instanceof AEItemKey key) || output.amount() <= 0) return null;
-        boolean idOnlyOutput = OverloadPatternSemantics.isIdOnlyOutput(pattern, 0);
-        var candidates = new ArrayList<BoundRecipe>();
-        for (var recipe : recipes(level)) {
-            var result = resultItem(recipe, level);
-            if (result == null || result.isEmpty() || result.getItem() != key.getItem()
-                    || (!idOnlyOutput && !key.equals(AEItemKey.of(result)))
-                    || output.amount() % result.getCount() != 0) continue;
-            long ratio = output.amount() / result.getCount();
-            if (ratio <= 0 || ratio > Integer.MAX_VALUE) continue;
-            var ingredients = ingredients(recipe);
-            if (ingredients == null || countNonEmpty(ingredients) > spec.slots()
-                    || !TablePatternMatcher.matches(ingredients, pattern, ratio)) continue;
-            // Native matches/assemble use actual delivered NBT during planning. Declared
-            // fuzzy inputs need not satisfy a particular component variant at bind time.
-            candidates.add(new BoundRecipe(recipe, (int) ratio));
+        var patternOut = pattern.getOutputs()[0];
+        if (!(patternOut.what() instanceof AEItemKey patternOutKey) || patternOut.amount() <= 0) {
+            return null;
         }
-        return candidates.isEmpty() ? null : new EcBindHandle(spec, List.copyOf(candidates));
+        long patternOutAmount = patternOut.amount();
+
+        var alternatives = PatternInputAlternatives.expandItemAlternatives(pattern);
+        if (alternatives == null) {
+            return null;
+        }
+
+        boolean overload = OverloadPatternSemantics.isIdOnlyOutput(pattern, 0);
+
+        for (var recipe : recipes(level)) {
+            var resultPreview = resultItem(recipe, level);
+            if (resultPreview == null || resultPreview.isEmpty()) {
+                continue;
+            }
+            if (resultPreview.getItem() != patternOutKey.getItem()) {
+                continue;
+            }
+            if (!overload && !patternOutKey.equals(AEItemKey.of(resultPreview))) {
+                continue;
+            }
+
+            int resultCount = resultPreview.getCount();
+            if (resultCount <= 0 || patternOutAmount % resultCount != 0) {
+                continue;
+            }
+            long k = patternOutAmount / resultCount;
+            if (k <= 0 || k > Integer.MAX_VALUE) {
+                continue;
+            }
+
+            var ingredients = ingredients(recipe);
+            if (ingredients == null) {
+                continue;
+            }
+            int nonEmpty = countNonEmpty(ingredients);
+            if (nonEmpty == 0 || nonEmpty > spec.slots()) {
+                continue;
+            }
+
+            for (var provided : alternatives) {
+                boolean ok = overload
+                        ? canAssignIngredientsByItemId(ingredients, provided, k)
+                        : canAssignIngredientsStrict(ingredients, provided, k);
+                if (ok) {
+                    return new EcBindHandle(spec, recipe, (int) k, overload);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean canAssignIngredientsStrict(NonNullList<Ingredient> ingredients,
+                                                      LinkedHashMap<AEItemKey, Long> available,
+                                                      long k) {
+        return assignIngredientKeys(ingredients, available, k,
+                (ingredient, key) -> ingredient.test(key.toStack(1))) != null;
+    }
+
+    /**
+     * Bind-time check for ID_ONLY output patterns: ingredient compatibility is
+     * intentionally broadened to item id, while quantities are still tracked by
+     * exact key so same-item variants do not erase each other before plan time.
+     */
+    private static boolean canAssignIngredientsByItemId(NonNullList<Ingredient> ingredients,
+                                                        LinkedHashMap<AEItemKey, Long> available,
+                                                        long k) {
+        return assignIngredientKeys(ingredients, available, k,
+                (ingredient, key) -> ingredientAcceptsItemId(ingredient, key.getItem())) != null;
     }
 
     @Nullable
@@ -365,6 +432,18 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
             inputs.add(new ExtendedCraftingTableIngredientAssigner.Input<>(entry.getKey(), entry.getValue()));
         }
         return ExtendedCraftingTableIngredientAssigner.assign(nonEmptyIngredients, inputs, k, matcher);
+    }
+
+    private static boolean ingredientAcceptsItemId(Ingredient ing, Item item) {
+        try {
+            for (var candidate : ing.getItems()) {
+                if (candidate.getItem() == item) {
+                    return true;
+                }
+            }
+        } catch (RuntimeException | LinkageError ignored) {
+        }
+        return false;
     }
 
     private static int countNonEmpty(NonNullList<Ingredient> ingredients) {
@@ -697,7 +776,7 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
      * matched recipe, the batch multiplier K, and the pattern's output
      * match mode so plan-time dispatch can skip the recipe-table scan.
      */
-    private record EcBindHandle(TableSpec spec, List<BoundRecipe> recipes) {
+    private record EcBindHandle(TableSpec spec, Object recipe, int craftRatio, boolean overload) {
     }
 
     private static final class EcReflection {

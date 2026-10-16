@@ -36,11 +36,57 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 
 /**
- * Virtual flower crafting; each batch consumes its petals and seed reagent.
- * Water source priority is buckets, AE fluid, then the filled basin. Buckets and
- * fluid cost one bucket per craft; basin water costs one charge for the batch.
- * Bucket inputs return empty buckets. All supplied inputs must be accounted for.
- * Planning is pure; basin changes run on commit and feedback runs at batch flush.
+ * Virtual adapter for the Petal Apothecary &mdash; the basin where flower
+ * petals + a seed become a Botania mystical flower. Apothecary crafting
+ * has no in-world delay; the only world effect is the one-water-per-craft
+ * consumption, which the player can also satisfy by pouring water into
+ * the basin.
+ *
+ * <p><b>Recipe shape:</b> Botania's {@code PetalApothecaryRecipe} extends
+ * {@code RecipeWithReagent}. Its {@code getIngredients()} returns the
+ * petal list, but the seed/reagent is a separate {@code getReagent()}
+ * ingredient that is <i>also consumed per craft</i>. We treat the
+ * reagent as one additional ingredient and consume K copies of it
+ * together with K of every petal.
+ *
+ * <p><b>Water source selection (per push):</b> the adapter inspects the
+ * runtime {@link KeyCounter} for the player's chosen water source:
+ * <ol>
+ *   <li><b>{@code minecraft:water_bucket}</b>: if K copies are present,
+ *       we consume K buckets and return K {@code minecraft:bucket}s as
+ *       additional outputs &mdash; matching vanilla Botania, where the
+ *       player right-clicks a water bucket onto the basin and gets the
+ *       empty bucket back. The basin's water state is NOT touched.</li>
+ *   <li><b>{@code minecraft:water} fluid via {@link AEFluidKey}</b>: if
+ *       K&times;1000&thinsp;mB of water fluid is present (1B per craft),
+ *       we consume that amount and the basin's water state is NOT
+ *       touched. No empty container is returned (the fluid lives on the
+ *       AE network, not in a physical bucket).</li>
+ *   <li><b>Basin's own water</b>: when neither of the above is provided
+ *       the basin must already be filled with water; we flip it to
+ *       {@code EMPTY} for the whole batch, exactly as the player's
+ *       right-click would do for a single craft. Larger K values still
+ *       cost one charge because Botania itself drains one charge per
+ *       interaction regardless of how many petals are present.</li>
+ * </ol>
+ *
+ * <p>Anti-duplication path:
+ * <ul>
+ *   <li>bind only locks in a recipe whose result key matches the
+ *       pattern's declared output (NBT-strict under STRICT,
+ *       item-id-only under ID_ONLY) <i>and</i> whose recipe ingredients
+ *       are coverable by the pattern's declared inputs.</li>
+ *   <li>plan re-runs strict {@code ingredient.test} on each KeyCounter
+ *       key (petals AND reagent), so a NBT-loose pattern (ID_ONLY)
+ *       cannot upgrade a cheaper variant into the recipe's NBT-bearing
+ *       output.</li>
+ *   <li>The KeyCounter must be exactly drained after water + reagent +
+ *       petals are consumed (no swallowing): patterns that route stray
+ *       items through this provider fail the plan and don't dead-lock
+ *       the CPU.</li>
+ *   <li>The returned primary stack is {@code AEItemKey.of(recipe.result)}
+ *       verbatim &mdash; never the pattern's declared key.</li>
+ * </ul>
  */
 public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
 
@@ -169,7 +215,11 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
 
     @Override
     public boolean canDispatch(ServerLevel level, BlockPos mainPos, Object handle) {
-        // Water-source readiness is checked during virtual planning.
+        // VIRTUAL pushes never go through canDispatch (see
+        // PackagedPatternProviderLogic#tryVirtualPush). We still
+        // implement it for completeness, gating only on the BE itself:
+        // the actual water-source decision happens at plan time once we
+        // can see the KeyCounter.
         var be = level.getBlockEntity(mainPos);
         return BotaniaReflection.isPetalApothecary(be);
     }
@@ -321,7 +371,14 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
         });
     }
 
-    /** Selects and debits water from the availability maps, or returns {@code null}. */
+    /**
+     * Picks the water source for this batch. Mutates the supplied
+     * availability maps in-place so the chosen source is debited and
+     * the downstream "no swallow" check still passes.
+     *
+     * <p>Returns {@code null} when none of the three sources can cover
+     * the batch (caller should fail the plan).
+     */
     @Nullable
     private static WaterSource chooseWaterSource(LinkedHashMap<Item, Long> itemAvailable,
                                                  LinkedHashMap<Fluid, Long> fluidAvailable,
@@ -368,8 +425,15 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
     }
 
     /**
-     * Uses Botania's block event for craft particles and sound, and emits
-     * BLOCK_ACTIVATE so Allay and sculk listeners receive the craft event.
+     * Mirror of the vanilla {@code PetalApothecaryBlockEntity#collideEntityItem}
+     * "craft complete" branch: emit a {@code BLOCK_ACTIVATE} game event so
+     * Allay/sculk listeners react, then dispatch
+     * {@code triggerEvent(1, 0)} via {@code blockEvent} so each connected
+     * client plays Botania's own 25-sparkle particle burst and the
+     * {@code botania:altarCraft} subtitle. We delegate to the BE's
+     * existing trigger logic instead of replicating the particle loop so
+     * any future Botania tweak (different particle, modded subtitle, etc.)
+     * automatically applies here.
      */
     @Override
     public void onVirtualBatchFlush(ServerLevel level, BlockPos mainPos, Object handle, IActionSource source) {
@@ -383,8 +447,12 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
     }
 
     /**
-     * Consumes K NBT-matching units for each petal and reagent.
-     * The caller must reject any leftover inputs.
+     * Per-ingredient strict assignment: for each non-empty ingredient
+     * (petals + the reagent/seed), consumes K matching items from the
+     * supplied item-availability map using NBT-strict
+     * {@code ingredient.test(key.toStack(1))}. Returns false when an
+     * ingredient cannot be satisfied. Leftover-check (no swallowing) is
+     * the caller's responsibility.
      */
     private static boolean consumeIngredientsStrict(List<Ingredient> ingredients, long k,
                                                     LinkedHashMap<Item, Long> available,
@@ -449,7 +517,11 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
         return true;
     }
 
-    /** Caches the recipe; water source selection remains a per-push decision. */
+    /**
+     * Bind-time cache: matched {@link Recipe}. The recipe object
+     * drives plan-time ingredient validation and output stacking. The
+     * water-source choice is per-push and lives outside the handle.
+     */
     private record PetalBindHandle(Recipe<?> holder) {
     }
 

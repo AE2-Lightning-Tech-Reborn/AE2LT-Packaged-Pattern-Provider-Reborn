@@ -16,18 +16,9 @@ final class ArsImbuementInputMatcher {
     static <T> Match<T> match(List<T> inputs,
                               Predicate<T> reagentPredicate,
                               List<Predicate<T>> pedestalPredicates) {
-        return match(inputs, reagentPredicate, pedestalPredicates, match -> true);
-    }
-
-    @Nullable
-    static <T> Match<T> match(List<T> inputs,
-                              Predicate<T> reagentPredicate,
-                              List<Predicate<T>> pedestalPredicates,
-                              Predicate<Match<T>> acceptsMatch) {
         Objects.requireNonNull(inputs, "inputs");
         Objects.requireNonNull(reagentPredicate, "reagentPredicate");
         Objects.requireNonNull(pedestalPredicates, "pedestalPredicates");
-        Objects.requireNonNull(acceptsMatch, "acceptsMatch");
 
         if (inputs.size() != pedestalPredicates.size() + 1) {
             return null;
@@ -43,10 +34,7 @@ final class ArsImbuementInputMatcher {
             used[reagentIndex] = true;
             var pedestals = new ArrayList<T>(pedestalPredicates.size());
             if (assignPedestal(inputs, pedestalPredicates, used, pedestals, 0)) {
-                var match = new Match<>(reagent, List.copyOf(pedestals));
-                if (acceptsMatch.test(match)) {
-                    return match;
-                }
+                return new Match<>(reagent, List.copyOf(pedestals));
             }
         }
         return null;

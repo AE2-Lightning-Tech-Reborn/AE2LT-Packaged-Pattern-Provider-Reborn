@@ -9,7 +9,7 @@
   "input": {
     "item": "ae2ltpp:basic_packaged_core"
   },
-  "mana": 50000,
+  "mana": 200000,
   "output": {
     "item": "ae2ltpp:botania_mana_pool_packaged_core",
     "count": 1

@@ -11,20 +11,20 @@
   },
   "modifiers": [
     {
-      "item": "actuallyadditions:restonia_crystal"
+      "item": "actuallyadditions:empowered_restonia_crystal"
     },
     {
-      "item": "actuallyadditions:palis_crystal"
+      "item": "actuallyadditions:empowered_palis_crystal"
     },
     {
-      "item": "actuallyadditions:enori_crystal"
+      "item": "actuallyadditions:empowered_diamatine_crystal"
     },
     {
-      "item": "actuallyadditions:void_crystal"
+      "item": "actuallyadditions:empowered_void_crystal"
     }
   ],
-  "energy": 20000,
-  "time": 100,
+  "energy": 200000,
+  "time": 200,
   "color": 16777215,
   "result": {
     "item": "ae2ltpp:aa_empowerer_packaged_core",

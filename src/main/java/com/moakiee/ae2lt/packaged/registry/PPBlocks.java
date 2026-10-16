@@ -11,7 +11,6 @@ import net.minecraftforge.registries.RegistryObject;
 
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.block.PackagedPatternProviderBlock;
-import com.moakiee.ae2lt.packaged.block.ExtendedPackagedPatternProviderBlock;
 import com.moakiee.ae2lt.packaged.block.WirelessPackagedPatternProviderBlock;
 
 public final class PPBlocks {
@@ -23,9 +22,6 @@ public final class PPBlocks {
 
     public static final RegistryObject<WirelessPackagedPatternProviderBlock> WIRELESS_PACKAGED_PATTERN_PROVIDER =
             registerBlock("wireless_packaged_pattern_provider", WirelessPackagedPatternProviderBlock::new);
-
-    public static final RegistryObject<ExtendedPackagedPatternProviderBlock> EXTENDED_PACKAGED_PATTERN_PROVIDER =
-            registerBlock("extended_packaged_pattern_provider", ExtendedPackagedPatternProviderBlock::new);
 
     private PPBlocks() {
     }

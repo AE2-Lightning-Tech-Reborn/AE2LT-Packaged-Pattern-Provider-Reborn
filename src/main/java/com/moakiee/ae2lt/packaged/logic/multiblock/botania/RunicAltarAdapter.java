@@ -40,19 +40,106 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 
 /**
- * Dispatches one altar cycle and harvests it after Botania finishes accumulating mana.
- * Ingredients occupy contiguous slots from zero. The reagent is debited separately;
- * putting livingrock in the inventory would invalidate the recipe match.
+ * Hybrid adapter for the Runic Altar &mdash; REAL dispatch (we feed
+ * recipe ingredients + catalysts into the altar's actual inventory so
+ * it accumulates mana from the player's mana spreaders), <i>virtual</i>
+ * extract (once the altar's own state machine signals "ready", we
+ * synthesise the output stack from the recipe and reset altar state
+ * directly without waiting for the player to right-click with a wand).
  *
- * Harvest returns the recipe result and every RuneItem stack, then resets the altar.
- * Persisted provider ownership prevents harvesting manually supplied crafts.
- * Botania 1.20.1 leaves currentRecipe unset, so harvest resolves the live inventory.
+ * <p><b>Recipe shape:</b> Botania 1.20.x's {@code RunicAltarRecipe}
+ * implements {@code RecipeWithReagent} only. Two logical input
+ * groups:
+ * <ol>
+ *   <li><b>ingredients</b> ({@code getIngredients()}) &mdash; petals,
+ *       dusts and any runes the recipe lists. Everything here goes
+ *       into the altar inventory; after the craft the tile refunds
+ *       every {@code RuneItem} stack (see {@code onUsedByWand}) and
+ *       consumes the rest.</li>
+ *   <li><b>reagent</b> ({@code getReagent()}, always livingrock)
+ *       &mdash; tossed as a player-held item / on-altar
+ *       {@code ItemEntity} to trigger the craft. <i>Never</i> placed
+ *       in the altar inventory.</li>
+ * </ol>
+ * <p>Botania's {@code matches()} (via {@code RecipeUtils.matches})
+ * fails if the inventory holds a stack no ingredient accepts, and it
+ * stops scanning at the first empty slot. Dispatching the reagent
+ * into a slot, or writing the inventory non-contiguously from slot
+ * 0, would make {@code updateRecipe()} fail and the altar would sit
+ * idle forever.
+ *
+ * <p><b>Reagent semantics in vanilla:</b> the player places the
+ * ingredients + catalysts into the altar inventory (right-clicks =
+ * {@code addItem} path B), waits for the surrounding spreaders to fill
+ * the mana bar, then tosses a livingrock onto the altar (which sits as
+ * an {@code ItemEntity} via {@code addItem} path A) and right-clicks
+ * with the Wand of the Forest. The wand handler
+ * ({@code onUsedByWand}) consumes one livingrock from the entity list,
+ * assembles the output, drops it as an {@code ItemEntity} above the
+ * altar and clears the inventory + resets state, restoring catalysts
+ * via {@code getRemainingItems(input)}.
+ *
+ * <p><b>Adapter behaviour:</b>
+ * <ul>
+ *   <li><b>dispatch (REAL)</b>: writes
+ *       {@code ingredients + catalysts} into the altar inventory slots
+ *       (in that exact order). The reagent gets its own
+ *       {@link TargetSlot} with a "void" inserter that debits one
+ *       livingrock from the AE {@link KeyCounter} <i>without</i>
+ *       placing it anywhere &mdash; this models the player consuming
+ *       a livingrock to trigger the craft.</li>
+ *   <li><b>extract (VIRTUAL)</b>: when the altar signals ready
+ *       ({@code mana >= manaToGet}, with the recipe resolved from the
+ *       recipe manager &mdash; 1.20.x's {@code currentRecipe} field
+ *       is vestigial and never assigned), we assemble the output,
+ *       snapshot the {@code RuneItem} stacks for refund (Botania's
+ *       own refund rule), clear the inventory, zero the mana fields
+ *       and drop {@code currentRecipe} back to null. The player sees
+ *       the altar animate once but never needs to swing a wand.</li>
+ * </ul>
+ *
+ * <p>Batch policy: K=1 only. The altar's internal state machine runs
+ * one recipe at a time and the player-visible craft is a single cycle;
+ * batching would require multiple sequential dispatches anyway.
+ *
+ * <p>Anti-duplication path:
+ * <ul>
+ *   <li>bind validates the pattern's declared output key against the
+ *       recipe's real {@code getResultItem(...)} key (NBT-strict under
+ *       STRICT, item-id-only under ID_ONLY) and that the pattern's
+ *       declared inputs cover every recipe ingredient + catalyst +
+ *       reagent &mdash; wrong-machine patterns refuse to bind so the
+ *       CPU does not dead-lock on a plan that will never succeed.</li>
+ *   <li>plan picks each ingredient + catalyst + reagent stack from
+ *       the runtime {@link KeyCounter} via NBT-strict
+ *       {@code ingredient.test} and hands the actual key.toStack(1)
+ *       either to the altar inventory (ingredients + catalysts) or to
+ *       the void inserter (reagent).</li>
+ *   <li>Output stacks are {@code AEItemKey.of(...)} verbatim &mdash;
+ *       the recipe's primary result plus any catalysts reflected back
+ *       by {@code getRemainingItems(...)}.</li>
+ * </ul>
  */
 public final class RunicAltarAdapter implements MultiblockAdapter {
 
     /**
-     * Provider-owned marker set after reagent payment and cleared after harvest.
-     * Keeping it on the provider preserves payment ownership across world reloads.
+     * Namespaced flag key, stored on the provider via the
+     * {@link AdapterPersistentScope} handed in by
+     * {@link #planWithBinding(ServerLevel, BlockPos, IPatternDetails, KeyCounter[], Object, IActionSource, AdapterPersistentScope)}
+     * / {@link #extractOutputs(ServerLevel, BlockPos, AllowedOutputFilter, IActionSource, AdapterPersistentScope)}.
+     * Set when the dispatch successfully debits a livingrock from AE; cleared
+     * by {@code extractOutputs} after it finishes harvesting the recipe.
+     *
+     * <p>We deliberately store this on the provider rather than on the altar
+     * BE: Botania's {@code SimpleInventoryBlockEntity#saveAdditional} doesn't
+     * call {@code super}, which silently drops NeoForge's {@code NeoForgeData}
+     * + {@code attachments} blobs on disk save &mdash; any flag we tried to
+     * stash on the altar would survive memory only, not the next world load.
+     *
+     * <p>Anchoring the flag on the provider also captures the right ownership:
+     * "this craft was paid for by <i>us</i>" is a fact about the provider's
+     * accounting, not about the altar; the altar by itself can't tell whether
+     * its ingredients came from AE or a player's hand.
      */
     private static final String REAGENT_DISPATCHED_FLAG = "botania_runic_altar:reagent_dispatched";
     private static final String HARVEST_STATE = "botania_runic_altar:harvest";
@@ -99,8 +186,10 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
     }
 
     /**
-     * Checks that every ingredient, catalyst and reagent has a matching pattern input.
-     * Runtime planning validates quantities.
+     * Per-ingredient existence check: each recipe ingredient (runes +
+     * catalysts + reagent) must have at least one pattern input whose
+     * item key passes {@code ingredient.test(key.toStack(1))}.
+     * Quantities are enforced later at plan time.
      */
     private static boolean patternInputsCoverRecipe(IPatternDetails pattern,
                                                     net.minecraft.world.item.crafting.Recipe<?> recipe) {
@@ -212,8 +301,16 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
         }
 
         var recipe = bind.holder();
-        // Match all groups against one input pool; only ingredients and
-        // catalysts occupy the inventory. The reagent is debited separately.
+        // Build the assignment in two parts:
+        //   inventorySlotItems = ingredients ++ catalysts
+        //     - go into the altar inventory slots (matches() requires
+        //       input.size() == ingredients.size() + catalysts.size()).
+        //   reagent (livingrock)
+        //     - routed through a void inserter so AE deducts one copy
+        //       from the network without ever placing it into the wrong
+        //       inventory slot.
+        // All three halves share the same KeyCounter pool so the strict
+        // "no swallowing" invariant in pickKeyCounterStacks still holds.
         var ingredientsList = new ArrayList<Ingredient>(recipe.getIngredients());
         var catalystsList = BotaniaReflection.recipeCatalysts(recipe);
         var reagent = BotaniaReflection.recipeReagent(recipe);
@@ -352,16 +449,39 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
         // exactly is the item-conservation contract for the virtual extract.
         var catalystStacks = collectRuneRefunds(inv);
 
+        // Virtual extract: clear inventory + reset state instead of
+        // waiting for the player to right-click. The altar's animation
+        // had already played for the player to see the cycle.
         inv.clearContent();
         BotaniaReflection.altarResetState(be);
         be.setChanged();
+        // Clear the dispatch flag now that this craft is fully harvested,
+        // freeing the (provider, altarPos) slot in the scope so the next
+        // dispatch's onCommit can flip it back on cleanly.
         clearHarvestState(level, mainPos, scope);
-        // setChanged only persists; send an update to clear the rendered inventory.
+        // Force a BE update packet to the client so the rendered
+        // inventory contents (the petals + runes hovering above the
+        // altar) clear in the same tick the craft "finished".
+        // setChanged() alone only marks the chunk dirty; client
+        // rendering doesn't refresh until a sendBlockUpdated. Botania
+        // itself does the same after addItem path B.
         var altarState = be.getBlockState();
         level.sendBlockUpdated(mainPos, altarState, altarState, 3);
 
-        // Botania's completion events notify listeners, impose the 60-tick cooldown,
-        // and play the altar's own particles and sound.
+        // Replay the audio/visual cues that Botania's own onUsedByWand
+        // emits after finishing a craft:
+        //   - BLOCK_ACTIVATE game event so vibration / Allay listeners
+        //     pick up the moment of completion.
+        //   - blockEvent(eventId=1, data=60): triggerEvent sets
+        //     cooldown=60, matching the post-craft "rest" period before
+        //     the altar can be used again. Without this, automation
+        //     could re-dispatch into a 'still settling' altar.
+        //   - blockEvent(eventId=2, data=0): triggerEvent dispatches
+        //     25 sparkle particles + the runeAltarCraft subtitle to
+        //     every client tracking this chunk. We deliberately delegate
+        //     to Botania's existing client-side trigger so any future
+        //     particle/sound retune in upstream Botania flows through
+        //     unchanged.
         var altarBlock = altarState.getBlock();
         level.gameEvent(null, GameEvent.BLOCK_ACTIVATE, mainPos);
         level.blockEvent(mainPos, altarBlock, 1, 60);
@@ -440,7 +560,14 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
         scope.clearFlag(mainPos, REAGENT_DISPATCHED_FLAG);
     }
 
-    /** Copies every RuneItem stack for refund, matching Botania 1.20.1's wand handler. */
+    /**
+     * Snapshots (as copies) every {@code RuneItem} stack currently sitting
+     * in the altar inventory. Botania 1.20.x's {@code onUsedByWand} refunds
+     * exactly those after a craft and consumes the rest, so this is the
+     * refund rule the virtual extract has to honour &mdash; e.g. the
+     * higher-tier runes that lower-tier rune recipes list as inputs flow
+     * back to the AE network instead of being voided when we clear.
+     */
     private static List<ItemStack> collectRuneRefunds(Container inv) {
         var refunds = new ArrayList<ItemStack>();
         for (int i = 0; i < inv.getContainerSize(); i++) {
@@ -451,6 +578,11 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
         }
         return refunds;
     }
+
+    // allowsAutoReturn intentionally not overridden. Default {@code true}
+    // applies: the altar is a closed BE and {@link #extractOutputs} only
+    // emits stacks derived from the live recipe + getRemainingItems, both
+    // of which are pinned by the bind-time validation.
 
     /**
      * Assigns every runtime input exactly once to a non-empty ingredient with
@@ -515,8 +647,13 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
     }
 
     /**
-     * Debits the reagent without adding it to the altar inventory,
-     * where it would prevent the ingredients from matching the recipe.
+     * "Void" inserter for the reagent slot: tells the dispatch
+     * executor the slot accepted the full stack so AE debits the
+     * livingrock from the network, but never actually writes it
+     * anywhere. The altar's inventory therefore stays {@code matches}
+     * against the recipe's {@code getIngredients()}, and the reagent
+     * counts as "the player held it in their hand and consumed it" for
+     * the virtual extract.
      */
     private java.util.function.BiFunction<GenericStack, Actionable, Long> reagentVoidInserter(
             ItemStack expected) {

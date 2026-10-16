@@ -35,7 +35,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.PatternInputAlternatives;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
-import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -44,7 +44,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 /**
  * Virtual adapter for Re-Avaritia's Extreme Smithing Table.
  */
-public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCraftingAdapter {
+public final class AvaritiaExtremeSmithingAdapter implements VirtualCraftingAdapter {
 
     private static final org.slf4j.Logger LOG =
             org.slf4j.LoggerFactory.getLogger("ae2ltpp/avaritia-extreme-smithing");

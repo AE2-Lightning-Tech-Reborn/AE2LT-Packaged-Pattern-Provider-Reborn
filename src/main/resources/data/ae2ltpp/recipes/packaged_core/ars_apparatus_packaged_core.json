@@ -14,31 +14,31 @@
   ],
   "pedestalItems": [
     {
-      "item": "ars_nouveau:source_gem"
+      "item": "ars_nouveau:fire_essence"
     },
     {
-      "item": "ars_nouveau:source_gem"
+      "item": "ars_nouveau:water_essence"
     },
     {
-      "item": "ars_nouveau:source_gem"
+      "item": "ars_nouveau:earth_essence"
     },
     {
-      "item": "ars_nouveau:source_gem"
+      "item": "ars_nouveau:air_essence"
     },
     {
-      "item": "ae2:certus_quartz_crystal"
+      "item": "ars_nouveau:conjuration_essence"
     },
     {
-      "item": "ae2:certus_quartz_crystal"
+      "item": "ars_nouveau:abjuration_essence"
     },
     {
-      "item": "ae2:certus_quartz_crystal"
+      "item": "ars_nouveau:manipulation_essence"
     },
     {
-      "item": "ae2:certus_quartz_crystal"
+      "item": "ars_nouveau:source_gem_block"
     }
   ],
-  "sourceCost": 1000,
+  "sourceCost": 3000,
   "output": {
     "count": 1,
     "item": "ae2ltpp:ars_apparatus_packaged_core"
