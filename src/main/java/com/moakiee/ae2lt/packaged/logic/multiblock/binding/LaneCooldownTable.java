@@ -5,9 +5,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Per-lane retry offsets from the first failed dispatch:
- * {@code 1, 2, 3, 4, 5, 8, 10, 20, 40}, then every 40 ticks.
- * A successful push clears the schedule.
+ * Per-lane retry schedule for real-dispatch failures.
+ *
+ * <p>The retry offsets are absolute deltas from the lane's first failure tick:
+ * {@code 1, 2, 3, 4, 5, 8, 10, 20, 40} then every {@code 40} ticks thereafter.
+ * A successful push clears the lane entirely (next attempt is allowed
+ * immediately).
+ *
+ * <p>This intentionally does NOT do the binary-search self-tuning the AE2LT
+ * wireless cooldown does. Packaged providers prefer fast retry windows because
+ * the bound recipe already validated the structure; failures are short-lived
+ * (machine briefly busy / output slot full) rather than systemic.
  */
 public final class LaneCooldownTable {
 

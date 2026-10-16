@@ -15,8 +15,13 @@ import appeng.menu.implementations.MenuTypeBuilder;
 import appeng.menu.locator.MenuLocator;
 
 /**
- * Exposes AE2 menu wiring for addon registration without calling
- * MenuTypeBuilder.build(String), which forces the ae2 namespace.
+ * Exposes {@link MenuTypeBuilder}'s internals so 1.21's
+ * {@code buildUnregistered(ResourceLocation)} can be reproduced on 1.20.1.
+ *
+ * <p>1.20.1's {@code build(String)} forces the {@code ae2:} namespace and queues
+ * the type into AE2's own registration list; this addon registers its menu type
+ * through {@code PPMenuTypes} instead, so it needs the builder's wiring without
+ * that side effect.
  */
 @Mixin(MenuTypeBuilder.class)
 public interface MenuTypeBuilderAccessor<M extends AEBaseMenu, I> {

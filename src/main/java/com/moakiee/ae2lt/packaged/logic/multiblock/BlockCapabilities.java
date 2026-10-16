@@ -8,7 +8,13 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.common.capabilities.Capability;
 
 /**
- * Resolves Forge 1.20.1 block-entity capabilities without loading chunks.
+ * Block capability lookup for Forge 1.20.1.
+ *
+ * <p>NeoForge exposes {@code Level#getCapability(BlockCapability, pos, side)},
+ * which resolves through the block itself. Forge 1.20.1 has no level-level
+ * entry point: capabilities live on the block entity and come back wrapped in a
+ * {@code LazyOptional}. Adapters need the same "give me the handler or null"
+ * shape in both worlds, so that difference is isolated here.
  */
 public final class BlockCapabilities {
 

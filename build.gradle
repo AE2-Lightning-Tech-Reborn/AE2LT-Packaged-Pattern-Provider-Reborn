@@ -123,13 +123,6 @@ tasks.named('compileJava', JavaCompile).configure {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
-    if (findProperty('chiseling_reference_maven')) {
-        maven {
-            name = 'ChiselingTestReferences'
-            url = uri(findProperty('chiseling_reference_maven'))
-            content { includeGroup 'maven.modrinth' }
-        }
-    }
     if ((findProperty('use_local_upstream') ?: 'false').toBoolean()) {
         ivy {
             name = 'LocalAE2LTBuild'
@@ -274,25 +267,6 @@ dependencies {
     // a plain `gradlew build` does not depend on third-party availability. Enable
     // with -Penable_integration_runtime=true .
     // ============================================================
-    // Forge-specific Modrinth version IDs avoid selecting a Fabric/NeoForge file.
-    if ((findProperty('enable_chiseling_runtime') ?: 'false').toBoolean()) {
-        def chiselingMods = (findProperty('chiseling_runtime_mods') ?: 'chipped,rechiseled').toString().split(',') as Set
-        if (chiselingMods.contains('chipped')) {
-            runtimeOnly fg.deobf('maven.modrinth:chipped:pi3f4er3')                 // Forge 3.0.7
-            runtimeOnly fg.deobf('maven.modrinth:resourceful-lib:OhsHaCcW')         // Forge 2.1.29
-            runtimeOnly fg.deobf('maven.modrinth:athena-ctm:DULOQFj7')              // Forge 3.1.2
-        }
-        if (chiselingMods.contains('rechiseled')) {
-            runtimeOnly fg.deobf('maven.modrinth:rechiseled:H9XQzWIp')              // Forge 1.2.6
-            runtimeOnly fg.deobf('maven.modrinth:supermartijn642s-core-lib:F4zhN7VF') // Forge 1.1.25
-            runtimeOnly fg.deobf('maven.modrinth:supermartijn642s-config-lib:ZKor79dR') // Forge 1.1.8
-            runtimeOnly fg.deobf('maven.modrinth:fusion-connected-textures:w0vXLzFW') // Forge 1.3.16
-        }
-    }
-    if ((findProperty('enable_appmek_runtime') ?: 'false').toBoolean()
-            || (findProperty('enable_integration_runtime') ?: 'false').toBoolean()) {
-        runtimeOnly fg.deobf('maven.modrinth:applied-mekanistics:9n9p68Qq')       // Forge 1.4.3
-    }
     if ((findProperty('enable_integration_runtime') ?: 'false').toBoolean()) {
         // Library dependencies shared by multiple target mods. Versions are the
         // actual Modrinth release numbers for the 1.20.1 Forge line (the
@@ -310,7 +284,6 @@ dependencies {
         // Target mods (one adapter package per mod)
         runtimeOnly fg.deobf("maven.modrinth:actually-subtractions:1.2.14.20+mc1.20.1") // aa/ (Actually Additions 1.20.1 is published under this project)
         runtimeOnly fg.deobf("maven.modrinth:ars-nouveau:4.12.6")                 // ars/
-        runtimeOnly fg.deobf("maven.modrinth:natures-aura:39.4")                // naturesaura/
         runtimeOnly fg.deobf("maven.modrinth:mystical-agriculture:7.0.9")         // ma/
         runtimeOnly fg.deobf("maven.modrinth:extended-crafting:6.0.5")            // ec/
         runtimeOnly fg.deobf("maven.modrinth:occultism:1.20.1-1.100.0")           // occultism/
@@ -349,6 +322,11 @@ test {
     useJUnitPlatform()
     stressOptions.each { name, option ->
         systemProperty option.systemName, option.value.toString()
+    }
+    // This migration test requires a deobfuscated AE2LT development jar;
+    // the production jar available to this branch is post-reobf.
+    filter {
+        excludeTestsMatching 'StablePatternProviderNbtMigrationTest'
     }
 }
 

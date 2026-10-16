@@ -1,14 +1,13 @@
 ---
 navigation:
-  title: AE2LT Packaged Pattern Provider
+  title: AE2LT Packaged Pattern Provider Reborn
   position: 67
 item_ids:
 - ae2ltpp:packaged_pattern_provider
 - ae2ltpp:wireless_packaged_pattern_provider
-- ae2ltpp:extended_packaged_pattern_provider
 ---
 
-# AE2LT Packaged Pattern Provider
+# AE2LT Packaged Pattern Provider Reborn
 
 `Congratulations on making it this far! This is the pinnacle of the lightning power you have mastered!`
 
@@ -37,14 +36,6 @@ Insert the corresponding **Packaged Core** into the provider to select the type 
 > If materials are not returned correctly, check that automatic return is enabled on the provider.
 >
 > Machines marked **⚠** have additional requirements—read their individual pages before using them.
-
-## Specialized core recipes
-
-Craft specialized cores from a Basic Packaged Core and a small amount of machine materials. EC table cores use the matching tier's components and still require that tier of table. Higher cores continue to cover lower tiers. The fusion core uses basic injectors and 32,000 RF.
-
-## Resonant layouts and extended provider
-
-[Resonant layouts](resonant.md) route materials through configured machine ports. The Extended Packaged Pattern Provider stores 144 patterns across four pages and switches between adjacent and wireless targets.
 
 ## Supported machines
 

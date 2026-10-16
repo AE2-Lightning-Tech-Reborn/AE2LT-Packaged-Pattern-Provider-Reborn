@@ -44,10 +44,6 @@ final class PackagedProviderTextureButton extends Button implements ITooltip {
                 AUTO_RETURN_OFF, AUTO_RETURN_ON, listener);
     }
 
-    static PackagedProviderTextureButton providerMode(Runnable listener) {
-        return new PackagedProviderTextureButton(texture("wired_mode"), texture("wireless_mode"), listener);
-    }
-
     static PackagedProviderTextureButton frequencyBinding(Runnable listener) {
         return new PackagedProviderTextureButton(
                 FREQUENCY_BIND, FREQUENCY_BIND, listener);

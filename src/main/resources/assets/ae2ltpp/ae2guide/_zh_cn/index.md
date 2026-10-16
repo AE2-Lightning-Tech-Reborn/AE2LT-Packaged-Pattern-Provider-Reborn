@@ -1,14 +1,13 @@
 ---
 navigation:
-  title: AE2 闪电科技封包
+  title: AE2 闪电科技封包：重生
   position: 67
 item_ids:
 - ae2ltpp:packaged_pattern_provider
 - ae2ltpp:wireless_packaged_pattern_provider
-- ae2ltpp:extended_packaged_pattern_provider
 ---
 
-# AE2 闪电科技封包
+# AE2 闪电科技封包：重生
 
 `恭喜你走到了这一步！这将是你所掌握的闪电力量最巅峰之作！`
 
@@ -34,14 +33,6 @@ item_ids:
 > 如果无法正常回收材料，请检查供应器是否开启自动回收。
 >
 > 带 **⚠** 标记的机器有额外注意事项——使用前请先看它的单独页面。
-
-## 专用核心配方
-
-专用核心使用基础封包核心和少量对应机器材料制作。EC 高级核心使用各等级组件；核心仍在对应等级机器制作，高级核心继续覆盖低级机器。龙之研究核心使用基础注入器与 32,000 RF。
-
-## 共振布局与扩展封包供应器
-
-[共振布局](resonant.md)将材料投递到指定机器端口。扩展封包样板供应器可存储 144 张样板，分四页显示，并可切换相邻和无线模式。
 
 ## 已支持的机器
 

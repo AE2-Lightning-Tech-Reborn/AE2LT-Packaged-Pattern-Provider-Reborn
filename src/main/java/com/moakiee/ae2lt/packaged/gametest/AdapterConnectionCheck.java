@@ -128,118 +128,13 @@ public final class AdapterConnectionCheck {
 
     private static final Map<String, Case> CASES = new LinkedHashMap<>();
 
-    private static final Case AVARITIA_EXTREME_TABLE;
-    private static final Case OCCULTISM_SPIRIT_FIRE;
-    private static final Case AVARITIA_EXTREME_SMITHING;
-
-    static {
-        addCase("conn43_bloodmagic_altar",
-                "bloodmagic:altar", "BloodMagicAltarAdapter", "bloodmagic:altar", true);
-        addCase("conn44_forbidden_arcanus_clibano",
-                "forbidden_arcanus:clibano_main_part", "ForbiddenArcanusClibanoAdapter",
-                "forbidden_arcanus:clibano_combustion", true);
-        addCase("conn45_forbidden_arcanus_hephaestus_forge",
-                "forbidden_arcanus:hephaestus_forge", "ForbiddenArcanusHephaestusForgeAdapter", null, false);
-
-        // Actually Additions (Actually Subtractions port)
-        addCase("conn01_aa_empowerer",
-                "actuallyadditions:empowerer", "ActuallyAdditionsEmpowererAdapter",
-                "actuallyadditions:empower", true);
-        addCase("conn02_aa_atomic_reconstructor",
-                "actuallyadditions:atomic_reconstructor", "ActuallyAdditionsAtomicReconstructorAdapter",
-                "actuallyadditions:laser", true);
-        // Ars Nouveau
-        addCase("conn03_ars_apparatus",
-                "ars_nouveau:enchanting_apparatus", "ArsNouveauEnchantingApparatusAdapter",
-                "ars_nouveau:enchanting_apparatus", true);
-        addCase("conn04_ars_imbuement",
-                "ars_nouveau:imbuement_chamber", "ArsNouveauImbuementChamberAdapter",
-                "ars_nouveau:imbuement", true);
-        AVARITIA_EXTREME_TABLE = addCase("conn05_avaritia_extreme_table",
-                "avaritia:extreme_crafting_table", "AvaritiaTableAdapter",
-                "avaritia:crafting_table_recipe", true);
-        // Draconic Evolution (recipe type comes from DE's own API field at bind time)
-        addCase("conn06_de_crafting_core",
-                "draconicevolution:crafting_core", "DraconicFusionCraftingAdapter",
-                "draconicevolution:fusion_crafting", false);
-        // Extended Crafting
-        addCase("conn07_ec_table_basic",
-                "extendedcrafting:basic_table", "ExtendedCraftingTableAdapter",
-                "extendedcrafting:table", true);
-        addCase("conn08_ec_table_advanced",
-                "extendedcrafting:advanced_table", "ExtendedCraftingTableAdapter",
-                "extendedcrafting:table", true);
-        addCase("conn09_ec_table_elite",
-                "extendedcrafting:elite_table", "ExtendedCraftingTableAdapter",
-                "extendedcrafting:table", true);
-        addCase("conn10_ec_table_ultimate",
-                "extendedcrafting:ultimate_table", "ExtendedCraftingTableAdapter",
-                "extendedcrafting:table", true);
-        addCase("conn11_ec_combination",
-                "extendedcrafting:crafting_core", "ExtendedCraftingCombinationAdapter",
-                "extendedcrafting:combination", true);
-        addCase("conn12_ec_flux_crafter",
-                "extendedcrafting:flux_crafter", "ExtendedCraftingFluxCrafterAdapter",
-                "extendedcrafting:flux_crafter", true);
-        addCase("conn13_ec_ender_crafter",
-                "extendedcrafting:ender_crafter", "ExtendedCraftingEnderCrafterAdapter",
-                "extendedcrafting:ender_crafter", true);
-        // Mystical Agriculture
-        addCase("conn14_ma_infusion",
-                "mysticalagriculture:infusion_altar", "InfusionAltarAdapter",
-                "mysticalagriculture:infusion", true);
-        addCase("conn15_ma_awakening",
-                "mysticalagriculture:awakening_altar", "AwakeningAltarAdapter",
-                "mysticalagriculture:awakening", true);
-        // Malum
-        addCase("conn16_malum_focusing",
-                "malum:spirit_crucible", "MalumSpiritFocusingAdapter",
-                "malum:spirit_focusing", true);
-        addCase("conn17_malum_infusion",
-                "malum:spirit_altar", "MalumSpiritInfusionAdapter",
-                "malum:spirit_infusion", true);
-        // Occultism
-        OCCULTISM_SPIRIT_FIRE = addCase("conn18_occultism_spirit_fire",
-                "occultism:spirit_fire", "OccultismSpiritFireAdapter",
-                "occultism:spirit_fire", true);
-        addCase("conn19_occultism_ritual",
-                "occultism:golden_sacrificial_bowl", "OccultismRitualAdapter",
-                "occultism:ritual", true);
-        // Mekanism More Machines (all six machines share one adapter)
-        addCase("conn20_mekmm_nucleosynthesizer",
-                "mekmm:large_antiprotonic_nucleosynthesizer", "MekanismMoreMachinesAdapter",
-                null, false);
-        addCase("conn21_mekmm_chemical_infuser",
-                "mekmm:large_chemical_infuser", "MekanismMoreMachinesAdapter",
-                null, false);
-        addCase("conn22_mekmm_electrolytic_separator",
-                "mekmm:large_electrolytic_separator", "MekanismMoreMachinesAdapter",
-                null, false);
-        addCase("conn23_mekmm_rotary_condensentrator",
-                "mekmm:large_rotary_condensentrator", "MekanismMoreMachinesAdapter",
-                null, false);
-        addCase("conn24_mekmm_solar_neutron_activator",
-                "mekmm:large_solar_neutron_activator", "MekanismMoreMachinesAdapter",
-                null, false);
-        addCase("conn25_mekmm_pigment_mixer",
-                "mekmm:large_pigment_mixer", "MekanismMoreMachinesAdapter",
-                null, false);
-        // Botania (recognition is reflection-gated on the real BE class)
-        addCase("conn26_botania_terra_plate",
-                "botania:terra_plate", "TerraPlateAdapter", null, false);
-        addCase("conn27_botania_runic_altar",
-                "botania:runic_altar", "RunicAltarAdapter", null, false);
-        addCase("conn28_botania_apothecary",
-                "botania:apothecary_default", "PetalApothecaryAdapter", null, false);
-        addCase("conn29_botania_mana_pool",
-                "botania:mana_pool", "ManaPoolAdapter", null, false);
-        addCase("conn30_botania_alfheim_portal",
-                "botania:alfheim_portal", "AlfheimPortalAdapter", null, false);
-        // Avaritia fork-only: absent on AvaritiaNeo (pass inert), recognized on the fork.
-        AVARITIA_EXTREME_SMITHING = addCase("conn40_avaritia_extreme_smithing",
-                "avaritia:extreme_smithing_table", "AvaritiaExtremeSmithingAdapter",
-                "avaritia:extreme_smithing_recipe", false);
-    }
+    private static final Case BLOOD_MAGIC_ALTAR = addCase("conn43_bloodmagic_altar",
+            "bloodmagic:altar", "BloodMagicAltarAdapter", "bloodmagic:altar", true);
+    private static final Case FORBIDDEN_ARCANUS_CLIBANO = addCase("conn44_forbidden_arcanus_clibano",
+            "forbidden_arcanus:clibano_main_part", "ForbiddenArcanusClibanoAdapter",
+            "forbidden_arcanus:clibano_combustion", true);
+    private static final Case FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE = addCase("conn45_forbidden_arcanus_hephaestus_forge",
+            "forbidden_arcanus:hephaestus_forge", "ForbiddenArcanusHephaestusForgeAdapter", null, false);
 
     private static Case addCase(String name, String blockId, String expectedAdapter,
                                 String recipeTypeId, boolean recipeTypeRequired) {
@@ -247,6 +142,105 @@ public final class AdapterConnectionCheck {
         CASES.put(name, c);
         return c;
     }
+
+    // Actually Additions (Actually Subtractions port)
+    private static final Case AA_EMPOWERER = addCase("conn01_aa_empowerer",
+            "actuallyadditions:empowerer", "ActuallyAdditionsEmpowererAdapter",
+            "actuallyadditions:empower", true);
+    private static final Case AA_ATOMIC_RECONSTRUCTOR = addCase("conn02_aa_atomic_reconstructor",
+            "actuallyadditions:atomic_reconstructor", "ActuallyAdditionsAtomicReconstructorAdapter",
+            "actuallyadditions:laser", true);
+    // Ars Nouveau
+    private static final Case ARS_APPARATUS = addCase("conn03_ars_apparatus",
+            "ars_nouveau:enchanting_apparatus", "ArsNouveauEnchantingApparatusAdapter",
+            "ars_nouveau:enchanting_apparatus", true);
+    private static final Case ARS_IMBUEMENT = addCase("conn04_ars_imbuement",
+            "ars_nouveau:imbuement_chamber", "ArsNouveauImbuementChamberAdapter",
+            "ars_nouveau:imbuement", true);
+    private static final Case AVARITIA_EXTREME_TABLE = addCase("conn05_avaritia_extreme_table",
+            "avaritia:extreme_crafting_table", "AvaritiaTableAdapter",
+            "avaritia:crafting_table_recipe", true);
+    // Draconic Evolution (recipe type comes from DE's own API field at bind time)
+    private static final Case DE_CRAFTING_CORE = addCase("conn06_de_crafting_core",
+            "draconicevolution:crafting_core", "DraconicFusionCraftingAdapter",
+            "draconicevolution:fusion_crafting", false);
+    // Extended Crafting
+    private static final Case EC_TABLE_BASIC = addCase("conn07_ec_table_basic",
+            "extendedcrafting:basic_table", "ExtendedCraftingTableAdapter",
+            "extendedcrafting:table", true);
+    private static final Case EC_TABLE_ADVANCED = addCase("conn08_ec_table_advanced",
+            "extendedcrafting:advanced_table", "ExtendedCraftingTableAdapter",
+            "extendedcrafting:table", true);
+    private static final Case EC_TABLE_ELITE = addCase("conn09_ec_table_elite",
+            "extendedcrafting:elite_table", "ExtendedCraftingTableAdapter",
+            "extendedcrafting:table", true);
+    private static final Case EC_TABLE_ULTIMATE = addCase("conn10_ec_table_ultimate",
+            "extendedcrafting:ultimate_table", "ExtendedCraftingTableAdapter",
+            "extendedcrafting:table", true);
+    private static final Case EC_COMBINATION = addCase("conn11_ec_combination",
+            "extendedcrafting:crafting_core", "ExtendedCraftingCombinationAdapter",
+            "extendedcrafting:combination", true);
+    private static final Case EC_FLUX_CRAFTER = addCase("conn12_ec_flux_crafter",
+            "extendedcrafting:flux_crafter", "ExtendedCraftingFluxCrafterAdapter",
+            "extendedcrafting:flux_crafter", true);
+    private static final Case EC_ENDER_CRAFTER = addCase("conn13_ec_ender_crafter",
+            "extendedcrafting:ender_crafter", "ExtendedCraftingEnderCrafterAdapter",
+            "extendedcrafting:ender_crafter", true);
+    // Mystical Agriculture
+    private static final Case MA_INFUSION = addCase("conn14_ma_infusion",
+            "mysticalagriculture:infusion_altar", "InfusionAltarAdapter",
+            "mysticalagriculture:infusion", true);
+    private static final Case MA_AWAKENING = addCase("conn15_ma_awakening",
+            "mysticalagriculture:awakening_altar", "AwakeningAltarAdapter",
+            "mysticalagriculture:awakening", true);
+    // Malum
+    private static final Case MALUM_FOCUSING = addCase("conn16_malum_focusing",
+            "malum:spirit_crucible", "MalumSpiritFocusingAdapter",
+            "malum:spirit_focusing", true);
+    private static final Case MALUM_INFUSION = addCase("conn17_malum_infusion",
+            "malum:spirit_altar", "MalumSpiritInfusionAdapter",
+            "malum:spirit_infusion", true);
+    // Occultism
+    private static final Case OCCULTISM_SPIRIT_FIRE = addCase("conn18_occultism_spirit_fire",
+            "occultism:spirit_fire", "OccultismSpiritFireAdapter",
+            "occultism:spirit_fire", true);
+    private static final Case OCCULTISM_RITUAL = addCase("conn19_occultism_ritual",
+            "occultism:golden_sacrificial_bowl", "OccultismRitualAdapter",
+            "occultism:ritual", true);
+    // Mekanism More Machines (all six machines share one adapter)
+    private static final Case MEKMM_NUCLEOSYNTHESIZER = addCase("conn20_mekmm_nucleosynthesizer",
+            "mekmm:large_antiprotonic_nucleosynthesizer", "MekanismMoreMachinesAdapter",
+            null, false);
+    private static final Case MEKMM_CHEMICAL_INFUSER = addCase("conn21_mekmm_chemical_infuser",
+            "mekmm:large_chemical_infuser", "MekanismMoreMachinesAdapter",
+            null, false);
+    private static final Case MEKMM_ELECTROLYTIC_SEPARATOR = addCase("conn22_mekmm_electrolytic_separator",
+            "mekmm:large_electrolytic_separator", "MekanismMoreMachinesAdapter",
+            null, false);
+    private static final Case MEKMM_ROTARY_CONDENSENTRATOR = addCase("conn23_mekmm_rotary_condensentrator",
+            "mekmm:large_rotary_condensentrator", "MekanismMoreMachinesAdapter",
+            null, false);
+    private static final Case MEKMM_SOLAR_NEUTRON_ACTIVATOR = addCase("conn24_mekmm_solar_neutron_activator",
+            "mekmm:large_solar_neutron_activator", "MekanismMoreMachinesAdapter",
+            null, false);
+    private static final Case MEKMM_PIGMENT_MIXER = addCase("conn25_mekmm_pigment_mixer",
+            "mekmm:large_pigment_mixer", "MekanismMoreMachinesAdapter",
+            null, false);
+    // Botania (recognition is reflection-gated on the real BE class)
+    private static final Case BOTANIA_TERRA_PLATE = addCase("conn26_botania_terra_plate",
+            "botania:terra_plate", "TerraPlateAdapter", null, false);
+    private static final Case BOTANIA_RUNIC_ALTAR = addCase("conn27_botania_runic_altar",
+            "botania:runic_altar", "RunicAltarAdapter", null, false);
+    private static final Case BOTANIA_APOTHECARY = addCase("conn28_botania_apothecary",
+            "botania:apothecary_default", "PetalApothecaryAdapter", null, false);
+    private static final Case BOTANIA_MANA_POOL = addCase("conn29_botania_mana_pool",
+            "botania:mana_pool", "ManaPoolAdapter", null, false);
+    private static final Case BOTANIA_ALFHEIM_PORTAL = addCase("conn30_botania_alfheim_portal",
+            "botania:alfheim_portal", "AlfheimPortalAdapter", null, false);
+    // Avaritia fork-only: absent on AvaritiaNeo (pass inert), recognized on the fork.
+    private static final Case AVARITIA_EXTREME_SMITHING = addCase("conn40_avaritia_extreme_smithing",
+            "avaritia:extreme_smithing_table", "AvaritiaExtremeSmithingAdapter",
+            "avaritia:extreme_smithing_recipe", false);
 
     /** Support blocks that must NOT be recognized as a main block. */
     private static final List<NegCase> NEG_CASES = List.of(

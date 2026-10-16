@@ -24,12 +24,12 @@ class VirtualBatchAccumulatorNbtTest {
         assertTrue(source.contains("case \"f\""));
         assertTrue(source.contains("case \"g\""));
         assertTrue(source.contains("mergePending(stack.what(), stack.amount())"));
-        assertTrue(source.contains("pending.add(key, amount)"));
+        assertTrue(source.contains("Math.addExact(previous, amount)"));
         assertTrue(source.contains("Math.subtractExact(gameTick, lastFlushTick)"));
         assertTrue(source.contains("elapsed = Long.MAX_VALUE"));
         assertTrue(source.contains("Virtual batch flush failed; retaining"));
         var writer = source.substring(source.indexOf("public void writeToNBT("), source.indexOf("public void readFromNBT("));
         assertFalse(writer.contains("snapshotStacks()"));
-        assertTrue(writer.contains("pending.snapshot()"));
+        assertTrue(writer.contains("pending.entrySet()"));
     }
 }

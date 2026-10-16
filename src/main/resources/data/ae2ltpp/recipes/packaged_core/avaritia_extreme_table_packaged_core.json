@@ -3,7 +3,8 @@
     {
       "type": "forge:mod_loaded",
       "modid": "avaritia"
-    },
+    }
+,
     {
       "type": "forge:item_exists",
       "item": "avaritia:neutron_gear"
@@ -12,16 +13,28 @@
   "type": "avaritia:shaped_table",
   "tier": 4,
   "pattern": [
-    "ABA",
-    "BCB",
-    "ABA"
+    "MIMIMIMIM",
+    "IIIIIIIII",
+    "MIMMMMMIM",
+    "IIMGSGMII",
+    "MIMGCGMIM",
+    "IIMGSGMII",
+    "MIMMMMMIM",
+    "IIIIIIIII",
+    "MIMIMIMIM"
   ],
   "key": {
-    "A": {
+    "M": {
       "item": "avaritia:crystal_matrix_ingot"
     },
-    "B": {
-      "item": "ae2:engineering_processor"
+    "I": {
+      "item": "avaritia:neutron_ingot"
+    },
+    "G": {
+      "item": "avaritia:neutron_gear"
+    },
+    "S": {
+      "item": "minecraft:nether_star"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

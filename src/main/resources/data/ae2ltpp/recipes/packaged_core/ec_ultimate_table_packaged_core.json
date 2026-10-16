@@ -8,19 +8,31 @@
   "type": "extendedcrafting:shaped_table",
   "tier": 4,
   "pattern": [
-    "LTL",
-    "BCB",
-    "LTL"
+    "KEKEKEKEK",
+    "ELLLLLLLE",
+    "KLEEEEELK",
+    "ELEUXUELE",
+    "KLEXCXELK",
+    "ELEUXUELE",
+    "KLEEEEELK",
+    "ELLLLLLLE",
+    "KEKEKEKEK"
   ],
   "key": {
+    "K": {
+      "item": "extendedcrafting:crystaltine_ingot"
+    },
+    "E": {
+      "item": "extendedcrafting:enhanced_ender_ingot"
+    },
     "L": {
       "item": "extendedcrafting:luminessence"
     },
-    "T": {
-      "item": "extendedcrafting:ultimate_component"
+    "U": {
+      "item": "extendedcrafting:ultimate_catalyst"
     },
-    "B": {
-      "item": "extendedcrafting:black_iron_ingot"
+    "X": {
+      "item": "extendedcrafting:crystaltine_catalyst"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

@@ -137,10 +137,3 @@ mandatory = false
 versionRange = "[1.20.1-2.2.6,)"
 ordering = "AFTER"
 side = "BOTH"
-
-[[dependencies."${mod_id}"]]
-modId = "naturesaura"
-mandatory = false
-versionRange = "[0,)"
-ordering = "AFTER"
-side = "BOTH"

@@ -303,6 +303,7 @@ class CompatibilityReflectionContractTest {
         assertTrue(source.contains("declared.acceptsSlotCount(handler.getSlots())"));
         assertTrue(!source.contains("int compatibilityGrid = declared.gridSize() - 2"));
         assertTrue(!source.contains("isKnownTable(declared.blockId())"));
+        assertTrue(source.contains("SCULK_TABLE_BLOCK"));
         assertTrue(source.contains("NETHER_TABLE_BLOCK"));
         assertTrue(source.contains("END_TABLE_BLOCK"));
         assertTrue(source.contains("EXTREME_TABLE_BLOCK"));

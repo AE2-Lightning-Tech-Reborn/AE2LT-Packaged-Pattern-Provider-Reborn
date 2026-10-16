@@ -8,19 +8,27 @@
   "type": "extendedcrafting:shaped_table",
   "tier": 2,
   "pattern": [
-    "LTL",
-    "BCB",
-    "LTL"
+    "RBRBR",
+    "BLTLB",
+    "RLCLR",
+    "BLXLB",
+    "RBRBR"
   ],
   "key": {
+    "R": {
+      "item": "extendedcrafting:redstone_ingot"
+    },
+    "B": {
+      "item": "extendedcrafting:black_iron_ingot"
+    },
     "L": {
       "item": "extendedcrafting:luminessence"
     },
     "T": {
-      "item": "extendedcrafting:advanced_component"
+      "item": "extendedcrafting:advanced_catalyst"
     },
-    "B": {
-      "item": "extendedcrafting:black_iron_ingot"
+    "X": {
+      "item": "extendedcrafting:crystaltine_catalyst"
     },
     "C": {
       "item": "ae2ltpp:basic_packaged_core"

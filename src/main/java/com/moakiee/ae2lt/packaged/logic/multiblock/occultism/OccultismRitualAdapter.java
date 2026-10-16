@@ -56,8 +56,14 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 /**
- * Real Occultism ritual dispatch using optional reflection APIs.
- * Places items and pays configured proxy costs for sacrifice or item-use steps.
+ * Runtime adapter for Occultism rituals.
+ *
+ * <p>Occultism is intentionally optional, so all Occultism and Modonomicon access
+ * stays reflection-based.
+ *
+ * <p>All Occultism rituals run as {@link BindingMode#REAL}. Even summon/use-item
+ * rituals have visible time and world-side side effects; this adapter only
+ * automates item placement plus optional proxy costs for sacrifice/use steps.
  */
 public final class OccultismRitualAdapter implements MultiblockAdapter {
 
@@ -1092,6 +1098,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
         private static volatile @Nullable Method getCurrentRitualRecipeMethod;
         private static volatile @Nullable Field itemStackHandlerField;
         private static volatile @Nullable Method getActivationItemMethod;
+        private static volatile @Nullable Method getRitualTypeMethod;
         private static volatile @Nullable Method requiresSacrificeMethod;
         private static volatile @Nullable Method getEntityToSacrificeMethod;
         private static volatile @Nullable Method requiresItemUseMethod;
@@ -1272,6 +1279,20 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             }
         }
 
+        @Nullable
+        static ResourceLocation getRitualType(Object recipe) {
+            ensureLookup();
+            if (getRitualTypeMethod == null) {
+                return null;
+            }
+            try {
+                var value = getRitualTypeMethod.invoke(recipe);
+                return value instanceof ResourceLocation id ? id : null;
+            } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+                return null;
+            }
+        }
+
         static boolean hasValidPentacle(Object recipe, Level level, BlockPos pos) {
             var pentacle = getPentacle(recipe);
         if (pentacle == null) {
@@ -1337,6 +1358,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             }
             if (ritualRecipeClass != null) {
                 getActivationItemMethod = tryMethod(ritualRecipeClass, "getActivationItem");
+                getRitualTypeMethod = tryMethod(ritualRecipeClass, "getRitualType");
                 requiresSacrificeMethod = tryMethod(ritualRecipeClass, "requiresSacrifice");
                 getEntityToSacrificeMethod = tryMethod(ritualRecipeClass, "getEntityToSacrifice");
                 requiresItemUseMethod = tryMethod(ritualRecipeClass, "requiresItemUse");

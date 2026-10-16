@@ -51,7 +51,7 @@ public final class DispatchExecutor {
                 simulation = simulateTarget(target, source);
             } catch (RuntimeException | LinkageError e) {
                 LOG.warn("Dispatch simulation failed at {}; refusing to modulate input",
-                        target.pos(), e);
+                        target == null ? "<null>" : target.pos(), e);
                 return DispatchResult.failure("Target simulation failed before input was committed.");
             }
             if (simulation.failure()) {

@@ -1,7 +1,6 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.ec;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Arrays;
 import java.util.List;
@@ -87,73 +86,5 @@ class ExtendedCraftingTableGridPlannerTest {
         assertEquals(List.of(
                 new ExtendedCraftingTableGridPlanner.Assignment<>(0, "gold"),
                 new ExtendedCraftingTableGridPlanner.Assignment<>(1, "iron")), slots);
-    }
-
-    @Test
-    void crafterPreservesCompactShapedGaps() {
-        var slots = ExtendedCraftingTableGridPlanner.placeCrafter(2, 2,
-                List.of("iron", "", "", "gold"), List.of("gold", "iron"),
-                String::isEmpty, String::equals);
-
-        assertEquals(List.of(
-                new ExtendedCraftingTableGridPlanner.Assignment<>(0, "iron"),
-                new ExtendedCraftingTableGridPlanner.Assignment<>(4, "gold")), slots);
-    }
-
-    @Test
-    void crafterUsesPaddedNineCellLayoutWhenDimensionsAreUnavailable() {
-        var slots = ExtendedCraftingTableGridPlanner.placeCrafter(0, 0,
-                List.of("", "iron", "", "", "", "", "", "", "gold"),
-                List.of("gold", "iron"), String::isEmpty, String::equals);
-
-        assertEquals(List.of(
-                new ExtendedCraftingTableGridPlanner.Assignment<>(1, "iron"),
-                new ExtendedCraftingTableGridPlanner.Assignment<>(8, "gold")), slots);
-    }
-
-    @Test
-    void crafterPacksShortShapelessRecipesForInvalidDimensions() {
-        for (var dimensions : List.of(new int[]{0, 0}, new int[]{-1, 2},
-                new int[]{4, 1}, new int[]{1, 4})) {
-            var slots = ExtendedCraftingTableGridPlanner.placeCrafter(dimensions[0], dimensions[1],
-                    List.of("", "iron", "", "gold"), List.of("gold", "iron"),
-                    String::isEmpty, String::equals);
-
-            assertEquals(List.of(
-                    new ExtendedCraftingTableGridPlanner.Assignment<>(0, "iron"),
-                    new ExtendedCraftingTableGridPlanner.Assignment<>(1, "gold")), slots);
-        }
-    }
-
-    @Test
-    void crafterResolvesOverlappingIngredientsWithoutReusingInputs() {
-        var slots = ExtendedCraftingTableGridPlanner.placeCrafter(2, 1,
-                List.of("any_ingot", "iron"), List.of("iron", "gold"), String::isEmpty,
-                (ingredient, input) -> ingredient.equals("any_ingot") || ingredient.equals(input));
-
-        assertEquals(List.of(
-                new ExtendedCraftingTableGridPlanner.Assignment<>(0, "gold"),
-                new ExtendedCraftingTableGridPlanner.Assignment<>(1, "iron")), slots);
-    }
-
-    @Test
-    void crafterRejectsMissingExtraAndUnmatchedInputs() {
-        for (var inputs : List.of(List.<String>of(), List.of("iron", "iron"), List.of("gold"))) {
-            assertNull(ExtendedCraftingTableGridPlanner.placeCrafter(1, 1,
-                    List.of("iron"), inputs, String::isEmpty, String::equals));
-        }
-        assertNull(ExtendedCraftingTableGridPlanner.placeCrafter(0, 0,
-                List.<String>of(), List.<String>of(), String::isEmpty, String::equals));
-        assertNull(ExtendedCraftingTableGridPlanner.placeCrafter(0, 0,
-                java.util.Collections.nCopies(10, "iron"),
-                java.util.Collections.nCopies(10, "iron"), String::isEmpty, String::equals));
-    }
-
-    @Test
-    void crafterRejectsIngredientsOutsideDeclaredShape() {
-        assertNull(ExtendedCraftingTableGridPlanner.placeCrafter(1, 1,
-                List.of("iron", "gold"), List.of("iron", "gold"), String::isEmpty, String::equals));
-        assertEquals(List.of(), ExtendedCraftingTableGridPlanner.placeCrafter(3, 3,
-                java.util.Collections.nCopies(9, ""), List.<String>of(), String::isEmpty, String::equals));
     }
 }

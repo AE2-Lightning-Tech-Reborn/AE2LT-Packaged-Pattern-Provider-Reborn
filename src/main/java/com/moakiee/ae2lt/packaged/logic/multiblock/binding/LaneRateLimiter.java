@@ -44,24 +44,6 @@ public final class LaneRateLimiter {
         return true;
     }
 
-    public boolean tryAcquire(LaneKey lane, long gameTick, int amount) {
-        if (amount <= 0 || amount > capacityPerTick) return false;
-        var use = uses.get(lane);
-        if (use == null || use.gameTick != gameTick) {
-            uses.put(lane, new Use(gameTick, amount));
-            return true;
-        }
-        if (use.count > capacityPerTick - amount) return false;
-        uses.put(lane, new Use(gameTick, use.count + amount));
-        return true;
-    }
-
-    public int remaining(LaneKey lane, long gameTick) {
-        var use = uses.get(lane);
-        if (use == null || use.gameTick != gameTick) return capacityPerTick;
-        return Math.max(0, capacityPerTick - use.count);
-    }
-
     public void retainAll(Collection<LaneKey> activeLanes) {
         uses.keySet().retainAll(activeLanes);
     }

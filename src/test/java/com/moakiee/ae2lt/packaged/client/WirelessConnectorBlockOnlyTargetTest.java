@@ -93,7 +93,7 @@ class WirelessConnectorBlockOnlyTargetTest {
         assertTrue(host.contains("!serverLevel.isLoaded(pos)"));
         assertTrue(host.contains("MultiblockAdapterRegistry.find(serverLevel, pos, serverLevel.getBlockEntity(pos))"));
         assertTrue(host.contains("MultiblockAdapterItem.stackCovers(installed, required)"));
-        assertTrue(host.contains("|| !acceptsWirelessTarget(level, pos)"));
+        assertTrue(host.contains("&& acceptsWirelessTarget(level, pos)"));
         assertTrue(host.contains("super.addOrUpdateConnection(dimension, pos, boundFace)"));
     }
 

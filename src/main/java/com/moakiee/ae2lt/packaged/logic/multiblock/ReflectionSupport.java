@@ -92,8 +92,14 @@ public final class ReflectionSupport {
     }
 
     /**
-     * Restores ItemStack.EMPTY tags after third-party hooks. Ars parchment and
-     * SpellCaster fallbacks can mutate this singleton, also shared by idle tiles.
+     * Runs a third-party recipe hook while shielding the shared
+     * {@link ItemStack#EMPTY} singleton. Recipe code can reach the singleton
+     * through its own fallbacks (Ars Nouveau's {@code getParchment} returns it
+     * when no parchment is supplied, and the {@code SpellCaster} constructor
+     * unconditionally calls {@code getOrCreateTag} on its argument), and idle
+     * Ars {@code SingleItemTile}s alias the singleton in their stack field, so
+     * any such write mutates live tiles. The singleton's tag field is restored
+     * once the hook returns.
      */
     public static <T> T withEmptyStackTagPreserved(Supplier<T> action) {
         var tag = ItemStack.EMPTY.getTag();
@@ -159,7 +165,7 @@ public final class ReflectionSupport {
         }
 
         private static MethodLookupKey of(Class<?> type, String name, Class<?>... parameterTypes) {
-            return new MethodLookupKey(type, name, Arrays.asList(parameterTypes));
+            return new MethodLookupKey(type, name, Arrays.asList((Class<?>[]) parameterTypes.clone()));
         }
     }
 

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -12,6 +13,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.Level;
 
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ProviderMode;
@@ -19,12 +21,16 @@ import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEnti
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.WirelessConnection;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.WirelessDispatchMode;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.WirelessSpeedMode;
-import com.moakiee.ae2lt.packaged.testsupport.MinecraftTestBootstrap;
-
 class StablePatternProviderNbtMigrationTest {
+    /**
+     * Touching {@code Registries} initializes {@code BuiltInRegistries}, which
+     * refuses to build a registry before {@code Bootstrap} has run. 1.21 no
+     * longer needs this; 1.20.1 does.
+     */
     @BeforeAll
     static void bootstrapMinecraft() {
-        MinecraftTestBootstrap.initialize();
+        SharedConstants.tryDetectVersion();
+        Bootstrap.bootStrap();
     }
 
     @Test
