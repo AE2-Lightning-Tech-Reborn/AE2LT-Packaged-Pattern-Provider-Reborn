@@ -13,37 +13,31 @@
     {
       "consume": true,
       "ingredient": {
-        "item": "draconicevolution:awakened_core"
+        "item": "draconicevolution:draconium_core"
       }
     },
     {
       "consume": true,
       "ingredient": {
-        "item": "draconicevolution:awakened_core"
+        "item": "draconicevolution:draconium_ingot"
       }
     },
     {
       "consume": true,
       "ingredient": {
-        "item": "draconicevolution:awakened_draconium_ingot"
+        "item": "draconicevolution:draconium_ingot"
       }
     },
     {
       "consume": true,
       "ingredient": {
-        "item": "draconicevolution:awakened_draconium_ingot"
+        "item": "draconicevolution:draconium_ingot"
       }
     },
     {
       "consume": true,
       "ingredient": {
-        "item": "draconicevolution:awakened_draconium_ingot"
-      }
-    },
-    {
-      "consume": true,
-      "ingredient": {
-        "item": "draconicevolution:awakened_draconium_ingot"
+        "item": "draconicevolution:draconium_ingot"
       }
     }
   ],
@@ -51,6 +45,6 @@
     "count": 1,
     "item": "ae2ltpp:de_fusion_packaged_core"
   },
-  "tier": "DRACONIC",
-  "total_energy": 50000000
+  "tier": "DRACONIUM",
+  "total_energy": 32000
 }

@@ -28,7 +28,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterRecipeTypes;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.PatternInputAlternatives;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterBlocks;
-import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.LinearVirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
@@ -38,7 +38,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
  * Virtual Spirit Fire conversion: validates the recipe and returns its output
  * without spawning item entities. Occultism is accessed through reflection.
  */
-public final class OccultismSpiritFireAdapter implements VirtualCraftingAdapter {
+public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAdapter {
 
     private static final String MOD_ID = "occultism";
     private static final ResourceLocation SPIRIT_FIRE_BLOCK = occultismId("spirit_fire");

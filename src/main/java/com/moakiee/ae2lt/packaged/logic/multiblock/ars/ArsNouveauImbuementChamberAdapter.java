@@ -52,9 +52,8 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
  * Runtime adapter for Ars Nouveau's Imbuement Chamber.
  *
  * <p>Ars checks nearby arcane pedestals when matching the recipe, but it never
- * consumes those pedestal items. Reagent-only patterns use matching, preplaced
- * catalysts without moving them. Patterns including catalysts retain the
- * temporary borrow-and-return workflow for switching recipes on one chamber.
+ * consumes those pedestal items. Reagent-only patterns use preplaced catalysts;
+ * patterns including catalysts borrow and return them with the product.
  */
 public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapter {
 
@@ -65,8 +64,6 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
     private static final ResourceLocation RECIPE_TYPE_ID = arsId("imbuement");
     private static final int PEDESTAL_RADIUS = 1;
     private static final int MAX_INPUT_UNITS = 128;
-    // ImbuementTile calls super.saveAdditional/load, preserving Forge persistent
-    // data across unloads/restarts independently of the provider's bindings.
     private static final String RESIDENT_CATALYSTS_FLAG = "ae2ltpp:imbuement_resident_catalysts";
 
     @Override
@@ -149,15 +146,11 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
 
         List<BlockPos> pedestals;
         if (bind.residentCatalysts()) {
-            if (assignPedestalsForExtraction(level, mainPos, pedestalIngredients) == null) {
-                return null;
-            }
+            if (assignPedestalsForExtraction(level, mainPos, pedestalIngredients) == null) return null;
             pedestals = List.of();
         } else {
             pedestals = findEmptyPedestals(level, mainPos);
-            if (pedestals == null || pedestals.size() < pedestalIngredients.size()) {
-                return null;
-            }
+            if (pedestals == null || pedestals.size() < pedestalIngredients.size()) return null;
         }
 
         var units = expandInputUnits(inputs);
@@ -325,11 +318,8 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
             if (!sameStackAndCount(outputStack, result)) {
                 continue;
             }
-            if (residentCatalysts) {
-                // Finished products remain recoverable if catalysts were changed
-                // after completion. Resident pedestals are never output inventories.
-                return new CompletedRecipe(List.of());
-            }
+            // Finished resident products remain recoverable after manual catalyst changes.
+            if (residentCatalysts) return new CompletedRecipe(List.of());
             var pedestalIngredients = ArsReflection.getPedestalItems(recipe);
             if (pedestalIngredients == null) {
                 continue;
@@ -509,11 +499,8 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
             }
             if (mode == Actionable.MODULATE) {
                 chamber.setItem(0, unit.stack());
-                if (residentCatalysts) {
-                    be.getPersistentData().putBoolean(RESIDENT_CATALYSTS_FLAG, true);
-                } else {
-                    be.getPersistentData().remove(RESIDENT_CATALYSTS_FLAG);
-                }
+                if (residentCatalysts) be.getPersistentData().putBoolean(RESIDENT_CATALYSTS_FLAG, true);
+                else be.getPersistentData().remove(RESIDENT_CATALYSTS_FLAG);
                 chamber.setChanged();
             }
             return 1L;

@@ -12,8 +12,6 @@
 | [84c5abf](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/commit/84c5abf) | MekMM 可向运行中的机器继续投料，合并未收获订单的输出收据；按配方与模式退避，按控制器自适应轮询。 |
 | [25d0ef7](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/commit/25d0ef7) | 统一雕刻核心，Chipped 工作台转换以及 Rechiseled / Chisel 供应器内部转换通道。 |
 | [7a60007](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/commit/7a60007) | 两种供应器 GUI 的空核心槽提示纹理。 |
-| [0267d70](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/commit/0267d70a798e94902d62fea0244b03e63aaf4f8e) | Ars 灌注室常驻催化剂：仅核心原料样板使用预放催化剂，跨重载保留；声明催化剂的样板继续借用并返还。保留 Forge 的候选材料匹配。 |
-| [955f4ce](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/commit/955f4ce1c254fb1cef26a5ad3aa5f65055a44378) | 显示名称移除 Reborn / 重生，同步中英文语言、指南、模组描述和命名测试；更新 Forge 版变更记录。 |
 
 ## Forge 适配要点
 
@@ -57,7 +55,25 @@ AE2 为 15.4.10。MekMM 电解测试使用两个 100 mB 订单，在原生机器
 扩大负载包括 160 万次随机操作、Avaritia 累计 1.28 亿次虚拟合成、MekMM 128 笔连续订单，以及 8 台供应器跨 6,000 tick 的阻塞重载。
 实际负载、结果、复现命令与覆盖边界见 [GLOBAL_STRESS.zh-CN.md](GLOBAL_STRESS.zh-CN.md)。
 
-2026-10-09 补齐上述常驻催化剂和显示名称移植后，当前默认前置组合再次通过完整构建、299 项 JUnit（400 万次随机操作）及全部 86 项必需 Forge GameTest。
-新增常驻模式使用 Ars Nouveau 4.12.6 的真实火焰精华配方和原生 ticker，完成 64 次合成、128 次灌注室实体重建，保留基座催化剂的 NBT 与数量；
-同时覆盖派发前材料变化、错误 / 缺少 / 多余催化剂、完成后材料变化、重复回收和常驻转借还模式。
-实体重建验证 Forge NBT 序列化，不等同于真实磁盘重启。生产 JAR 的显示名称与资源验证见 [DEPENDENCY_COMPATIBILITY.zh-CN.md](DEPENDENCY_COMPATIBILITY.zh-CN.md)。
+## main 补充移植（2026-10-15）
+
+对照上游 `main` 的 `e6d226c`（NeoForge 1.21.1）。本轮为 Java 17 / Forge 47.4.10 单独适配：
+
+| 来源 | 本轮补齐 |
+| --- | --- |
+| [885058b](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/commit/885058b) | 20 种专用核心配方降本，保留目标机器与原有工作台等级。EC 高级核心使用对应等级组件；DE 降为 DRACONIUM、32,000 RF；Occultism 改为 Foliot 仪式。 |
+| [265f8ac](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/commit/265f8ac) | 极限锻造保留 addition 数组中的三种材料；Forge Re-Avaritia 1.4.1 将它们解析为同一槽位的三个可选项，按其原生语义执行。使用实际存在的晶体矩阵锭替代 diamond_lattice。 |
+| [84c5abf](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/commit/84c5abf) 与 main 初始快照 | MekMM 同一请求仅在当前 tick 抑制失败，下一个 tick 即可重试；不同样板、控制器和模式仍相互独立。 |
+| [main](https://github.com/AE2-Lightning-Tech-Reborn/AE2LT-Packaged-Pattern-Provider-Reborn/tree/e6d226c) 的 LinearVirtualCraftingAdapter / PendingAmounts / 返还库存实现 | Chipped、内部雕刻与灵火显式允许线性批量，每通道每 tick 共用 64 次预算；纯工作台沿用 CPU 预算。产物与退款按 long 大小分段，累计超长数量不再截断；返还库存只回报实际插入量。 |
+
+保留 `recipes/` 复数目录、Forge 条件、1.20.1 的 ItemStack/NBT 格式，以及 Ars 的 reagent 数组、DE 的 `tier` / `total_energy`、EC 的 camelCase 字段。不会套用 NeoForge 的资源 schema。
+
+本地已有 Nature's Aura、常驻佐料、雕刻、EC/Avaritia 批量和 MekMM 配方数量绑定，不重复移植。Forge 的气体/灌注/颜料/浆液 capability、Blood Magic、Forbidden Arcanus、AvaritiaNeo 与既有所有权保护继续保留。
+
+星辉魔法适配基于官方 `1.21.1` 开发分支及 ObserverLib，不存在本项目已验证的 Forge 1.20.1 对应依赖；本轮不加入其物品、配方或反射适配。构建工具、Data Components、NeoForge 菜单/网络 API 和主分支依赖升级不适用于本目标版本。
+
+2026-10-15 本轮验证：完整 `build`（包含 jarJar / reobf）成功；344 项 JUnit 全部通过，无失败、错误或跳过；完整集成环境的 98 项必需 Forge GameTest 全部通过。另用 Re-Avaritia 1.4.1 的独立 Forge 环境执行一项专项 GameTest，覆盖其余五种核心配方的原生加载、产物、四级工作台等级与锻造材料选项，全部通过。12 项发布脚本测试及 Forge 仓库解析回归也通过。
+
+新增回归覆盖下一 tick 重试、64 次线性批量配额与样板输入保护、累计数量超过 long 后的部分交付和 NBT 重载，以及返还库存接近上限时的准确回执。主集成环境覆盖其余 15 种改动配方的原生反序列化。
+
+本轮在 `ad074b5` 的隔离副本中验证，仅包含此前构建依赖修复与本次补充移植。工作区并行进行的共振核心、扩展供应器、菜单和网络改动未纳入这组结果；本轮没有重新执行图形客户端验证。详细日志、复现配置、JUnit 报告、产物和本轮独立补丁保存在被 Git 忽略的 `build/upstream-backport-20261015/`，不进入提交。

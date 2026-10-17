@@ -104,8 +104,11 @@ public class PackagedRitualLifecycleRegressionTest {
     @Test
     void outputResidualsMergeWithoutQuadraticSearchOrDeliveryReplay() throws Exception {
         String provider = Files.readString(BASE.resolve("PackagedPatternProviderLogic.java"));
-        String methods = extract(provider, Set.of("insertOutputsToReturnInv", "addMergedResidual"), -1);
-        run(OUTPUT_HARNESS.replace("/* OUTPUT */", methods));
+        String methods = extract(provider, Set.of("insertOutputsToReturnInv"), -1);
+        String quantities = Files.readString(BASE.resolve("PendingAmounts.java"));
+        quantities = quantities.substring(quantities.indexOf("public final class PendingAmounts"))
+                .replace("public final class PendingAmounts", "static final class PendingAmounts");
+        run(OUTPUT_HARNESS.replace("/* OUTPUT */", quantities + methods));
     }
 
     private static String extract(String source, Set<String> names, int arity) throws Exception {
@@ -179,6 +182,7 @@ public class PackagedRitualLifecycleRegressionTest {
 
     private static final String OUTPUT_HARNESS = """
         import java.util.*;
+        import java.util.function.ToLongFunction;
         public class LifecycleHarness {
             record AEKey(int id) {
                 static int comparisons;
@@ -304,13 +308,14 @@ public class PackagedRitualLifecycleRegressionTest {
                         new GenericStack(iron, -1));
                 check(host.insertOutputsToReturnInv(invalid).isEmpty() && host.node.grid.checks == 0,
                         "invalid stacks cause no delivery or retained amounts");
-                var merged = new LinkedHashMap<AEKey, Long>();
-                addMergedResidual(merged, iron, Long.MAX_VALUE - 1);
-                addMergedResidual(merged, new AEKey(1), 5);
-                addMergedResidual(merged, null, 5);
-                addMergedResidual(merged, gold, -1);
-                check(merged.size() == 1 && merged.get(iron) == Long.MAX_VALUE,
-                        "residual overflow saturates without negative amounts");
+                var merged = new PendingAmounts<AEKey>();
+                merged.add(iron, Long.MAX_VALUE - 1);
+                merged.add(new AEKey(1), 5);
+                merged.add(null, 5);
+                merged.add(gold, -1);
+                check(merged.snapshot().equals(List.of(new PendingAmounts.Entry<>(iron, Long.MAX_VALUE),
+                        new PendingAmounts.Entry<>(iron, 4L))),
+                        "residual overflow preserves all quantities in separate chunks");
             }
         }
         """;

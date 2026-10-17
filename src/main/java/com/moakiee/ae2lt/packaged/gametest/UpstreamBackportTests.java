@@ -3,6 +3,7 @@ package com.moakiee.ae2lt.packaged.gametest;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.security.IActionSource;
@@ -11,6 +12,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.core.definitions.AEBlocks;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchExecutor;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsNouveauImbuementChamberAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.de.DraconicFusionCraftingAdapter;
@@ -233,4 +235,45 @@ public final class UpstreamBackportTests {
             h.succeed();
         });
     }
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 30)
+    public static void balancedCoreRecipesLoadThroughNativeForgeSerializers(GameTestHelper h) throws ReflectiveOperationException {
+        for (String name : List.of(
+                "aa_empowerer_packaged_core",
+                "aa_reconstructor_packaged_core",
+                "ars_apparatus_packaged_core",
+                "avaritia_end_table_packaged_core",
+                "avaritia_extreme_smithing_packaged_core",
+                "avaritia_extreme_table_packaged_core",
+                "avaritia_nether_table_packaged_core",
+                "avaritia_sculk_table_packaged_core",
+                "botania_mana_pool_packaged_core",
+                "botania_terra_plate_packaged_core",
+                "de_fusion_packaged_core",
+                "ec_advanced_table_packaged_core",
+                "ec_basic_table_packaged_core",
+                "ec_combination_packaged_core",
+                "ec_elite_table_packaged_core",
+                "ec_ender_crafter_packaged_core",
+                "ec_flux_crafter_packaged_core",
+                "ec_ultimate_table_packaged_core",
+                "ma_infusion_altar_packaged_core",
+                "occultism_ritual_packaged_core")) {
+            var id = new ResourceLocation("ae2ltpp", "packaged_core/" + name);
+            // Re-Avaritia-only recipes intentionally skip when AvaritiaNeo is installed.
+            if (name.startsWith("avaritia_")) continue;
+            var recipe = h.getLevel().getRecipeManager().byKey(id).orElseThrow(() ->
+                    new AssertionError("Core recipe failed native deserialization: " + id));
+            var result = name.equals("ars_apparatus_packaged_core")
+                    ? (ItemStack) recipe.getClass().getField("result").get(recipe)
+                    : recipe.getResultItem(h.getLevel().registryAccess());
+            h.assertTrue(!result.isEmpty() && ForgeRegistries.ITEMS.getKey(result.getItem())
+                    .equals(new ResourceLocation("ae2ltpp", name)), "Core recipe lost its result: " + id);
+        }
+        var recipe = h.getLevel().getRecipeManager().byKey(
+                new ResourceLocation("ae2ltpp", "packaged_core/de_fusion_packaged_core")).orElseThrow();
+        h.assertTrue(recipe.getIngredients().stream().allMatch(ingredient -> !ingredient.isEmpty()),
+                "Fusion recipe has invalid native ingredients");
+        h.succeed();
+    }
+
 }

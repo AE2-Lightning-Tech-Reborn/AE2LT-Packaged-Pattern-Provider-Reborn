@@ -12,7 +12,10 @@
     "HephaestusRitualManagerMixin",
     "MekmmRecipeConfigMixin",
     "MalumRecipeAdvancementMixin",
-    "AE2LightningTechCoreConfigCompatMixin"
+    "AE2LightningTechCoreConfigCompatMixin",
+    "NaturesAuraAltarMixin",
+    "NaturesAuraOfferingMixin",
+    "NaturesAuraTreeRitualMixin"
   ],
   "client": [
     "WirelessConnectorItemMixin"

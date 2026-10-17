@@ -3,8 +3,7 @@
     {
       "type": "forge:mod_loaded",
       "modid": "avaritia"
-    }
-,
+    },
     {
       "type": "forge:item_exists",
       "item": "avaritia:upgrade_smithing_template"
@@ -12,20 +11,20 @@
   ],
   "type": "avaritia:extreme_smithing",
   "template": {
-    "item": "avaritia:upgrade_smithing_template"
+    "item": "ae2:engineering_processor"
   },
   "base": {
     "item": "ae2ltpp:basic_packaged_core"
   },
   "addition": [
     {
-      "item": "avaritia:neutron_ingot"
-    },
-    {
       "item": "avaritia:crystal_matrix_ingot"
     },
     {
-      "item": "avaritia:neutron_gear"
+      "item": "ae2:certus_quartz_crystal"
+    },
+    {
+      "item": "ae2:fluix_crystal"
     }
   ],
   "result": {

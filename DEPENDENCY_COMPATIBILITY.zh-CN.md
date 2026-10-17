@@ -8,8 +8,8 @@
 | 依赖 | 当前默认构建版本 | 本轮验证版本 | 项目声明的运行范围 |
 | --- | --- | --- | --- |
 | AE2 | 15.4.10 | [15.4.11](https://github.com/AppliedEnergistics/Applied-Energistics-2/releases/tag/forge/v15.4.11) | `[15.4.10,16)` |
-| AE2LT | 2.1.2-beta | [2.1.2-beta](https://github.com/AE2-Lightning-Tech-Reborn/AE2-Lightning-Tech-Reborn/releases/tag/1.20.1-2.1.2-beta) | `[2.1.0,3.0.0)` |
-| Thunderbolt | 2.0.3-beta | [2.0.3-beta](https://github.com/AE2-Lightning-Tech-Reborn/Thunderbolt-Core-Reborn/releases/tag/1.20.1-2.0.3-beta) | `[2.0.1,2.1.0)` |
+| AE2LT | 2.1.0 | [2.1.2-beta](https://github.com/AE2-Lightning-Tech-Reborn/AE2-Lightning-Tech-Reborn/releases/tag/1.20.1-2.1.2-beta) | `[2.1.0,3.0.0)` |
+| Thunderbolt | 2.0.1 | [2.0.3-beta](https://github.com/AE2-Lightning-Tech-Reborn/Thunderbolt-Core-Reborn/releases/tag/1.20.1-2.0.3-beta) | `[2.0.1,2.1.0)` |
 | GuideME | 20.1.15 | 20.1.15，已是对应 Forge 分支最新版本 | AE2LT 要求 `[20.1.7,20.2.0)` |
 | AE2WTLib | 15.3.3-forge | 15.3.3-forge，已是对应 Forge 分支最新版本 | 可选集成 |
 | Curios | 5.14.1+1.20.1 | 5.14.1+1.20.1，已是对应 Forge 分支最新版本 | 可选集成 |
@@ -41,16 +41,13 @@ MekMM 128 笔运行中追加订单及 16 次归属重载、普通 / 无线供应
 以及 DE、Ars、EC、Avaritia、Chipped、Rechiseled 和既有兼容适配器。
 本轮运行默认 10 轮供应器浸泡、200 个服务端 tick；上一轮的 300 轮 / 6,000 tick 压测使用旧前置，不能算作新版前置验证。
 
-本轮尚未完成新版前置组合下的 33 种核心渲染、两种供应器屏幕及客户端 Mixin / JEI 验证。
-此前默认前置组合的客户端验证不能代替这一项。
+客户端正在验证 33 种核心渲染、普通与无线供应器屏幕，以及新版依赖的客户端 Mixin / JEI 加载。
 
 ## 复现配置
 
 本轮将经过校验的原始 JAR 放到 `build/dependency-update-check/maven`，通过本地临时 init script 优先解析。
-验证开始时本地开发树默认使用 AE2LT 2.1.0 / Thunderbolt 2.0.1。
-整理 PR 时采用最新远端 `1.20.1` 的 AE2LT 2.1.2-beta / Thunderbolt 2.0.3-beta 默认值及 Reborn Maven 包名；运行兼容范围保持原值。
-原兼容测试的临时 Maven 使用 Thunderbolt 旧坐标别名，内容是官方发布 JAR，未修改字节码；不代表旧别名由上游正式发布。
-当前默认包名为 `thunderbolt-reborn-forge-1.20.1`，复现原测试环境需显式传入 `-Pthunderbolt_artifact_id=thunderbolt`。
+旧默认版本仍保留；未更改项目运行兼容范围。
+临时 Maven 中给 Thunderbolt 使用本项目已有坐标别名，内容是官方发布 JAR，未修改字节码；不代表该别名已由上游正式发布。
 
 ```powershell
 ./gradlew.bat test build -I build/dependency-update-check/references.init.gradle '-Pae2_version=15.4.11' '-Pae2lt_version=2.1.2-beta' '-Pthunderbolt_version=2.0.3-beta' -Penable_avaritia_tests=true --offline --no-daemon --max-workers=1
@@ -63,23 +60,3 @@ MekMM 128 笔运行中追加订单及 16 次归属重载、普通 / 无线供应
 复现时可把 `compatibility_test_root` 传为绝对路径指定其他本地隔离目录。
 本轮不验证 GTL 专用前置组合、其他 Minecraft / 加载器版本或所有可选目标模组的新发布版本。
 JUnit 沿用已有配置，`StablePatternProviderNbtMigrationTest` 未纳入选择；不能以 299 项通过代替该迁移测试。
-
-## 2026-10-09 PR 最终树验证
-
-在最新远端 `1.20.1` 基线上应用本次功能，保留远端发布工作流、模组版本 `1.2.2-beta`、
-AE2LT `2.1.2-beta`、Thunderbolt `2.0.3-beta` 及其 Forge Reborn Maven 包名。
-本轮使用默认 AE2 `15.4.10` 和 JEI `15.21.0.144`，与上方 AE2 / JEI 升级组合分别记录。
-本地临时仓库使用此前校验的官方 JAR，Thunderbolt 以当前 Reborn 坐标解析，未修改依赖字节码。
-
-- 完整构建与 299 项 JUnit 通过，失败 / 错误 / 跳过均为 0；包括 8 个种子、各 500,000 次随机操作和 128 种键，共 400 万次数量守恒检查。耗时 150.68 秒。
-- 全部集成运行时启用，86 项必需 Forge GameTest 全部通过，耗时 187.24 秒，服务器正常保存并退出。
-- 新增 Ars Nouveau 4.12.6 原生火焰精华配方验证：64 次常驻催化剂合成、128 次灌注室完整实体重建，催化剂的自定义 NBT 和堆叠数量保持完整；模拟无副作用，缺少 / 错误 / 多余催化剂拒绝派发，已完成产物在催化剂变化后仍可回收，切换借还模式后清除常驻标记并返还输入催化剂。实体重建使用 Forge 的 `saveWithFullMetadata` / `BlockEntity.loadStatic`，未运行实际区块卸载或磁盘服务器重启。
-- 当前默认前置下完成 5,000 轮同场路由、8 台供应器跨 6,000 tick 的 300 轮阻塞恢复、1.28 亿次 Avaritia 虚拟合成的精确产物，以及 MekMM 128 笔连续订单、16 次归属重载。
-- 远端现有的 12 项发布检查通过。生产 JAR 共 581 个条目，包含许可证、Mixin refmap、雕刻资源和空核心槽纹理；仅内嵌 MixinExtras，无开发日志、第三方集成 JAR 或本机辅助类。已核对 JAR 内的模组显示名称及中英文语言文件，显示名称已移除 Reborn / 重生。
-- 最终 JAR SHA256：`e2c9e00725a5d058a8cf402cbab8104cf21dc11c55b4e6c41aa0854208a80ce1`。
-
-本轮概要及临时验证脚本保存在已忽略的 `build/pr-20261009/`。客户端覆盖、迁移测试及其他上方边界保持原结论。
-
-随后对相同功能提交扩大全局压测：299 项全套单测、6 项宽键专项与 86 项必需原生 GameTest 均通过，累计 1,680 万次随机操作和 10,000 轮同场路由。
-未出现 OOM 或 Full GC；但 GC 日志有长年轻代暂停，不能据此保证实时延迟。详细负载、耗时、内存、暂停与本轮产物校验见
-[GLOBAL_STRESS.zh-CN.md](GLOBAL_STRESS.zh-CN.md) 的 2026-10-09 PR #2 记录。
