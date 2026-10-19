@@ -57,6 +57,9 @@ class PackagedCoreNamingTest {
             "astral_radiance_packaged_core",
             "astral_infuser_packaged_core",
             "chiseling_packaged_core",
+            "fa_hephaestus_forge_packaged_core",
+            "fa_clibano_packaged_core",
+            "fa_black_hole_packaged_core",
             "resonant_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
@@ -132,16 +135,6 @@ class PackagedCoreNamingTest {
         assertTrue(mainSources.contains("basic_packaged_core"));
         assertFalse(mainSources.contains("blank_packaged_core"));
         assertFalse(mainSources.contains("BLANK_PACKAGED_CORE"));
-    }
-
-    @Test
-    void forbiddenArcanusIntegrationStaysRemoved() throws IOException {
-        var mainSources = readTextTree("src/main");
-
-        assertFalse(mainSources.contains("forbidden_arcanus"));
-        assertFalse(mainSources.contains("ForbiddenArcanus"));
-        assertFalse(mainSources.contains("fa_clibano_packaged_core"));
-        assertFalse(mainSources.contains("fa_hephaestus_forge_packaged_core"));
     }
 
     @Test

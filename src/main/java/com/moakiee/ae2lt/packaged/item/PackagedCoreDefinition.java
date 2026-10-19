@@ -67,6 +67,9 @@ public record PackagedCoreDefinition(
             core("astral_radiance_packaged_core", "astralsorcery", "altar_radiance"),
             core("astral_infuser_packaged_core", "astralsorcery", "infuser"),
             core("chiseling_packaged_core", "chisel", "chisel"),
+            core("fa_hephaestus_forge_packaged_core", "forbidden_arcanus", "hephaestus_forge_tier_1"),
+            core("fa_clibano_packaged_core", "forbidden_arcanus", "clibano_core"),
+            core("fa_black_hole_packaged_core", "forbidden_arcanus", "dark_matter"),
             core("resonant_packaged_core", "ae2cs", "resonating_pattern_provider"));
 
     public static List<PackagedCoreDefinition> all() {
@@ -121,6 +124,9 @@ public record PackagedCoreDefinition(
             case "astral_radiance_packaged_core" -> PPItems.ASTRAL_RADIANCE_ADAPTER;
             case "astral_infuser_packaged_core" -> PPItems.ASTRAL_INFUSER_ADAPTER;
             case "chiseling_packaged_core" -> PPItems.CHISELING_ADAPTER;
+            case "fa_hephaestus_forge_packaged_core" -> PPItems.FA_FORGE_ADAPTER;
+            case "fa_clibano_packaged_core" -> PPItems.FA_CLIBANO_ADAPTER;
+            case "fa_black_hole_packaged_core" -> PPItems.FA_BLACK_HOLE_ADAPTER;
             case "resonant_packaged_core" -> PPItems.RESONANT_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };

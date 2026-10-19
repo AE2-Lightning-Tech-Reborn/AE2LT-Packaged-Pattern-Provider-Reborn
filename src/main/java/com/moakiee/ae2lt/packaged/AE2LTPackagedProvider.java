@@ -65,6 +65,8 @@ public class AE2LTPackagedProvider {
 
     public AE2LTPackagedProvider(IEventBus modEventBus, ModContainer modContainer) {
         PPItems.ITEMS.register(modEventBus);
+        com.moakiee.ae2lt.packaged.recipe.CoreUpgradeRecipes.register(modEventBus);
+        com.moakiee.ae2lt.packaged.recipe.FARecipes.register(modEventBus);
         PPDataComponents.COMPONENTS.register(modEventBus);
         PPBlocks.BLOCKS.register(modEventBus);
         PPBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
@@ -74,10 +76,18 @@ public class AE2LTPackagedProvider {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerCapabilities);
         modEventBus.addListener(ResonantCoreSelectPacket::register);
+        modEventBus.addListener(com.moakiee.ae2lt.packaged.resource.PackagedResourceStorage::registerKeyType);
+        modEventBus.addListener(com.moakiee.ae2lt.packaged.resource.ForbiddenEssenceStorage::registerCapabilities);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
+            com.moakiee.ae2lt.packaged.resource.PackagedResourceStorage.registerBehaviors();
+            if (ModList.get().isLoaded("forbidden_arcanus")) {
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FAForgeAdapter());
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FAClibanoAdapter());
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FABlackHoleAdapter());
+            }
             MultiblockAdapterRegistry.register(new ActuallyAdditionsAtomicReconstructorAdapter());
             MultiblockAdapterRegistry.register(new ActuallyAdditionsEmpowererAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauEnchantingApparatusAdapter());

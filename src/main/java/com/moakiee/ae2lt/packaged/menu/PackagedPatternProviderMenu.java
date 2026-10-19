@@ -45,6 +45,9 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
     @GuiSync(22003)
     public int currentPage;
 
+    @GuiSync(22004)
+    public String coreOrderStatus = "idle";
+
     private final PackagedPatternProviderBlockEntity host;
     private final Slot adapterSlot;
 
@@ -61,12 +64,23 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
         adapterSlot.setEmptyTooltip(() -> List.of(Component.translatable("ae2ltpp.gui.adapter_slot")));
         this.adapterSlot = addSlot(adapterSlot, PackagedPatternProviderSlotSemantics.ADAPTER_CARD);
 
+        registerClientAction("orderCore", String.class, itemId -> {
+            if (!isServerSide()) return;
+            var resource = ResourceLocation.tryParse(itemId);
+            if (resource != null && resource.getNamespace().equals(AE2LTPackagedProvider.MODID)) {
+                this.host.getCoreOrder().request(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(resource));
+            }
+        });
+        registerClientAction("cancelCore", () -> { if (isServerSide()) this.host.getCoreOrder().cancel(); });
         registerClientAction("toggleAutoReturn", this::toggleAutoReturn);
         registerClientAction("toggleMode", this::toggleMode);
         registerClientAction("nextPage", () -> changePage(1));
         registerClientAction("prevPage", () -> changePage(-1));
         showPage(0);
     }
+
+    public void clientOrderCore(ResourceLocation id) { sendClientAction("orderCore", id.toString()); }
+    public void clientCancelCore() { sendClientAction("cancelCore"); }
 
     public Slot getAdapterSlot() {
         return adapterSlot;
@@ -75,6 +89,7 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
     @Override
     public void broadcastChanges() {
         if (isServerSide()) {
+            coreOrderStatus = host.getCoreOrder().status();
             returnMode = host.getReturnMode().ordinal();
             providerMode = host.getProviderMode().ordinal();
             titleTranslationKey = host.ae2lt$titleTranslationKey();

@@ -38,6 +38,7 @@ import appeng.api.config.LockCraftingMode;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.KeyCounter;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
@@ -264,7 +265,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
             return ResonantPackagedCoreItem.layout(installedAdapterStack()) != null
                     && getAvailablePatterns().contains(details) && resonantPattern(details) != null ? 1 : 0;
         }
-        if (!BatchCopies.eligible(details) || !batchControlsAllowDispatch()) return 1;
+        if (PackagedCoreBootstrap.isCorePattern(details) || !BatchCopies.eligible(details) || !batchControlsAllowDispatch()) return 1;
         if (!getAvailablePatterns().contains(details)
                 || !(getProviderHost().getLevel() instanceof ServerLevel level)) return 0;
         long tick = level.getGameTime();
@@ -290,7 +291,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     @Override
     public long pushBatch(IPatternDetails pattern, KeyCounter[] oneCopyTemplate, long maxCraft) {
         if (maxCraft <= 0) return 0;
-        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+        if (PackagedCoreBootstrap.isCorePattern(pattern) || installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
             return oneCopyTemplate != null && pushPattern(pattern, BatchCopies.copy(oneCopyTemplate))
                     ? maxCraft - 1 : maxCraft;
         }
@@ -485,6 +486,23 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
             return false;
         }
 
+        // Recheck the live installed core only when the craft can actually complete.
+        // It stays available throughout planning and prerequisite crafts, and never enters CPU inputs.
+        if (getProviderHost() instanceof com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity packaged
+                && PackagedCoreBootstrap.isCorePattern(patternDetails)) {
+            for (var holder : sl.getRecipeManager().getAllRecipesFor(com.moakiee.ae2lt.packaged.recipe.CoreUpgradeRecipes.TYPE.get())) {
+                var recipe = holder.value();
+                int mode = recipe.completionMode(installedAdapterStack(), patternDetails, inputHolder);
+                if (mode < 0) continue;
+                // A local installation order owns the real output receipt. Never fake a terminal's item delivery.
+                if (mode == 0 && !packaged.getCoreOrder().awaitsInstallation(AEItemKey.of(recipe.result()))) continue;
+                if (mode == 0) packaged.getAdapterInv().setItemDirect(0, ItemStack.EMPTY);
+                enqueuePendingOutputs(List.of(new GenericStack(AEItemKey.of(recipe.result()), 1)));
+                PatternProviderPowerCost.consumeRaw(grid, cost);
+                recordSuccessfulPush(patternDetails);
+                return true;
+            }
+        }
         long gameTick = sl.getGameTime();
         if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
             var layout = ResonantPackagedCoreItem.layout(installedAdapterStack());
@@ -913,7 +931,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                     continue;
                 }
                 var pos = getProviderHost().getBlockPos().relative(face);
-                if (!isAdapterUnlocked(adapter, level, pos, installedCard)) {
+                if (!isAdapterUnlocked(adapter, level, pos, installedCard)
+                        && !PackagedCoreBootstrap.allows(pattern, adapter.requiredAdapterId(level, pos))) {
                     continue;
                 }
                 var result = adapter.bind(level, pos, pattern);
@@ -936,7 +955,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                 if (adapter == null) {
                     continue;
                 }
-                if (!isAdapterUnlocked(adapter, targetLevel, conn.pos(), installedCard)) {
+                if (!isAdapterUnlocked(adapter, targetLevel, conn.pos(), installedCard)
+                        && !PackagedCoreBootstrap.allows(pattern, adapter.requiredAdapterId(targetLevel, conn.pos()))) {
                     continue;
                 }
                 var result = adapter.bind(targetLevel, conn.pos(), pattern);

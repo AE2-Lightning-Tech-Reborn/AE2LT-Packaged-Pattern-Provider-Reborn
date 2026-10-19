@@ -38,6 +38,7 @@ import com.moakiee.ae2lt.api.pattern.PatternProviderUiProfile;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.item.ResonantPackagedCoreItem;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
+import com.moakiee.ae2lt.packaged.logic.PackagedCoreBootstrap;
 import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
 import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
@@ -65,6 +66,11 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     private final java.util.Map<Long, net.minecraft.resources.ResourceLocation> resonantAnchorBlocks = new java.util.HashMap<>();
     private static final String TAG_RESONANT_ANCHORS = "ae2ltpp_resonant_anchors";
 
+    private final com.moakiee.ae2lt.packaged.logic.PackagedCoreOrder coreOrder =
+            new com.moakiee.ae2lt.packaged.logic.PackagedCoreOrder(this);
+
+    public com.moakiee.ae2lt.packaged.logic.PackagedCoreOrder getCoreOrder() { return coreOrder; }
+
     private final ProviderMode fixedProviderMode;
     private final FrequencyBindingAccess frequencyBinding = FrequencyApi.createBinding(this);
 
@@ -77,9 +83,15 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
             var layout = ResonantPackagedCoreItem.layout(core);
             return layout != null && !pos.equals(getBlockPos()) && layout.matchesAnchor(targetLevel.getBlockState(pos));
         }
-        if (!(core.getItem() instanceof MultiblockAdapterItem)) return false;
         var adapter = MultiblockAdapterRegistry.find(serverLevel, pos, serverLevel.getBlockEntity(pos));
-        return adapter != null && MultiblockAdapterItem.stackCovers(core, adapter.requiredAdapterId(serverLevel, pos));
+        if (adapter == null) return false;
+        var required = adapter.requiredAdapterId(serverLevel, pos);
+        if (MultiblockAdapterItem.stackCovers(core, required)) return true;
+        // Put the core-manufacturing pattern in first, then bind its machine.
+        // Binding grants no general access: every dispatch rechecks the core gate.
+        return getLogic().getAvailablePatterns().stream().anyMatch(pattern ->
+                PackagedCoreBootstrap.allows(pattern, required)
+                        && adapter.bind(serverLevel, pos, pattern) != null);
     }
 
     @Override
@@ -166,6 +178,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
                                                 ProviderMode fixedProviderMode) {
         super(type, pos, blockState);
         this.fixedProviderMode = fixedProviderMode;
+        getMainNode().addService(appeng.api.networking.crafting.ICraftingRequester.class, coreOrder);
         sanitizePackagedModes();
     }
 
@@ -201,6 +214,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     @Override
     protected void serverTickAdditional(ServerLevel level) {
         frequencyBinding.serverTick();
+        coreOrder.tick();
     }
 
     @Override
@@ -322,6 +336,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
         frequencyBinding.load(data);
+        coreOrder.load(data.getCompound("ae2ltpp_core_order"), registries);
         sanitizePackagedModes();
         if (data.contains(TAG_ADAPTER_INV)) {
             adapterInv.readFromNBT(data, TAG_ADAPTER_INV, registries);
@@ -354,6 +369,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
         frequencyBinding.save(data);
+        data.put("ae2ltpp_core_order", coreOrder.save(registries));
         adapterInv.writeToNBT(data, TAG_ADAPTER_INV, registries);
         pruneResonantAnchorRecords();
         var anchors = new net.minecraft.nbt.ListTag();
@@ -417,6 +433,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
                                     BlockPos pos,
                                     java.util.List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
+        coreOrder.addDrops(drops);
         var card = adapterInv.getStackInSlot(0);
         if (!card.isEmpty()) {
             drops.add(card.copy());
@@ -445,6 +462,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     @Override
     public void setRemoved() {
         frequencyBinding.setRemoved();
+        coreOrder.suspendCalculation();
         super.setRemoved();
     }
 

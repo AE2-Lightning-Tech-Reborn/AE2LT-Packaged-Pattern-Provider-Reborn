@@ -119,6 +119,10 @@ public final class AdapterIds {
     public static final ResourceLocation CHISEL = id("chisel/chiseling_packaged_core");
     public static final ResourceLocation RESONANT = id("ae2cs/resonant_packaged_core");
 
+    public static final ResourceLocation FA_FORGE = id("forbidden_arcanus/hephaestus_forge_packaged_core");
+    public static final ResourceLocation FA_CLIBANO = id("forbidden_arcanus/clibano_packaged_core");
+    public static final ResourceLocation FA_BLACK_HOLE = id("forbidden_arcanus/black_hole_packaged_core");
+
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(AE2LTPackagedProvider.MODID, path);
     }

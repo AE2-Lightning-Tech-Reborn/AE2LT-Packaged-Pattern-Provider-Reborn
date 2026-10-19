@@ -1,0 +1,41 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "extendedcrafting"
+    }
+  ],
+  "type": "ae2ltpp:core_upgrade",
+  "required_core": {
+    "id": "ae2ltpp:ec_basic_table_packaged_core"
+  },
+  "ingredients": [
+    {
+      "item": "extendedcrafting:luminessence"
+    },
+    {
+      "item": "extendedcrafting:advanced_component"
+    },
+    {
+      "item": "extendedcrafting:luminessence"
+    },
+    {
+      "item": "extendedcrafting:black_iron_ingot"
+    },
+    {
+      "item": "extendedcrafting:black_iron_ingot"
+    },
+    {
+      "item": "extendedcrafting:luminessence"
+    },
+    {
+      "item": "extendedcrafting:advanced_component"
+    },
+    {
+      "item": "extendedcrafting:luminessence"
+    }
+  ],
+  "result": {
+    "id": "ae2ltpp:ec_advanced_table_packaged_core"
+  }
+}

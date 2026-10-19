@@ -1,0 +1,29 @@
+// Native CPU and FA resource regression suite; not included in the release jar.
+// ./gradlew -I scripts/core-test.init.gradle runGameTestServer
+// Optional native FA checks: -PppForbiddenJar=/path/to/fa.jar -PppValhelsiaJar=/path/to/valhelsia.jar
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep.group == 'maven.modrinth' && dep.name in ['extended-crafting', 'cucumber'])
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('coreTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        for (property in ['ppForbiddenJar', 'ppValhelsiaJar']) {
+            def path = providers.gradleProperty(property).orNull
+            if (path != null) dependencies.add('coreTestRuntimeOnly', files(path))
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.coreTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.coreTest
+            gameDirectory = project.layout.buildDirectory.dir('core-native').get().asFile
+        }
+    }
+}

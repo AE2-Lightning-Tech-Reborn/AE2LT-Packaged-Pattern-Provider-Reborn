@@ -34,12 +34,31 @@ Craft a **Basic Packaged Core**, then process it in the target mod's correspondi
 * The Avaritia Extreme Smithing core uses an Engineering Processor as its template and one Diamond Lattice in each of the three addition slots.
 * The Mystical Agriculture Infusion core uses Prosperity Shards and Inferium Essence. The Occultism Ritual core uses a Foliot crafting ritual.
 
+## Core orders and upgrades
+
+Click **Core crafting** in a provider to view initial core recipes and upgrades in one JEI category. Encode the processing pattern and make it available on the network, then use `+` in JEI opened from that provider to order one core. Without JEI, use the core selection list. Each provider handles one order at a time and requires an available AE2 crafting CPU. The Basic Packaged Core remains an ordinary crafting ingredient.
+
+A provider without a core can manufacture its first specialized core. Build, connect and power the machine required by the native recipe. For wireless providers, insert the core-making pattern before binding the machine. This exception only admits core outputs that match a real machine recipe.
+
+* **Initial manufacture:** install the delivered core if the slot is empty; otherwise keep the installed core and return the new one to ME.
+* **Upgrade pattern includes the old core:** consume the core supplied by the CPU, leave the installed core alone, and return the result to ME.
+* **Upgrade pattern omits the old core:** require the matching core already installed in the ordering provider. JEI shows it as a requirement without transferring it into the pattern. Consume it only when the supplied materials complete the upgrade, then install the result. Ordering, planning and missing materials never remove it.
+
+Upgrades that omit the old core must be ordered from that provider. Ordinary terminal orders use AE2's normal item delivery to ME; use a provider order for automatic installation. Upgrade recipes currently cover adjacent EC table, Avaritia table and Astral altar tiers. The provider completes these upgrades directly from their listed materials; native machine recipes remain separately available. Results destined for a full ME inventory stay buffered in the provider until space becomes available.
+
+## Special resource keys
+
+Forbidden Arcanus Aureal, Souls, Blood and Experience are distinct resources with quantities in ME storage and processing patterns. Attach a storage bus to a native Essence Utrem Jar or Hephaestus Forge to access its resources. Import and export buses use the same resource type and respect native capacity limits. A jar accepts only the essence type selected by its block state. With AE2 JEI Integration, resource ingredients can be transferred into patterns.
+
+Mekanism chemicals continue to use Applied Mekanistics Chemical Keys. FA essences can be stored in native jars connected to ME.
+
+[FA Packaged Processing](fa-processing.md)
+
 ## General usage
 
 1. Put the matching Packaged Core into the provider's **Packaged Core slot** first.
 2. Place a regular provider against the target machine's **main block / core**, or use the wireless connector
-   to link a wireless provider to it. The installed core must support the target; missing or
-   mismatched cores are rejected. Portable chiseling conversions do not need a target.
+   to link a wireless provider to it. The installed core must support the target, except for first-core manufacture with its pattern already inserted as described above. Other missing or mismatched cores are rejected. Portable chiseling conversions do not need a target.
 3. As with a normal Pattern Provider, encode the recipe as a **processing pattern** and insert it.
 4. When AE2 requests the output, the provider reads the machine recipe (including custom recipes), sends the ingredients to the machine, and automatically returns the completed result to your ME network.
 

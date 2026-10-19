@@ -29,6 +29,11 @@ public final class PPClientScreens {
     }
 
     @SubscribeEvent
+    public static void setup(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
+        event.enqueueWork(PackagedResourceRendering::register);
+    }
+
+    @SubscribeEvent
     public static void registerScreens(RegisterMenuScreensEvent event) {
         registerHiddenToolbarButtons();
         event.register(PackagedPatternProviderMenu.TYPE, PPClientScreens::createPackagedPatternProviderScreen);
