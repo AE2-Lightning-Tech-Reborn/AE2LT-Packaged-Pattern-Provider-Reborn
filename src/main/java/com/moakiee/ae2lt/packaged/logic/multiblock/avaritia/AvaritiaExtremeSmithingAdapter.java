@@ -341,7 +341,7 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
     private static ItemStack assemble(Object recipe, Container input, ServerLevel level) {
         try {
             return recipe instanceof Recipe<?> r
-                    ? ((Recipe) r).assemble(input, level.registryAccess())
+                    ? ((Recipe) r).assemble(input)
                     : null;
         } catch (RuntimeException | LinkageError ignored) {
             return null;
@@ -354,7 +354,7 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return r.getResultItem();
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }

@@ -9,9 +9,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.client.renderer.block.model.ItemTransforms.TransformType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -34,7 +34,7 @@ public final class PackagedCoreItemRenderer extends BlockEntityWithoutLevelRende
     @Override
     public void renderByItem(
             ItemStack stack,
-            ItemDisplayContext context,
+            TransformType context,
             PoseStack poseStack,
             MultiBufferSource bufferSource,
             int packedLight,
@@ -72,10 +72,10 @@ public final class PackagedCoreItemRenderer extends BlockEntityWithoutLevelRende
         var map = new HashMap<Item, ItemStack>();
         for (var definition : PackagedCoreDefinition.all()) {
             var id = definition.displayItemId();
-            if (!BuiltInRegistries.ITEM.containsKey(id)) {
+            if (!Registry.ITEM.containsKey(id)) {
                 continue;
             }
-            var item = BuiltInRegistries.ITEM.get(id);
+            var item = Registry.ITEM.get(id);
             if (item == null || item == Items.AIR) {
                 continue;
             }
@@ -93,12 +93,11 @@ public final class PackagedCoreItemRenderer extends BlockEntityWithoutLevelRende
         poseStack.translate(0.5f, 0.5f, 0.5f);
         Minecraft.getInstance().getItemRenderer().renderStatic(
                 baseStack(),
-                ItemDisplayContext.NONE,
+                TransformType.NONE,
                 packedLight,
                 packedOverlay,
                 poseStack,
                 bufferSource,
-                null,
                 0);
         poseStack.popPose();
     }
@@ -114,12 +113,11 @@ public final class PackagedCoreItemRenderer extends BlockEntityWithoutLevelRende
         poseStack.scale(TARGET_SCALE, TARGET_SCALE, TARGET_SCALE * TARGET_DEPTH_SCALE);
         Minecraft.getInstance().getItemRenderer().renderStatic(
                 target,
-                ItemDisplayContext.GUI,
+                TransformType.GUI,
                 packedLight,
                 packedOverlay,
                 poseStack,
                 bufferSource,
-                null,
                 0);
         poseStack.popPose();
     }

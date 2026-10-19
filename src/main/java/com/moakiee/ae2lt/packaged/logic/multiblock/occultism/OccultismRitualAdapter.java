@@ -15,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
@@ -643,7 +643,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
                 inputMismatch++;
                 if (mismatchLogged < 5 && LOG.isDebugEnabled()) {
                     // Guard the debug branch: ingredientFirstItems / ingredientListItems
-                    // call BuiltInRegistries.ITEM.getKey per ItemStack (allocates a
+                    // call Registry.ITEM.getKey per ItemStack (allocates a
                     // ResourceLocation and validates the path), which is wasteful
                     // when debug logging is off.
                     LOG.debug("findCandidate: recipe {} mismatch (activation={}, ingredients={}, requiresSacrifice={}, requiresItemUse={}, itemToUse={})",
@@ -695,7 +695,7 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
             var sb = new StringBuilder();
             for (int i = 0; i < Math.min(3, items.length); i++) {
                 if (sb.length() > 0) sb.append("|");
-                sb.append(BuiltInRegistries.ITEM.getKey(items[i].getItem()));
+                sb.append(Registry.ITEM.getKey(items[i].getItem()));
             }
             if (items.length > 3) sb.append("...");
             return sb.toString();

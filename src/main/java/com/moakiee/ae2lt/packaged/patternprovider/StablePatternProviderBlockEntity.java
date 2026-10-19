@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -109,7 +109,7 @@ public abstract class StablePatternProviderBlockEntity
             }
             try {
                 var dimension = ResourceKey.create(
-                        Registries.DIMENSION,
+                        Registry.DIMENSION_REGISTRY,
                         new ResourceLocation(tag.getString(TAG_DIMENSION)));
                 return new WirelessConnection(
                         dimension,
@@ -503,7 +503,7 @@ public abstract class StablePatternProviderBlockEntity
                 Math.min(count, MAX_WIRELESS_CONNECTIONS));
         for (int i = 0; i < count; i++) {
             var dimension = ResourceKey.create(
-                    Registries.DIMENSION, data.readResourceLocation());
+                    Registry.DIMENSION_REGISTRY, data.readResourceLocation());
             var connection = new WirelessConnection(
                     dimension,
                     data.readBlockPos(),
@@ -688,7 +688,7 @@ public abstract class StablePatternProviderBlockEntity
     @Override
     public PatternContainerGroup getTerminalGroup() {
         if (providerMode != ProviderMode.WIRELESS
-                || hasCustomName()
+                || hasCustomInventoryName()
                 || !(level instanceof ServerLevel hostLevel)
                 || connections.isEmpty()) {
             return super.getTerminalGroup();

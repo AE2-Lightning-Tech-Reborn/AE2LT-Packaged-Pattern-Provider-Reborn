@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceKey;
@@ -30,7 +30,7 @@ class StablePatternProviderNbtMigrationTest {
     @Test
     void decodesTheMainBranchProviderSchemaWithoutRenamingFields() {
         var dimension = ResourceKey.create(
-                Registries.DIMENSION,
+                Registry.DIMENSION_REGISTRY,
                 new ResourceLocation("migration", "factory"));
         var connection = new WirelessConnection(
                 dimension, new BlockPos(12, 34, -56), Direction.WEST);

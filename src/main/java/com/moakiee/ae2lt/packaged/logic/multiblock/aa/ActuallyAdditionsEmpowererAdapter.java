@@ -393,7 +393,7 @@ public final class ActuallyAdditionsEmpowererAdapter implements MultiblockAdapte
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return r.getResultItem();
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }

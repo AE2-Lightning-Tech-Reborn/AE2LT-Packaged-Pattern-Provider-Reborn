@@ -17,7 +17,7 @@ import net.minecraft.world.item.Items;
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
-import appeng.helpers.patternprovider.PatternProviderReturnInventory;
+import appeng.helpers.iface.PatternProviderReturnInventory;
 
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchExecutor;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;

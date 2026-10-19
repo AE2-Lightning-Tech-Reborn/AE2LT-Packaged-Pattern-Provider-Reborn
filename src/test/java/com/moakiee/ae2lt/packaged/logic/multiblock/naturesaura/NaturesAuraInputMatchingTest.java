@@ -14,7 +14,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
+
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
 import org.junit.jupiter.api.BeforeAll;
@@ -54,7 +54,7 @@ class NaturesAuraInputMatchingTest {
         public final Ingredient startItem;
 
         Offering(Ingredient input, Ingredient startItem) {
-            super(new ResourceLocation("ae2ltpp", "test_offering"), "", CraftingBookCategory.MISC,
+            super(new ResourceLocation("ae2ltpp", "test_offering"), "",
                     new ItemStack(Items.EMERALD), NonNullList.create());
             this.input = input;
             this.startItem = startItem;

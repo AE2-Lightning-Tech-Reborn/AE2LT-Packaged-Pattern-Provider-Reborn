@@ -232,7 +232,7 @@ public final class ForbiddenArcanusClibanoAdapter implements MultiblockAdapter {
     }
 
     @Nullable private static ItemStack recipeOutput(Object recipe, ServerLevel level) {
-        if (recipe instanceof Recipe<?> vanilla) try { return vanilla.getResultItem(level.registryAccess()).copy(); }
+        if (recipe instanceof Recipe<?> vanilla) try { return vanilla.getResultItem().copy(); }
         catch (RuntimeException ignored) { }
         return null;
     }

@@ -19,7 +19,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.items.ItemStackHandler;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
@@ -231,7 +231,7 @@ public final class NaturesAuraCraftState {
     }
 
     private static void dropPlacedTreeBlocks(ServerLevel level, BlockPos dropPos, CompoundTag state, BlockPos center) {
-        Block powder = BuiltInRegistries.BLOCK.get(new ResourceLocation("naturesaura", "gold_powder"));
+        Block powder = Registry.BLOCK.get(new ResourceLocation("naturesaura", "gold_powder"));
         ListTag placed = state.getList(PLACED_POWDER, 4);
         for (int i = 0; i < placed.size(); i++) {
             BlockPos powderPos = BlockPos.of(((LongTag) placed.get(i)).getAsLong());
@@ -251,7 +251,7 @@ public final class NaturesAuraCraftState {
 
     private static boolean isTreeMachine(BlockEntity be) {
         return be != null && !(be instanceof NaturesAuraOfferingMachine)
-                && BuiltInRegistries.BLOCK.getKey(be.getBlockState().getBlock())
+                && Registry.BLOCK.getKey(be.getBlockState().getBlock())
                         .equals(new ResourceLocation("naturesaura", "wood_stand"));
     }
 

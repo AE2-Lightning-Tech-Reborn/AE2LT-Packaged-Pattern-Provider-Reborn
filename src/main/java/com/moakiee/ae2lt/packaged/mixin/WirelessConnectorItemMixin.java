@@ -5,7 +5,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.context.UseOnContext;
 
@@ -30,7 +30,7 @@ public abstract class WirelessConnectorItemMixin {
                         OverloadedWirelessConnectorItem.getSelectedHostType(stack))
                 && OverloadedWirelessConnectorItem.isSelectionInCurrentDimension(level, stack);
         if (!WirelessConnectorBlockOnlyTarget.shouldSubmit(providerSelected,
-                BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock()),
+                Registry.BLOCK.getKey(level.getBlockState(pos).getBlock()),
                 level.getBlockEntity(pos) != null)) {
             return;
         }

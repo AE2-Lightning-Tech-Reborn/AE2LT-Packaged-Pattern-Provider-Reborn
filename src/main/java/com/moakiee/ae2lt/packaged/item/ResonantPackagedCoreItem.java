@@ -9,7 +9,7 @@ import com.moakiee.ae2lt.packaged.logic.resonant.ResonantLayout;
 import com.moakiee.ae2lt.packaged.logic.resonant.ResonantLayoutData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -58,7 +58,7 @@ public final class ResonantPackagedCoreItem extends MultiblockAdapterItem {
             }
             var state = level.getBlockState(pos);
             var bound = new ResonantLayout(GlobalPos.of(level.dimension(), pos),
-                    BuiltInRegistries.BLOCK.getKey(state.getBlock()),
+                    Registry.BLOCK.getKey(state.getBlock()),
                     ResonantLayout.forward(state, context.getClickedFace()), context.getClickedFace(), 0, List.of());
             ResonantLayoutData.set(stack, bound);
             message(player, "anchor", pos.getX(), pos.getY(), pos.getZ());
@@ -69,7 +69,7 @@ public final class ResonantPackagedCoreItem extends MultiblockAdapterItem {
             return InteractionResult.CONSUME;
         }
         var target = new ResonantLayout.Target(pos.subtract(old.source().pos()), context.getClickedFace(),
-                Optional.of(BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock())));
+                Optional.of(Registry.BLOCK.getKey(level.getBlockState(pos).getBlock())));
         var changed = old.withTarget(old.selected(), old.target(old.selected()).filter(target::equals).isPresent()
                 ? null : target);
         ResonantLayoutData.set(stack, changed);

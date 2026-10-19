@@ -12,7 +12,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
+
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
@@ -39,7 +39,7 @@ class EcCrafterSupportTest {
         var key = AEItemKey.of(stack);
         var gold = AEItemKey.of(Items.GOLD_INGOT);
         var recipe = new ShapedRecipe(new ResourceLocation("test", "shaped"), "",
-                CraftingBookCategory.MISC, 2, 2,
+                 2, 2,
                 NonNullList.of(Ingredient.EMPTY, StrictNBTIngredient.of(stack), Ingredient.EMPTY,
                         Ingredient.EMPTY, Ingredient.of(Items.GOLD_INGOT)), new ItemStack(Items.DIAMOND));
         var counter = new KeyCounter();
@@ -88,7 +88,7 @@ class EcCrafterSupportTest {
 
     private static ShapelessRecipe shapeless(int count) {
         return new ShapelessRecipe(new ResourceLocation("test", "shapeless"), "",
-                CraftingBookCategory.MISC, new ItemStack(Items.DIAMOND),
+                 new ItemStack(Items.DIAMOND),
                 NonNullList.withSize(count, Ingredient.of(Items.IRON_INGOT)));
     }
 }

@@ -58,13 +58,13 @@ public final class BloodMagicAltarTests {
         var altarPos = helper.absolutePos(altarRelative);
         var altarBlock = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("bloodmagic", "altar"));
         var slate = ForgeRegistries.ITEMS.getValue(new ResourceLocation("bloodmagic", "blankslate"));
-        helper.assertTrue(altarBlock != null && slate != null, "Blood Magic CPU recipe resources missing");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(altarBlock != null && slate != null, "Blood Magic CPU recipe resources missing");
         helper.setBlock(altarRelative, altarBlock.defaultBlockState());
         var altar = level.getBlockEntity(altarPos);
-        helper.assertTrue(altar != null, "Blood altar CPU fixture is missing its block entity");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(altar != null, "Blood altar CPU fixture is missing its block entity");
         var fill = ReflectionSupport.findMethodCached(altar.getClass(), "fillMainTank", int.class).orElseThrow();
         var filled = ReflectionSupport.invokeMutation(fill, altar, 4000).orElse(null);
-        helper.assertTrue(filled instanceof Integer && (Integer) filled >= 4000, "Blood altar CPU fixture could not fill LP");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(filled instanceof Integer && (Integer) filled >= 4000, "Blood altar CPU fixture could not fill LP");
 
         var providerRelative = altarRelative.south();
         helper.setBlock(providerRelative, PPBlocks.PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
@@ -85,12 +85,12 @@ public final class BloodMagicAltarTests {
         provider.getLogic().updatePatterns();
         var fixture = new AltarCraftingFixture(provider, chest, input, output);
         helper.runAfterDelay(60, () -> {
-            helper.assertTrue(provider.getMainNode().isActive(), "Blood altar CPU provider is not active");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.getMainNode().isActive(), "Blood altar CPU provider is not active");
             var grid = provider.getMainNode().getGrid();
-            helper.assertTrue(grid == chest.getMainNode().getGrid(), "Blood altar CPU storage is on another grid");
-            helper.assertTrue(grid.getCraftingService().getCpus().size() == 1, "Blood altar CPU fixture has no active CPU");
-            helper.assertTrue(grid.getCraftingService().isCraftable(output), "Blood altar pattern is not registered in ME");
-            helper.assertTrue(grid.getStorageService().getInventory().insert(input, 2, Actionable.MODULATE,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid == chest.getMainNode().getGrid(), "Blood altar CPU storage is on another grid");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid.getCraftingService().getCpus().size() == 1, "Blood altar CPU fixture has no active CPU");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid.getCraftingService().isCraftable(output), "Blood altar pattern is not registered in ME");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid.getStorageService().getInventory().insert(input, 2, Actionable.MODULATE,
                     IActionSource.empty()) == 2, "Blood altar CPU fixture could not store stone");
             helper.runAfterDelay(5, () -> beginAltarCpuOrder(helper, fixture, 2, 0));
         });
@@ -118,7 +118,7 @@ public final class BloodMagicAltarTests {
     private static void pollAltarPlan(GameTestHelper helper, AltarCraftingFixture fixture, long amount,
                                       long completed, Future<ICraftingPlan> future, int remainingTicks) {
         if (!future.isDone()) {
-            helper.assertTrue(remainingTicks > 0, "Blood altar ME calculation timed out");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(remainingTicks > 0, "Blood altar ME calculation timed out");
             helper.runAfterDelay(1, () -> pollAltarPlan(helper, fixture, amount, completed, future, remainingTicks - 1));
             return;
         }
@@ -133,9 +133,9 @@ public final class BloodMagicAltarTests {
         }
         var service = fixture.provider().getMainNode().getGrid().getCraftingService();
         if (completed == 2) {
-            helper.assertTrue(plan.simulation() && plan.missingItems().get(fixture.input()) == 1,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan.simulation() && plan.missingItems().get(fixture.input()) == 1,
                     "Blood altar calculation did not report depleted stone");
-            helper.assertTrue(!service.submitJob(plan, null, null, false, IActionSource.empty()).successful(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!service.submitJob(plan, null, null, false, IActionSource.empty()).successful(),
                     "Blood altar CPU accepted an order with missing stone");
             helper.runAfterDelay(40, () -> {
                 assertAltarCpuResult(helper, fixture, 2);
@@ -143,20 +143,20 @@ public final class BloodMagicAltarTests {
             });
             return;
         }
-        helper.assertTrue(!plan.simulation() && plan.missingItems().isEmpty(),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!plan.simulation() && plan.missingItems().isEmpty(),
                 "Blood altar ME order has missing ingredients");
-        helper.assertTrue(plan.finalOutput().what().equals(fixture.output()) && plan.finalOutput().amount() == amount
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan.finalOutput().what().equals(fixture.output()) && plan.finalOutput().amount() == amount
                 && plan.usedItems().get(fixture.input()) == amount, "Blood altar order quantities are incorrect");
         var cpu = (CraftingCPUCluster) service.getCpus().iterator().next();
         var submitted = service.submitJob(plan, null, cpu, false, IActionSource.empty());
-        helper.assertTrue(submitted.successful(), "Blood altar CPU rejected order: " + submitted.errorCode());
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(submitted.successful(), "Blood altar CPU rejected order: " + submitted.errorCode());
         pollAltarCpuOrder(helper, fixture, completed + amount, cpu, 800);
     }
 
     private static void pollAltarCpuOrder(GameTestHelper helper, AltarCraftingFixture fixture, long completed,
                                           CraftingCPUCluster cpu, int remainingTicks) {
         if (cpu.isBusy()) {
-            helper.assertTrue(remainingTicks > 0, "Blood altar CPU order timed out: "
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(remainingTicks > 0, "Blood altar CPU order timed out: "
                     + fixture.provider().saveWithoutMetadata() + " altar="
                     + fixture.provider().getLevel().getBlockEntity(fixture.provider().getBlockPos().north())
                     .saveWithoutMetadata());
@@ -176,15 +176,15 @@ public final class BloodMagicAltarTests {
 
     private static void assertAltarCpuResult(GameTestHelper helper, AltarCraftingFixture fixture, long completed) {
         var stored = fixture.provider().getMainNode().getGrid().getStorageService().getInventory().getAvailableStacks();
-        helper.assertTrue(stored.get(fixture.input()) == 2 - completed && stored.get(fixture.output()) == completed,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(stored.get(fixture.input()) == 2 - completed && stored.get(fixture.output()) == completed,
                 "Blood altar CPU lost or duplicated stone or slate");
-        helper.assertTrue(stored.size() == (completed == 2 ? 1 : 2), "Blood altar ME storage has unexpected keys");
-        helper.assertTrue(fixture.provider().getMainNode().getGrid().getCraftingService().getCpus().stream()
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(stored.size() == (completed == 2 ? 1 : 2), "Blood altar ME storage has unexpected keys");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(fixture.provider().getMainNode().getGrid().getCraftingService().getCpus().stream()
                 .noneMatch(cpu -> cpu.isBusy()), "Blood altar CPU remained busy after finishing order");
-        helper.assertTrue(fixture.provider().getLogic().getReturnInv().isEmpty(), "Blood altar output remains in return inventory");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(fixture.provider().getLogic().getReturnInv().isEmpty(), "Blood altar output remains in return inventory");
         var altarHandler = BlockCapabilities.find(fixture.provider().getLevel(), fixture.provider().getBlockPos().north(),
                 ForgeCapabilities.ITEM_HANDLER, null);
-        helper.assertTrue(altarHandler != null && altarHandler.getSlots() > 0 && altarHandler.getStackInSlot(0).isEmpty(),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(altarHandler != null && altarHandler.getSlots() > 0 && altarHandler.getStackInSlot(0).isEmpty(),
                 "Blood altar retained a completed input");
     }
 
@@ -198,68 +198,68 @@ public final class BloodMagicAltarTests {
         var pos = helper.absolutePos(relative);
         var block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("bloodmagic", "altar"));
         var slate = ForgeRegistries.ITEMS.getValue(new ResourceLocation("bloodmagic", "blankslate"));
-        helper.assertTrue(block != null && slate != null, "Blood Magic altar or slate missing");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(block != null && slate != null, "Blood Magic altar or slate missing");
         helper.setBlock(relative, block.defaultBlockState());
         var entity = level.getBlockEntity(pos);
-        helper.assertTrue(entity != null, "Blood altar block entity missing");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(entity != null, "Blood altar block entity missing");
         var adapter = new BloodMagicAltarAdapter();
         var input = new GenericStack(AEItemKey.of(Items.STONE), 1);
         var output = new GenericStack(AEItemKey.of(slate), 1);
         var pattern = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
                 new GenericStack[]{input}, new GenericStack[]{output}), level);
-        helper.assertTrue(pattern != null, "Blood altar pattern did not decode");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(pattern != null, "Blood altar pattern did not decode");
         var binding = adapter.bind(level, pos, pattern);
-        helper.assertTrue(binding != null, "Tier-one slate recipe did not bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Tier-one slate recipe did not bind");
         var reinforced = ForgeRegistries.ITEMS.getValue(new ResourceLocation("bloodmagic", "reinforcedslate"));
-        helper.assertTrue(reinforced != null, "Reinforced slate missing");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(reinforced != null, "Reinforced slate missing");
         var tierTwoPattern = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
                 new GenericStack[]{output}, new GenericStack[]{new GenericStack(AEItemKey.of(reinforced), 1)}), level);
-        helper.assertTrue(tierTwoPattern != null, "Tier-two slate pattern did not decode");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(tierTwoPattern != null, "Tier-two slate pattern did not decode");
         var tierTwoBinding = adapter.bind(level, pos, tierTwoPattern);
-        helper.assertTrue(tierTwoBinding != null, "Tier-two slate recipe did not bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(tierTwoBinding != null, "Tier-two slate recipe did not bind");
         var scope = new MemoryScope();
         var counter = new KeyCounter();
         counter.add(input.what(), 1);
         var tierTwoCounter = new KeyCounter();
         tierTwoCounter.add(output.what(), 1);
-        helper.assertTrue(adapter.planWithBinding(level, pos, tierTwoPattern, new KeyCounter[]{tierTwoCounter},
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.planWithBinding(level, pos, tierTwoPattern, new KeyCounter[]{tierTwoCounter},
                 tierTwoBinding.handle(), IActionSource.empty(), scope) == null,
                 "Tier-one altar planned a tier-two slate recipe");
         var plan = adapter.planWithBinding(level, pos, pattern, new KeyCounter[]{counter}, binding.handle(),
                 IActionSource.empty(), scope);
-        helper.assertTrue(plan != null, "Empty altar did not plan");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null, "Empty altar did not plan");
         var target = plan.targets().get(0);
-        helper.assertTrue(target.customInserter().apply(input, Actionable.MODULATE) == 1, "Altar rejected stone");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(target.customInserter().apply(input, Actionable.MODULATE) == 1, "Altar rejected stone");
         boolean refused = false;
         try {
             plan.onCommit().run();
         } catch (IllegalStateException expected) {
             refused = true;
         }
-        helper.assertTrue(refused, "Altar without blood accepted a craft");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(refused, "Altar without blood accepted a craft");
         var recovered = new java.util.ArrayList<GenericStack>();
         plan.onPartialCommit().recover(List.of(new AcceptedInsertion(target, input)), recovered::add);
-        helper.assertTrue(recovered.size() == 1 && recovered.get(0).what().equals(input.what())
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(recovered.size() == 1 && recovered.get(0).what().equals(input.what())
                 && recovered.get(0).amount() == 1, "Rejected craft did not refund exactly one stone");
-        helper.assertTrue(SlotHarvestOwnership.load(level, pos, scope, HARVEST_STATE) == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(SlotHarvestOwnership.load(level, pos, scope, HARVEST_STATE) == null,
                 "Rejected craft left output ownership");
-        helper.assertTrue(adapter.canDispatch(level, pos, binding.handle(), scope), "Rollback blocked retry");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.canDispatch(level, pos, binding.handle(), scope), "Rollback blocked retry");
 
         var fill = com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionSupport.findMethodCached(
                 entity.getClass(), "fillMainTank", int.class).orElseThrow();
         var filled = com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionSupport.invokeMutation(
                 fill, entity, 2000).orElse(null);
-        helper.assertTrue(filled instanceof Integer && (Integer) filled >= 2000, "Altar could not receive blood");
-        helper.assertTrue(currentBlood(entity) >= 2000, "Altar lost blood immediately after filling: " + currentBlood(entity));
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(filled instanceof Integer && (Integer) filled >= 2000, "Altar could not receive blood");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(currentBlood(entity) >= 2000, "Altar lost blood immediately after filling: " + currentBlood(entity));
         var filter = new AllowedOutputFilter();
         filter.allowStrict(AEItemKey.of(slate));
         dispatch(helper, adapter, pos, pattern, counter, binding.handle(), scope, input);
-        helper.assertTrue(currentBlood(entity) >= 1000, "Altar lost blood when starting: " + currentBlood(entity));
-        helper.assertTrue(!adapter.canDispatch(level, pos, binding.handle(), scope), "Active altar accepted a second job");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(currentBlood(entity) >= 1000, "Altar lost blood when starting: " + currentBlood(entity));
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!adapter.canDispatch(level, pos, binding.handle(), scope), "Active altar accepted a second job");
         helper.runAfterDelay(240, () -> {
             assertHarvest(helper, adapter, pos, scope, filter, output, "first");
             var refilled = ReflectionSupport.invokeMutation(fill, entity, 2000).orElse(null);
-            helper.assertTrue(refilled instanceof Integer && (Integer) refilled >= 1000,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(refilled instanceof Integer && (Integer) refilled >= 1000,
                     "Second craft could not receive blood");
             dispatch(helper, adapter, pos, pattern, counter, binding.handle(), scope, input);
             helper.runAfterDelay(240, () -> {
@@ -274,8 +274,8 @@ public final class BloodMagicAltarTests {
                                  AdapterPersistentScope scope, GenericStack input) {
         var plan = adapter.planWithBinding(helper.getLevel(), pos, pattern, new KeyCounter[]{counter}, handle,
                 IActionSource.empty(), scope);
-        helper.assertTrue(plan != null, "Altar did not plan next craft");
-        helper.assertTrue(plan.targets().get(0).customInserter().apply(input, Actionable.MODULATE) == 1,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null, "Altar did not plan next craft");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan.targets().get(0).customInserter().apply(input, Actionable.MODULATE) == 1,
                 "Altar rejected next input");
         plan.onCommit().run();
     }
@@ -295,12 +295,12 @@ public final class BloodMagicAltarTests {
                 .flatMap(method -> ReflectionSupport.invoke(method, entity)).orElse(null);
         var required = ReflectionSupport.findMethodCached(entity.getClass(), "getLiquidRequired")
                 .flatMap(method -> ReflectionSupport.invoke(method, entity)).orElse(null);
-        helper.assertTrue(outputs.size() == 1 && outputs.get(0).what().equals(expected.what())
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(outputs.size() == 1 && outputs.get(0).what().equals(expected.what())
                 && outputs.get(0).amount() == 1, round + " slate was not harvested exactly once: slot=" + current
                         + " active=" + active + " progress=" + progress + " blood=" + blood
                         + " required=" + required + " claim="
                         + SlotHarvestOwnership.load(helper.getLevel(), pos, scope, HARVEST_STATE));
-        helper.assertTrue(adapter.extractOutputs(helper.getLevel(), pos, filter, IActionSource.empty(), scope).isEmpty(),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.extractOutputs(helper.getLevel(), pos, filter, IActionSource.empty(), scope).isEmpty(),
                 "Altar harvested the same slate twice");
     }
 

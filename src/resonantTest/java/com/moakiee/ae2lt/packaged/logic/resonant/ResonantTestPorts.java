@@ -56,11 +56,11 @@ public final class ResonantTestPorts {
             if (simulate) return super.insertItem(slot, stack, true);
             int offer = Math.min(stack.getCount(), budget);
             if (offer <= 0) return stack;
-            var left = super.insertItem(slot, stack.copyWithCount(offer), false);
+            var left = super.insertItem(slot, com.moakiee.ae2lt.packaged.compat.LegacyStacks.copyWithCount(stack, offer), false);
             int inserted = offer - left.getCount();
             budget -= inserted;
             if (throwAfterInsert) throw new IllegalStateException("injected failure after native insert");
-            return inserted == stack.getCount() ? ItemStack.EMPTY : stack.copyWithCount(stack.getCount() - inserted);
+            return inserted == stack.getCount() ? ItemStack.EMPTY : com.moakiee.ae2lt.packaged.compat.LegacyStacks.copyWithCount(stack, stack.getCount() - inserted);
         }
     }
 }

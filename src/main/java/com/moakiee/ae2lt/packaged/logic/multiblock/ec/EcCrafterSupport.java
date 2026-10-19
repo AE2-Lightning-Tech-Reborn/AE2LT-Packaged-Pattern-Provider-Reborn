@@ -45,7 +45,7 @@ final class EcCrafterSupport {
     static ItemStack getResultItem(Object recipe, ServerLevel level) {
         if (!(recipe instanceof Recipe<?> typed)) return null;
         try {
-            return typed.getResultItem(level.registryAccess());
+            return typed.getResultItem();
         } catch (RuntimeException | LinkageError failure) {
             return null;
         }

@@ -29,7 +29,7 @@ import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.VirtualBatchAccumulator;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
 
-@GameTestHolder("ae2ltpp")
+@GameTestHolder("ae2ltpp_core")
 @PrefixGameTestTemplate(false)
 public final class VirtualOutputBatchTests {
     private static final Logger LOG = LoggerFactory.getLogger("ae2ltpp-stress");
@@ -56,32 +56,32 @@ public final class VirtualOutputBatchTests {
             var chunk = helper.getLevel().getChunkAt(pos);
             chunk.setUnsaved(false);
             logic.tickAutoReturn();
-            helper.assertTrue(chunk.isUnsaved(), "Initial flush clock was not marked for persistence");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(chunk.isUnsaved(), "Initial flush clock was not marked for persistence");
             logic.writeToNBT(saved);
-            helper.assertTrue(saved.getLong("last_flush_tick") == helper.getLevel().getGameTime(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(saved.getLong("last_flush_tick") == helper.getLevel().getGameTime(),
                     "Initial flush clock was not saved");
             chunk.setUnsaved(false);
             for (int call = 0; call < 10000; call++) {
                 logic.tickAutoReturn();
             }
-            helper.assertTrue(!chunk.isUnsaved(), "Unchanged blocked batch repeatedly dirtied its chunk");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!chunk.isUnsaved(), "Unchanged blocked batch repeatedly dirtied its chunk");
             logic.writeToNBT(saved);
             saved.putLong("last_flush_tick", helper.getLevel().getGameTime()
                     - VirtualBatchAccumulator.FLUSH_INTERVAL_TICKS);
             logic.readFromNBT(saved);
             chunk.setUnsaved(false);
             logic.tickAutoReturn();
-            helper.assertTrue(chunk.isUnsaved(), "Blocked flush clock update was not marked for persistence");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(chunk.isUnsaved(), "Blocked flush clock update was not marked for persistence");
             logic.writeToNBT(saved);
             var retained = new VirtualBatchAccumulator();
             retained.readFromNBT(saved);
-            helper.assertTrue(retained.drainAll().equals(outputs), "Blocked flush changed the backlog");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(retained.drainAll().equals(outputs), "Blocked flush changed the backlog");
             chunk.setUnsaved(false);
             for (int call = 0; call < 10000; call++) {
                 logic.tickAutoReturn();
             }
-            helper.assertTrue(!chunk.isUnsaved(), "Repeated calls after flush dirtied the chunk");
-            helper.assertTrue(logic.drainVirtualBatch().equals(outputs) && chunk.isUnsaved(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!chunk.isUnsaved(), "Repeated calls after flush dirtied the chunk");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.drainVirtualBatch().equals(outputs) && chunk.isUnsaved(),
                     "Final drain lost products or failed to persist the removal");
         }
         LOG.info("STRESS PASS blocked persistence providers=2 unchangedCalls=40000");
@@ -103,16 +103,16 @@ public final class VirtualOutputBatchTests {
             var saved = new CompoundTag();
             provider.saveAdditional(saved);
             provider.loadTag(saved);
-            helper.assertTrue(provider.hasFlag(target, "save-reuse-test")
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.hasFlag(target, "save-reuse-test")
                             && "owned".equals(provider.getState(target, "save-reuse-test")),
                     "Live ownership was not persisted before cleanup");
             provider.clearFlagsForTarget(target);
             provider.saveAdditional(saved);
             provider.loadTag(saved);
-            helper.assertTrue(!provider.hasFlag(target, "save-reuse-test")
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!provider.hasFlag(target, "save-reuse-test")
                             && provider.getState(target, "save-reuse-test") == null,
                     "Reused save tag restored cleared ownership");
-            helper.assertTrue(!saved.contains("ae2ltpp_adapter_flags")
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!saved.contains("ae2ltpp_adapter_flags")
                             && !saved.contains("ae2ltpp_adapter_states"),
                     "Cleared ownership left stale save fields");
         }
@@ -136,14 +136,14 @@ public final class VirtualOutputBatchTests {
             logic.readFromNBT(saved);
             var active = new CompoundTag();
             logic.writeToNBT(active);
-            helper.assertTrue("ID_ONLY".equals(active.getString("Ae2ltUnlockMatchMode"))
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue("ID_ONLY".equals(active.getString("Ae2ltUnlockMatchMode"))
                             && active.contains("Ae2ltUnlockTemplate"),
                     "Active unlock rule was not persisted before cleanup");
-            logic.clearContent();
+            ((com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderLogic) logic).clearContent();
             logic.writeToNBT(saved);
             logic.readFromNBT(saved);
             logic.writeToNBT(active);
-            helper.assertTrue(!saved.contains("Ae2ltUnlockMatchMode")
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!saved.contains("Ae2ltUnlockMatchMode")
                             && !saved.contains("Ae2ltUnlockTemplate")
                             && !active.contains("Ae2ltUnlockMatchMode")
                             && !active.contains("Ae2ltUnlockTemplate"),
@@ -188,13 +188,13 @@ public final class VirtualOutputBatchTests {
             var saved = provider.saveWithFullMetadata();
             var state = level.getBlockState(fixture.pos());
             level.removeBlockEntity(fixture.pos());
-            helper.assertTrue(provider.isRemoved(), "Old provider was not detached during recreation");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.isRemoved(), "Old provider was not detached during recreation");
             var restored = BlockEntity.loadStatic(fixture.pos(), state, saved);
-            helper.assertTrue(restored instanceof PackagedPatternProviderBlockEntity && restored != provider,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(restored instanceof PackagedPatternProviderBlockEntity && restored != provider,
                     "Full saved provider did not create a distinct block entity");
             level.setBlockEntity(restored);
             var replacement = (PackagedPatternProviderBlockEntity) restored;
-            helper.assertTrue(replacement.hasFlag(fixture.pos().above(3), "recreation-test")
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(replacement.hasFlag(fixture.pos().above(3), "recreation-test")
                             && "owned".equals(replacement.getState(fixture.pos().above(3), "recreation-test")),
                     "Ownership was lost during block entity recreation at round " + round);
             var logic = (PackagedPatternProviderLogic) replacement.getLogic();
@@ -203,7 +203,7 @@ public final class VirtualOutputBatchTests {
             logic.writeToNBT(batchTag);
             var retained = new VirtualBatchAccumulator();
             retained.readFromNBT(batchTag);
-            helper.assertTrue(retained.drainAll().equals(fixture.outputs()),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(retained.drainAll().equals(fixture.outputs()),
                     "Full block entity recreation or blocked flush changed the backlog at round " + round);
         }
         if (round < 5) {
@@ -213,7 +213,7 @@ public final class VirtualOutputBatchTests {
         for (var fixture : fixtures) {
             var provider = (PackagedPatternProviderBlockEntity) level.getBlockEntity(fixture.pos());
             var logic = (PackagedPatternProviderLogic) provider.getLogic();
-            helper.assertTrue(logic.drainVirtualBatch().equals(fixture.outputs()) && logic.drainVirtualBatch().isEmpty(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.drainVirtualBatch().equals(fixture.outputs()) && logic.drainVirtualBatch().isEmpty(),
                     "Recreated provider could not drain exactly once");
         }
         LOG.info("STRESS PASS provider recreation providers={} rounds={} rebuilds={}",
@@ -262,9 +262,9 @@ public final class VirtualOutputBatchTests {
             batch.logic().writeToNBT(saved);
             var retained = new VirtualBatchAccumulator();
             retained.readFromNBT(saved);
-            helper.assertTrue(retained.drainAll().equals(batch.outputs()),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(retained.drainAll().equals(batch.outputs()),
                     "Blocked flush or reload changed provider outputs at round " + round);
-            helper.assertTrue(saved.getLong("last_flush_tick") == helper.getLevel().getGameTime(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(saved.getLong("last_flush_tick") == helper.getLevel().getGameTime(),
                     "Blocked flush was not exercised at round " + round);
             batch.logic().readFromNBT(saved);
         }
@@ -273,12 +273,12 @@ public final class VirtualOutputBatchTests {
             return;
         }
         for (var batch : batches) {
-            helper.assertTrue(batch.logic().drainVirtualBatch().equals(batch.outputs()),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(batch.logic().drainVirtualBatch().equals(batch.outputs()),
                     "Final drain changed the amount or ordering of provider outputs");
-            helper.assertTrue(batch.logic().drainVirtualBatch().isEmpty(), "Provider replayed drained outputs");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(batch.logic().drainVirtualBatch().isEmpty(), "Provider replayed drained outputs");
         }
         long elapsedTicks = helper.getLevel().getGameTime() - startedTick;
-        helper.assertTrue(elapsedTicks >= SOAK_ROUNDS * 20L, "Soak did not span the configured server ticks");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(elapsedTicks >= SOAK_ROUNDS * 20L, "Soak did not span the configured server ticks");
         LOG.info("STRESS PASS blocked providers={} keysPerProvider=128 rounds={} checks={} elapsedServerTicks={}",
                 batches.size(), round + 1, batches.size() * (round + 1), elapsedTicks);
         helper.succeed();
@@ -309,8 +309,8 @@ public final class VirtualOutputBatchTests {
         }
         helper.runAfterDelay(60, () -> {
             for (var fixture : fixtures) {
-                helper.assertTrue(fixture.provider().getMainNode().isActive(), "Powered provider was not active");
-                helper.assertTrue(fixture.provider().getMainNode().getGrid() == fixture.chest().getMainNode().getGrid(),
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(fixture.provider().getMainNode().isActive(), "Powered provider was not active");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(fixture.provider().getMainNode().getGrid() == fixture.chest().getMainNode().getGrid(),
                         "Provider and chest did not join the same grid");
                 var logic = (PackagedPatternProviderLogic) fixture.provider().getLogic();
                 var accumulator = new VirtualBatchAccumulator();
@@ -337,9 +337,9 @@ public final class VirtualOutputBatchTests {
                             amounts.add(returned.getKey(slot), returned.getAmount(slot));
                         }
                     }
-                    helper.assertTrue(amounts.size() == fixture.outputs().size(), "Blocked grid changed output keys");
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(amounts.size() == fixture.outputs().size(), "Blocked grid changed output keys");
                     for (var stack : fixture.outputs()) {
-                        helper.assertTrue(amounts.get(stack.what()) == stack.amount(),
+                        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(amounts.get(stack.what()) == stack.amount(),
                                 "Blocked grid or reload lost or duplicated an output");
                     }
                     fixture.chest().setCell(AEItems.ITEM_CELL_1K.stack());
@@ -367,16 +367,16 @@ public final class VirtualOutputBatchTests {
     private static void assertDelivered(GameTestHelper helper, PoweredFixture fixture) {
         var logic = (PackagedPatternProviderLogic) fixture.provider().getLogic();
         var amounts = fixture.chest().getMainNode().getGrid().getStorageService().getInventory().getAvailableStacks();
-        helper.assertTrue(amounts.size() == fixture.outputs().size(), "Grid storage has unexpected output keys");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(amounts.size() == fixture.outputs().size(), "Grid storage has unexpected output keys");
         for (var stack : fixture.outputs()) {
-            helper.assertTrue(amounts.get(stack.what()) == stack.amount(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(amounts.get(stack.what()) == stack.amount(),
                     "Grid storage did not receive exactly the promised output amount");
         }
         var saved = new CompoundTag();
         logic.writeToNBT(saved);
         var retained = new VirtualBatchAccumulator();
         retained.readFromNBT(saved);
-        helper.assertTrue(!retained.hasPending() && logic.getInternalReturnInv().isEmpty(),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!retained.hasPending() && logic.getInternalReturnInv().isEmpty(),
                 "Delivered products remain queued for replay");
     }
 
@@ -407,16 +407,16 @@ public final class VirtualOutputBatchTests {
         logic.writeToNBT(saved);
         var retained = new VirtualBatchAccumulator();
         retained.readFromNBT(saved);
-        helper.assertTrue(retained.snapshot().equals(accumulator.snapshot()),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(retained.snapshot().equals(accumulator.snapshot()),
                 "Unpowered flush changed output variants or amounts");
-        helper.assertTrue(saved.getLong("last_flush_tick") == helper.getLevel().getGameTime(),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(saved.getLong("last_flush_tick") == helper.getLevel().getGameTime(),
                 "Fixture did not reach the real flush boundary");
         logic.readFromNBT(saved);
-        helper.assertTrue(logic.drainVirtualBatch().equals(outputs),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.drainVirtualBatch().equals(outputs),
                 "Reload changed output ordering, variants or amounts");
         logic.writeToNBT(saved);
         retained.readFromNBT(saved);
-        helper.assertTrue(!retained.hasPending() && logic.drainVirtualBatch().isEmpty(),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!retained.hasPending() && logic.drainVirtualBatch().isEmpty(),
                 "Drained products could be restored or delivered twice");
         helper.succeed();
     }

@@ -240,7 +240,7 @@ class PetalApothecaryRecipeSelectionTest {
     }
 
     private static Recipe<?> select(IPatternDetails pattern, Recipe<?>... recipes) {
-        return BotaniaRecipeLookup.findPetalApothecaryByOutput(List.of(recipes), RegistryAccess.EMPTY, pattern);
+        return BotaniaRecipeLookup.findPetalApothecaryByOutput(List.of(recipes), net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(net.minecraft.core.Registry.REGISTRY), pattern);
     }
 
     private static Recipe<?> recipe(int count, Ingredient reagent, Item... petals) {

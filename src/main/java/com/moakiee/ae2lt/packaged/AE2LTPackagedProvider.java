@@ -63,7 +63,7 @@ public class AE2LTPackagedProvider {
         PPBlocks.BLOCKS.register(modEventBus);
         PPBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
         PPMenuTypes.MENU_TYPES.register(modEventBus);
-        PPCreativeTabs.CREATIVE_MODE_TABS.register(modEventBus);
+
 
         modEventBus.addListener(this::commonSetup);
         ResonantCoreSelectPacket.register();

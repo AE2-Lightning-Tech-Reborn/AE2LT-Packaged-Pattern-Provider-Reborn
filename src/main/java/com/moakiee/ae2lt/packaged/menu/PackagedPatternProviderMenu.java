@@ -11,7 +11,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.inventories.InternalInventory;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.helpers.iface.PatternProviderLogicHost;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.SlotSemantics;
 import appeng.menu.implementations.PatternProviderMenu;
@@ -61,7 +61,7 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
 
         var adapterSlot = new AdapterCardSlot(packagedHost.getAdapterInv(), 0);
         adapterSlot.setNotDraggable();
-        adapterSlot.setEmptyTooltip(() -> List.of(Component.translatable("ae2ltpp.gui.adapter_slot")));
+        adapterSlot.setEmptyTooltip( List.of(Component.translatable("ae2ltpp.gui.adapter_slot")));
         this.adapterSlot = addSlot(adapterSlot, PackagedPatternProviderSlotSemantics.ADAPTER_CARD);
 
         registerClientAction("toggleAutoReturn", this::toggleAutoReturn);

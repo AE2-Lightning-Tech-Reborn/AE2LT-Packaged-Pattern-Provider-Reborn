@@ -21,7 +21,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
 import com.moakiee.ae2lt.packaged.registry.PPItems;
 
-@GameTestHolder("ae2ltpp")
+@GameTestHolder("ae2ltpp_core")
 @PrefixGameTestTemplate(false)
 public final class WirelessTargetAdmissionTests {
     @GameTest(template = "adapterconnectiontests.adapter_conn")
@@ -34,21 +34,21 @@ public final class WirelessTargetAdmissionTests {
         WirelessPatternProviderHost host = provider;
         var target = helper.absolutePos(targetRelative);
         helper.setBlock(targetRelative, Blocks.CHEST);
-        helper.assertTrue(!host.acceptsWirelessTarget(level, target), "Missing core accepted a target");
-        helper.assertTrue(!host.addOrUpdateConnection(level.dimension(), target, Direction.UP),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.acceptsWirelessTarget(level, target), "Missing core accepted a target");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.addOrUpdateConnection(level.dimension(), target, Direction.UP),
                 "Direct connection bypassed missing-core admission");
         provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.OCCULTISM_SPIRIT_FIRE_ADAPTER.get()));
-        helper.assertTrue(!host.acceptsWirelessTarget(level, target), "Core accepted an unrelated block entity");
-        helper.assertTrue(!host.addOrUpdateConnection(level.dimension(), target, Direction.UP),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.acceptsWirelessTarget(level, target), "Core accepted an unrelated block entity");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.addOrUpdateConnection(level.dimension(), target, Direction.UP),
                 "Direct connection bypassed core compatibility");
         helper.setBlock(targetRelative, Blocks.STONE);
-        helper.assertTrue(!host.acceptsWirelessTarget(level, target), "Core accepted an ordinary block");
-        helper.assertTrue(!host.acceptsWirelessTarget(level, new BlockPos(30000000, 64, 30000000)),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.acceptsWirelessTarget(level, target), "Core accepted an ordinary block");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.acceptsWirelessTarget(level, new BlockPos(30000000, 64, 30000000)),
                 "Unloaded target was accepted");
         helper.setBlock(hostRelative, PPBlocks.PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
         provider = (PackagedPatternProviderBlockEntity) level.getBlockEntity(helper.absolutePos(hostRelative));
         provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.OCCULTISM_SPIRIT_FIRE_ADAPTER.get()));
-        helper.assertTrue(!provider.acceptsWirelessTarget(level, target), "Normal provider accepted a wireless target");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!provider.acceptsWirelessTarget(level, target), "Normal provider accepted a wireless target");
         helper.succeed();
     }
 
@@ -73,29 +73,29 @@ public final class WirelessTargetAdmissionTests {
         WirelessPatternProviderHost host = provider;
         var target = helper.absolutePos(targetRelative);
         var second = helper.absolutePos(secondRelative);
-        helper.assertTrue(level.getBlockState(target).is(spiritFire), "Unsupported spirit fire disappeared");
-        helper.assertTrue(MultiblockAdapterRegistry.find(level, target, null) != null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(level.getBlockState(target).is(spiritFire), "Unsupported spirit fire disappeared");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(MultiblockAdapterRegistry.find(level, target, null) != null,
                 "Spirit fire adapter is not available");
-        helper.assertTrue(!provider.isRemoved() && provider.isWirelessProvider() && provider.getLevel() == level,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!provider.isRemoved() && provider.isWirelessProvider() && provider.getLevel() == level,
                 "Wireless test provider is not attached to the server level");
-        helper.assertTrue(level.getBlockEntity(target) == null, "Spirit fire unexpectedly has a block entity");
-        helper.assertTrue(!host.acceptsWirelessTarget(level, target), "Missing core accepted spirit fire");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(level.getBlockEntity(target) == null, "Spirit fire unexpectedly has a block entity");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.acceptsWirelessTarget(level, target), "Missing core accepted spirit fire");
         provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.ARS_APPARATUS_ADAPTER.get()));
-        helper.assertTrue(!host.acceptsWirelessTarget(level, target), "Wrong core accepted spirit fire");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.acceptsWirelessTarget(level, target), "Wrong core accepted spirit fire");
         provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.OCCULTISM_SPIRIT_FIRE_ADAPTER.get()));
-        helper.assertTrue(host.acceptsWirelessTarget(level, target), "Matching core rejected spirit fire");
-        helper.assertTrue(WirelessConnectorTargetHelper.collectTargets(level, target, true, 1024,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(host.acceptsWirelessTarget(level, target), "Matching core rejected spirit fire");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(WirelessConnectorTargetHelper.collectTargets(level, target, true, 1024,
                         pos -> host.acceptsWirelessTarget(level, pos)).equals(Set.of(target, second)),
                 "Upstream contiguous collector did not admit both block-only targets");
-        helper.assertTrue(host.addOrUpdateConnection(level.dimension(), target, Direction.UP),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(host.addOrUpdateConnection(level.dimension(), target, Direction.UP),
                 "Matching core could not connect spirit fire");
         provider.getAdapterInv().setItemDirect(0, ItemStack.EMPTY);
-        helper.assertTrue(provider.clearInvalidConnections() == 0 && host.getConnections().size() == 1,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.clearInvalidConnections() == 0 && host.getConnections().size() == 1,
                 "Core removal erased an existing connection");
-        helper.assertTrue(!host.addOrUpdateConnection(level.dimension(), second, Direction.UP),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!host.addOrUpdateConnection(level.dimension(), second, Direction.UP),
                 "Core removal allowed a new connection");
         provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.ARS_APPARATUS_ADAPTER.get()));
-        helper.assertTrue(provider.clearInvalidConnections() == 0 && host.getConnections().size() == 1,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.clearInvalidConnections() == 0 && host.getConnections().size() == 1,
                 "Core swap erased an existing connection");
         helper.succeed();
     }
@@ -118,7 +118,7 @@ public final class WirelessTargetAdmissionTests {
             helper.setBlock(relative.below(), Blocks.STONE);
             helper.setBlock(relative, spiritFire.defaultBlockState());
             var target = helper.absolutePos(relative);
-            helper.assertTrue(provider.addOrUpdateConnection(level.dimension(), target, Direction.UP),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.addOrUpdateConnection(level.dimension(), target, Direction.UP),
                     "Could not connect pruning fixture");
             provider.setFlag(target, "pruning-test");
             provider.setState(target, "pruning-test", "owned");
@@ -128,22 +128,22 @@ public final class WirelessTargetAdmissionTests {
         var last = helper.absolutePos(targetRelatives.get(2));
         helper.setBlock(targetRelatives.get(0), Blocks.STONE);
         helper.setBlock(targetRelatives.get(2), Blocks.STONE);
-        helper.assertTrue(provider.pruneInvalidConnections(1) == 1 && provider.getConnections().size() == 2,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.pruneInvalidConnections(1) == 1 && provider.getConnections().size() == 2,
                 "Pruning exceeded its one-target budget");
-        helper.assertTrue(!provider.hasFlag(first, "pruning-test") && provider.getState(first, "pruning-test") == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!provider.hasFlag(first, "pruning-test") && provider.getState(first, "pruning-test") == null,
                 "Removed target retained ownership state");
-        helper.assertTrue(provider.hasFlag(last, "pruning-test") && "owned".equals(provider.getState(last, "pruning-test")),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.hasFlag(last, "pruning-test") && "owned".equals(provider.getState(last, "pruning-test")),
                 "Unscanned target lost ownership state");
-        helper.assertTrue(provider.pruneInvalidConnections(1) == 0 && provider.getConnections().size() == 2,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.pruneInvalidConnections(1) == 0 && provider.getConnections().size() == 2,
                 "Cursor skipped a retained target");
-        helper.assertTrue(provider.pruneInvalidConnections(1) == 1 && provider.getConnections().size() == 1,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.pruneInvalidConnections(1) == 1 && provider.getConnections().size() == 1,
                 "Cursor failed to reach the last invalid target");
-        helper.assertTrue(!provider.hasFlag(last, "pruning-test") && provider.getState(last, "pruning-test") == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!provider.hasFlag(last, "pruning-test") && provider.getState(last, "pruning-test") == null,
                 "Last removed target retained ownership state");
-        helper.assertTrue(provider.hasFlag(retained, "pruning-test")
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.hasFlag(retained, "pruning-test")
                         && "owned".equals(provider.getState(retained, "pruning-test")),
                 "Valid target lost ownership state");
-        helper.assertTrue(provider.clearInvalidConnections() == 0 && provider.getConnections().get(0).pos().equals(retained),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.clearInvalidConnections() == 0 && provider.getConnections().get(0).pos().equals(retained),
                 "Manual cleanup removed a valid block-only target");
         helper.succeed();
     }

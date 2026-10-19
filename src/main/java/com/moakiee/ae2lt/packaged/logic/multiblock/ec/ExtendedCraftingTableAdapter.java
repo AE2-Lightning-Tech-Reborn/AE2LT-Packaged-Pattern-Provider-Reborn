@@ -16,7 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.inventory.TransientCraftingContainer;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
@@ -595,7 +595,7 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
     private static ItemStack assemble(Object recipe, CraftingContainer input, ServerLevel level) {
         try {
             return recipe instanceof Recipe<?> r
-                    ? ((Recipe) r).assemble(input, level.registryAccess())
+                    ? ((Recipe) r).assemble(input)
                     : null;
         } catch (RuntimeException | LinkageError ignored) {
             return null;
@@ -620,7 +620,7 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return r.getResultItem();
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }
@@ -771,7 +771,7 @@ public final class ExtendedCraftingTableAdapter implements UnboundedVirtualCraft
             if (stacks.size() != size * size) {
                 return null;
             }
-            var container = new TransientCraftingContainer(DUMMY_MENU, size, size);
+            var container = new CraftingContainer(DUMMY_MENU, size, size);
             for (int i = 0; i < stacks.size(); i++) {
                 container.setItem(i, stacks.get(i).copy());
             }

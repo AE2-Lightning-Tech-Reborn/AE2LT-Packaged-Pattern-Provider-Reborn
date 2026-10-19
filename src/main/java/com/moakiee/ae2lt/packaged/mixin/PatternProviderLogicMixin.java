@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import appeng.api.stacks.GenericStack;
-import appeng.helpers.patternprovider.PatternProviderLogic;
+import appeng.helpers.iface.PatternProviderLogic;
 
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderLogic;
 

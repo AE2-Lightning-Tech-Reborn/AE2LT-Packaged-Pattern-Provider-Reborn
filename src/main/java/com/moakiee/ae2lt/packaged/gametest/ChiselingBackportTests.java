@@ -30,7 +30,7 @@ import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 import net.minecraftforge.registries.ForgeRegistries;
 
-@GameTestHolder("ae2ltpp")
+@GameTestHolder("ae2ltpp_chiseling")
 @PrefixGameTestTemplate(false)
 public final class ChiselingBackportTests {
     private ChiselingBackportTests() {}
@@ -61,7 +61,7 @@ public final class ChiselingBackportTests {
 
     private static BlockPos bench(GameTestHelper h, BlockPos relative, String name) {
         var block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("chipped", name));
-        h.assertTrue(block != null, "Missing native Chipped bench");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(block != null, "Missing native Chipped bench");
         var state = block.defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH);
         var property = state.getProperties().stream().filter(p -> p.getName().equals("model")).findFirst().orElseThrow();
         var main = h.absolutePos(relative);
@@ -77,17 +77,17 @@ public final class ChiselingBackportTests {
                 || ModList.get().isLoaded("chisel");
         boolean recipe = h.getLevel().getRecipeManager()
                 .byKey(new ResourceLocation("ae2ltpp", "packaged_core/chiseling_packaged_core")).isPresent();
-        h.assertTrue(recipe == installed, "Chiseling core recipe ignored optional-mod conditions");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(recipe == installed, "Chiseling core recipe ignored optional-mod conditions");
         if (ModList.get().isLoaded("chipped")) {
             var coreRecipe = h.getLevel().getRecipeManager()
                     .byKey(new ResourceLocation("ae2ltpp", "packaged_core/chiseling_packaged_core")).orElseThrow();
             var bench = ForgeRegistries.ITEMS.getValue(new ResourceLocation("chipped", "mason_table"));
-            h.assertTrue(coreRecipe.getIngredients().stream().anyMatch(ingredient -> ingredient.test(new ItemStack(bench))),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(coreRecipe.getIngredients().stream().anyMatch(ingredient -> ingredient.test(new ItemStack(bench))),
                     "Chipped 3.x has no chisel item: a native workbench must be usable to craft the core");
         }
         boolean registered = MultiblockAdapterRegistry.activeAdapters().stream()
                 .anyMatch(a -> a instanceof ChippedWorkbenchAdapter || a instanceof HandheldChiselAdapter);
-        h.assertTrue(registered == installed, "Optional chiseling adapters loaded incorrectly");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(registered == installed, "Optional chiseling adapters loaded incorrectly");
         h.succeed();
     }
 
@@ -101,14 +101,14 @@ public final class ChiselingBackportTests {
         var pattern = pattern(h, input, output);
         var adapter = new ChippedWorkbenchAdapter();
         var binding = adapter.bind(h.getLevel(), mason, pattern);
-        h.assertTrue(binding != null, "Native mason conversion did not bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Native mason conversion did not bind");
         var result = adapter.planVirtualWithBinding(h.getLevel(), mason, pattern, counters(input),
                 binding.handle(), IActionSource.empty());
-        h.assertTrue(result != null && result.outputs().equals(List.of(output)), "Chipped conversion changed quantities");
-        h.assertTrue(adapter.bind(h.getLevel(), carpenter, pattern) == null, "Wrong workbench recipe type accepted stone");
-        h.assertTrue(!adapter.recognizesMain(h.getLevel(), mason.east(), null), "Side half became an independent target");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(result != null && result.outputs().equals(List.of(output)), "Chipped conversion changed quantities");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.bind(h.getLevel(), carpenter, pattern) == null, "Wrong workbench recipe type accepted stone");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!adapter.recognizesMain(h.getLevel(), mason.east(), null), "Side half became an independent target");
         h.getLevel().setBlockAndUpdate(mason.east(), Blocks.AIR.defaultBlockState());
-        h.assertTrue(!adapter.canDispatch(h.getLevel(), mason, binding.handle()), "Incomplete bench retained dispatch capability");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!adapter.canDispatch(h.getLevel(), mason, binding.handle()), "Incomplete bench retained dispatch capability");
         h.succeed();
     }
 
@@ -119,11 +119,11 @@ public final class ChiselingBackportTests {
         var providerPos = h.absolutePos(new BlockPos(3, 2, 3));
         h.getLevel().setBlockAndUpdate(providerPos, PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
         var provider = (PackagedPatternProviderBlockEntity) h.getLevel().getBlockEntity(providerPos);
-        h.assertTrue(!provider.acceptsWirelessTarget(h.getLevel(), main), "Missing core accepted a Chipped bench");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!provider.acceptsWirelessTarget(h.getLevel(), main), "Missing core accepted a Chipped bench");
         provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.CHISELING_ADAPTER.get()));
-        h.assertTrue(provider.addOrUpdateConnection(h.getLevel().dimension(), main, Direction.UP),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.addOrUpdateConnection(h.getLevel().dimension(), main, Direction.UP),
                 "Chiseling core did not admit the physical main half without a block entity");
-        h.assertTrue(!provider.acceptsWirelessTarget(h.getLevel(), main.east()), "Wireless side-half admission bypassed validation");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!provider.acceptsWirelessTarget(h.getLevel(), main.east()), "Wireless side-half admission bypassed validation");
         h.succeed();
     }
 
@@ -136,18 +136,18 @@ public final class ChiselingBackportTests {
         var output = stack("rechiseled:acacia_planks_beams_slab", 6);
         var valid = pattern(h, input, output);
         var binding = adapter.bind(h.getLevel(), pos, valid);
-        h.assertTrue(binding != null, "Native block-to-slab worth was not recognized");
-        h.assertTrue(adapter.planVirtualWithBinding(h.getLevel(), pos, valid, counters(input), binding.handle(),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Native block-to-slab worth was not recognized");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.planVirtualWithBinding(h.getLevel(), pos, valid, counters(input), binding.handle(),
                 IActionSource.empty()).outputs().equals(List.of(output)), "Native worth conversion produced wrong amount");
-        h.assertTrue(adapter.bind(h.getLevel(), pos, pattern(h, input, stack("rechiseled:acacia_planks_beams_slab", 7))) == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.bind(h.getLevel(), pos, pattern(h, input, stack("rechiseled:acacia_planks_beams_slab", 7))) == null,
                 "Inflated output was accepted");
-        h.assertTrue(adapter.bind(h.getLevel(), pos, pattern(h, stack("minecraft:acacia_slab", 3),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.bind(h.getLevel(), pos, pattern(h, stack("minecraft:acacia_slab", 3),
                 stack("rechiseled:acacia_planks_beams", 1))) == null, "Partial conversion silently consumed leftover input");
         var tagged = ((AEItemKey) output.what()).toStack(1);
         tagged.getOrCreateTag().putString("test", "arbitrary");
-        h.assertTrue(adapter.bind(h.getLevel(), pos, pattern(h, input,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.bind(h.getLevel(), pos, pattern(h, input,
                 new GenericStack(AEItemKey.of(tagged), output.amount()))) == null, "Conversion invented output NBT");
-        h.assertTrue(adapter.planVirtualWithBinding(h.getLevel(), pos, valid, counters(stack("minecraft:acacia_planks", 4)),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.planVirtualWithBinding(h.getLevel(), pos, valid, counters(stack("minecraft:acacia_planks", 4)),
                 binding.handle(), IActionSource.empty()) == null, "Surplus delivered inputs were lost");
         h.succeed();
     }
@@ -173,20 +173,20 @@ public final class ChiselingBackportTests {
             for (var provider : providers) {
                 var logic = (PackagedPatternProviderLogic) provider.getLogic();
                 var pattern = logic.getAvailablePatterns().get(0);
-                h.assertTrue(!logic.pushPattern(pattern, counters(input)), "Missing core unlocked internal conversion");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!logic.pushPattern(pattern, counters(input)), "Missing core unlocked internal conversion");
                 provider.getAdapterInv().setItemDirect(0, new ItemStack(PPItems.CHISELING_ADAPTER.get()));
-                h.assertTrue(provider.getConnections().isEmpty(), "Internal test unexpectedly has a wireless target");
-                h.assertTrue(logic.pushPattern(pattern, counters(input)), "Internal lane requires a neighboring machine or wireless target");
-                h.assertTrue(logic.drainVirtualBatch().equals(List.of(output)), "Internal output was missing or duplicated");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.getConnections().isEmpty(), "Internal test unexpectedly has a wireless target");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.pushPattern(pattern, counters(input)), "Internal lane requires a neighboring machine or wireless target");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.drainVirtualBatch().equals(List.of(output)), "Internal output was missing or duplicated");
                 provider.getAdapterInv().setItemDirect(0, ItemStack.EMPTY);
-                h.assertTrue(!logic.pushPattern(pattern, counters(input)), "Removing core retained an internal binding");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!logic.pushPattern(pattern, counters(input)), "Removing core retained an internal binding");
             }
             h.succeed();
         });
     }
     @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 120)
     public static void rechiseledLinearBatchHonors64CopyQuotaAndPreservesTemplate(GameTestHelper h) {
-        h.assertTrue(ModList.get().isLoaded("rechiseled"), "Rechiseled is required for native batch verification");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(ModList.get().isLoaded("rechiseled"), "Rechiseled is required for native batch verification");
         var input = stack("minecraft:acacia_planks", 3);
         var output = stack("rechiseled:acacia_planks_beams_slab", 6);
         var relative = new BlockPos(4, 2, 4);
@@ -200,14 +200,14 @@ public final class ChiselingBackportTests {
         h.runAfterDelay(40, () -> {
             var pattern = logic.getAvailablePatterns().get(0);
             var template = counters(input);
-            h.assertTrue(logic.getBatchCapacity(pattern) == 64, "Linear conversion must expose 64 copies per tick");
-            h.assertTrue(logic.pushBatch(pattern, template, 100) == 36, "Batch must accept exactly 64 of 100 copies");
-            h.assertTrue(template[0].get(input.what()) == 3, "Batch mutated borrowed template inputs");
-            h.assertTrue(logic.getBatchCapacity(pattern) == 0, "Linear lane quota was not consumed");
-            h.assertTrue(logic.drainVirtualBatch().equals(List.of(new GenericStack(output.what(), 384))),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.getBatchCapacity(pattern) == 64, "Linear conversion must expose 64 copies per tick");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.pushBatch(pattern, template, 100) == 36, "Batch must accept exactly 64 of 100 copies");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(template[0].get(input.what()) == 3, "Batch mutated borrowed template inputs");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.getBatchCapacity(pattern) == 0, "Linear lane quota was not consumed");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.drainVirtualBatch().equals(List.of(new GenericStack(output.what(), 384))),
                     "Linear batch lost or inflated outputs");
             h.runAfterDelay(1, () -> {
-                h.assertTrue(logic.getBatchCapacity(pattern) == 64, "Linear quota did not reset next tick");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.getBatchCapacity(pattern) == 64, "Linear quota did not reset next tick");
                 h.succeed();
             });
         });

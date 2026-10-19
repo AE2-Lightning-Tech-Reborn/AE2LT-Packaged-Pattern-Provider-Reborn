@@ -15,7 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.TransientCraftingContainer;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
@@ -783,7 +783,7 @@ public final class AvaritiaTableAdapter implements UnboundedVirtualCraftingAdapt
     private static ItemStack assemble(Object recipe, CraftingContainer input, ServerLevel level) {
         try {
             return recipe instanceof Recipe<?> r
-                    ? ((Recipe) r).assemble(input, level.registryAccess())
+                    ? ((Recipe) r).assemble(input)
                     : null;
         } catch (RuntimeException | LinkageError ignored) {
             return null;
@@ -819,7 +819,7 @@ public final class AvaritiaTableAdapter implements UnboundedVirtualCraftingAdapt
             return new CheckedValue<>(null, false);
         }
         try {
-            return new CheckedValue<>(r.getResultItem(level.registryAccess()), false);
+            return new CheckedValue<>(r.getResultItem(), false);
         } catch (RuntimeException | LinkageError e) {
             return new CheckedValue<>(null, true);
         }
@@ -1061,7 +1061,7 @@ public final class AvaritiaTableAdapter implements UnboundedVirtualCraftingAdapt
             try {
                 // CraftingContainer is an interface on 1.20.1; this is its
                 // concrete vanilla implementation.
-                var container = new TransientCraftingContainer(NOOP_MENU, size, size);
+                var container = new CraftingContainer(NOOP_MENU, size, size);
                 for (int i = 0; i < container.getContainerSize(); i++) {
                     container.setItem(i, stacks.get(i).copy());
                 }

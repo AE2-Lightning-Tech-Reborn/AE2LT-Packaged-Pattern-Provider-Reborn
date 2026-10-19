@@ -5,10 +5,10 @@ import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
+import com.moakiee.ae2lt.packaged.client.compat.Button;
+import com.moakiee.ae2lt.packaged.client.compat.Tooltip;
 import appeng.menu.SlotSemantics;
 import static com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.SLOTS_PER_PAGE;
 import net.minecraft.network.chat.Component;
@@ -104,7 +104,7 @@ public class PackagedPatternProviderScreen
     }
 
     @Override
-    public void drawBG(GuiGraphics graphics, int offsetX, int offsetY,
+    public void drawBG(PoseStack graphics, int offsetX, int offsetY,
                        int mouseX, int mouseY, float partialTicks) {
         if (!compactLayout) {
             super.drawBG(graphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
@@ -115,17 +115,17 @@ public class PackagedPatternProviderScreen
         int x = background.getSrcX();
         int y = background.getSrcY();
         int width = background.getSrcWidth();
-        background.copy().src(x, y, width, 20).dest(offsetX, offsetY).blit(graphics);
+        background.copy().src(x, y, width, 20).dest(offsetX, offsetY).blit(graphics, 0);
         background.copy().src(x, y + 30, width, 115)
-                .dest(offsetX, offsetY + 20).blit(graphics);
+                .dest(offsetX, offsetY + 20).blit(graphics, 0);
         background.copy().src(x, y + 150, width, background.getSrcHeight() - 150)
-                .dest(offsetX, offsetY + 135).blit(graphics);
+                .dest(offsetX, offsetY + 135).blit(graphics, 0);
     }
 
     @Override
-    public void renderSlot(net.minecraft.client.gui.GuiGraphics graphics, net.minecraft.world.inventory.Slot slot) {
+    public void renderSlot(com.mojang.blaze3d.vertex.PoseStack graphics, net.minecraft.world.inventory.Slot slot) {
         if (slot == menu.getAdapterSlot() && slot.isActive() && !slot.hasItem()) {
-            graphics.blit(CORE_SLOT_TEXTURE, slot.x, slot.y, 0, 0, 16, 16, 16, 16);
+            com.moakiee.ae2lt.packaged.client.compat.LegacyGui.blit(graphics, CORE_SLOT_TEXTURE, slot.x, slot.y, 0, 0, 16, 16, 16, 16);
         }
         super.renderSlot(graphics, slot);
     }
@@ -165,11 +165,11 @@ public class PackagedPatternProviderScreen
     }
 
     @Override
-    public void drawFG(GuiGraphics graphics, int offsetX, int offsetY, int mouseX, int mouseY) {
+    public void drawFG(PoseStack graphics, int offsetX, int offsetY, int mouseX, int mouseY) {
         super.drawFG(graphics, offsetX, offsetY, mouseX, mouseY);
         if (menu.getTotalPages() > 1) {
             String pageText = (menu.currentPage + 1) + "/" + menu.getTotalPages();
-            graphics.drawString(font, pageText, 134 - font.width(pageText) / 2,
+            com.moakiee.ae2lt.packaged.client.compat.LegacyGui.drawString(graphics, font, pageText, 134 - font.width(pageText) / 2,
                     30 - (compactLayout ? 10 : 0), 0x404040, false);
         }
     }

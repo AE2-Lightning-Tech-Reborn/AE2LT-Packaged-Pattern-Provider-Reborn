@@ -6,7 +6,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
-import appeng.helpers.patternprovider.PatternProviderReturnInventory;
+import appeng.helpers.iface.PatternProviderReturnInventory;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchExecutor;
 import com.moakiee.ae2lt.packaged.logic.multiblock.naturesaura.NaturesAuraAccess;
 import com.moakiee.ae2lt.packaged.logic.multiblock.naturesaura.NaturesAuraAdapter;
@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
@@ -34,7 +34,7 @@ import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 import net.minecraftforge.items.ItemStackHandler;
 
-@GameTestHolder("ae2ltpp")
+@GameTestHolder("ae2ltpp_naturesaura")
 @PrefixGameTestTemplate(false)
 public final class NaturesAuraTests {
     @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
@@ -56,23 +56,23 @@ public final class NaturesAuraTests {
             var selector = f.machine().getClass().getDeclaredMethod("getRecipe", ItemStack.class);
             selector.setAccessible(true);
             var selected = selector.invoke(f.machine(), new ItemStack(Items.MAGMA_CREAM));
-            h.assertTrue(selected == first || selected == second, "Fixture did not exercise competing native recipes");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(selected == first || selected == second, "Fixture did not exercise competing native recipes");
             var hidden = selected == first ? second : first;
             var start = ((Ingredient) NaturesAuraAccess.field(hidden, "startItem")).getItems()[0];
             var input = new GenericStack(AEItemKey.of(Items.MAGMA_CREAM), 1);
             var activation = new GenericStack(AEItemKey.of(start), 1);
-            var output = hidden.getResultItem(h.getLevel().registryAccess());
+            var output = hidden.getResultItem();
             var pattern = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
                     new GenericStack[]{input, activation},
                     new GenericStack[]{new GenericStack(AEItemKey.of(output), output.getCount())}), h.getLevel());
             var binding = f.adapter.bind(h.getLevel(), f.pos, pattern);
-            h.assertTrue(binding != null, "Competing recipe fixture did not bind");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Competing recipe fixture did not bind");
             var counter = new KeyCounter();
             counter.add(input.what(), input.amount());
             counter.add(activation.what(), activation.amount());
-            h.assertTrue(f.adapter.planWithBinding(h.getLevel(), f.pos, pattern, new KeyCounter[]{counter},
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.adapter.planWithBinding(h.getLevel(), f.pos, pattern, new KeyCounter[]{counter},
                     binding.handle(), IActionSource.empty()) == null, "Adapter bypassed native recipe selection");
-            h.assertTrue(f.inventory().getStackInSlot(0).isEmpty()
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.inventory().getStackInSlot(0).isEmpty()
                     && !NaturesAuraCraftState.active(f.machine()), "Rejected recipe mutated offering table");
         } finally {
             manager.replaceRecipes(original);
@@ -87,13 +87,13 @@ public final class NaturesAuraTests {
         var container = NaturesAuraAccess.field(be, "container");
         container.getClass().getMethod("storeAura", int.class, boolean.class).invoke(container, 100000, false);
         f.dispatch();
-        h.assertTrue(f.harvest().isEmpty() && NaturesAuraCraftState.active(be), "Polling discarded unfinished altar");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.harvest().isEmpty() && NaturesAuraCraftState.active(be), "Polling discarded unfinished altar");
         f.reload();
         h.runAfterDelay(160, () -> {
-            h.assertTrue(f.harvest().equals(List.of(f.product)), "Altar did not return native recipe product");
-            h.assertTrue(f.harvest().isEmpty(), "Altar returned product twice");
-            h.assertTrue(!NaturesAuraCraftState.active(f.machine()), "Altar ownership was retained");
-            h.assertTrue(f.inventory().getStackInSlot(0).isEmpty(), "Altar retained consumed input");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.harvest().equals(List.of(f.product)), "Altar did not return native recipe product");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.harvest().isEmpty(), "Altar returned product twice");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!NaturesAuraCraftState.active(f.machine()), "Altar ownership was retained");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.inventory().getStackInSlot(0).isEmpty(), "Altar retained consumed input");
             h.succeed();
         });
     }
@@ -102,17 +102,17 @@ public final class NaturesAuraTests {
     public static void offeringQueueSurvivesReloadAndReleasesAfterEarlyHarvest(GameTestHelper h) throws Exception {
         var f = new Fixture(h, NaturesAuraAdapter.Kind.OFFERING, "OFFERING_TABLE", "offering/sky_ingot");
         f.dispatch();
-        h.assertTrue(NaturesAuraCraftState.offeringStart(f.machine()).isEmpty(), "Native offering did not consume paid start");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(NaturesAuraCraftState.offeringStart(f.machine()).isEmpty(), "Native offering did not consume paid start");
         f.reload();
         var collected = new ArrayList<GenericStack>();
         for (int i = 1; i <= 20; i++) {
             h.runAfterDelay(i * 5L, () -> collected.addAll(f.harvest()));
         }
         h.runAfterDelay(110, () -> {
-            h.assertTrue(collected.equals(List.of(f.product)), "Offering result changed across reload: " + collected);
-            h.assertTrue(!NaturesAuraCraftState.active(f.machine()), "Empty bonus queue retained ownership");
-            h.assertTrue(f.inventory().getStackInSlot(0).isEmpty(), "Offering retained paid input");
-            h.assertTrue(f.harvest().isEmpty(), "Offering returned product twice");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(collected.equals(List.of(f.product)), "Offering result changed across reload: " + collected);
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!NaturesAuraCraftState.active(f.machine()), "Empty bonus queue retained ownership");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.inventory().getStackInSlot(0).isEmpty(), "Offering retained paid input");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.harvest().isEmpty(), "Offering returned product twice");
             h.succeed();
         });
     }
@@ -121,12 +121,12 @@ public final class NaturesAuraTests {
     public static void treeRitualRunsNativeConsumptionAndResumesAfterReload(GameTestHelper h) throws Exception {
         var f = new Fixture(h, NaturesAuraAdapter.Kind.TREE, "TREE_RITUAL", "tree_ritual/ancient_sapling");
         f.dispatch();
-        h.assertTrue(NaturesAuraAccess.recipe(f.machine()) != null, "Tree ritual was not installed");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(NaturesAuraAccess.recipe(f.machine()) != null, "Tree ritual was not installed");
         f.reload();
         h.runAfterDelay(240, () -> {
-            h.assertTrue(f.harvest().equals(List.of(f.product)), "Tree ritual did not return native product");
-            h.assertTrue(f.harvest().isEmpty(), "Tree ritual returned product twice");
-            h.assertTrue(!f.machine().getPersistentData().contains(NaturesAuraCraftState.TREE_LINK), "Tree link was retained");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.harvest().equals(List.of(f.product)), "Tree ritual did not return native product");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(f.harvest().isEmpty(), "Tree ritual returned product twice");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!f.machine().getPersistentData().contains(NaturesAuraCraftState.TREE_LINK), "Tree link was retained");
             h.succeed();
         });
     }
@@ -145,13 +145,13 @@ public final class NaturesAuraTests {
         NaturesAuraCraftState.dropPending(h.getLevel(), f.pos);
         int after = h.getLevel().getEntitiesOfClass(ItemEntity.class, bounds).stream()
                 .mapToInt(item -> item.getItem().getCount()).sum();
-        h.assertTrue(before == after, "Cancellation refunded twice");
-        h.assertTrue(!NaturesAuraCraftState.active(be) && NaturesAuraAccess.recipe(be) == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(before == after, "Cancellation refunded twice");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!NaturesAuraCraftState.active(be) && NaturesAuraAccess.recipe(be) == null,
                 "Cancellation left a running ritual");
         long copies = h.getLevel().getEntitiesOfClass(ItemEntity.class, bounds).stream()
                 .filter(item -> ItemStack.isSameItemSameTags(removed, item.getItem()))
                 .mapToLong(item -> item.getItem().getCount()).sum();
-        h.assertTrue(copies == 0, "Cancellation recreated manually removed input");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(copies == 0, "Cancellation recreated manually removed input");
         h.succeed();
     }
 
@@ -193,7 +193,7 @@ public final class NaturesAuraTests {
                 h.getLevel().setBlockAndUpdate(center, Blocks.AIR.defaultBlockState());
                 BiFunction<BlockPos, Object, Boolean> powder = (position, matcher) -> {
                     h.getLevel().setBlockAndUpdate(position, Blocks.AIR.defaultBlockState());
-                    inputs.add(new GenericStack(AEItemKey.of(BuiltInRegistries.ITEM.get(
+                    inputs.add(new GenericStack(AEItemKey.of(Registry.ITEM.get(
                             new ResourceLocation("naturesaura", "gold_powder"))), 1));
                     return true;
                 };
@@ -205,9 +205,9 @@ public final class NaturesAuraTests {
                 add((Ingredient) NaturesAuraAccess.field(recipe, "input"));
                 if (kind == NaturesAuraAdapter.Kind.OFFERING) add((Ingredient) NaturesAuraAccess.field(recipe, "startItem"));
             }
-            h.assertTrue(machine() instanceof NaturesAuraManagedMachine, "Nature's Aura Mixin did not apply");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(machine() instanceof NaturesAuraManagedMachine, "Nature's Aura Mixin did not apply");
             adapter = new NaturesAuraAdapter(kind);
-            var result = recipe.getResultItem(h.getLevel().registryAccess());
+            var result = recipe.getResultItem();
             product = new GenericStack(AEItemKey.of(result), result.getCount());
             pattern = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
                     inputs.toArray(GenericStack[]::new), new GenericStack[]{product}), h.getLevel());
@@ -223,13 +223,13 @@ public final class NaturesAuraTests {
 
         void dispatch() {
             var binding = adapter.bind(h.getLevel(), pos, pattern);
-            h.assertTrue(binding != null, "Native recipe failed to bind");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Native recipe failed to bind");
             var counter = new KeyCounter();
             for (var input : inputs) counter.add(input.what(), input.amount());
             var plan = adapter.planWithBinding(h.getLevel(), pos, pattern, new KeyCounter[]{counter},
                     binding.handle(), IActionSource.empty());
-            h.assertTrue(plan != null, "Native recipe failed to plan");
-            h.assertTrue(DispatchExecutor.execute(plan, IActionSource.empty(), new PatternProviderReturnInventory(() -> {}))
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null, "Native recipe failed to plan");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(DispatchExecutor.execute(plan, IActionSource.empty(), new PatternProviderReturnInventory(() -> {}))
                     .success(), "Native recipe failed to dispatch");
         }
 

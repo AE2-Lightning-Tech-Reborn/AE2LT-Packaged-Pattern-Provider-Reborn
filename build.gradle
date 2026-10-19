@@ -55,6 +55,8 @@ minecraft {
         configureEach {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
+            property 'mixin.config', "${mod_id}.mixins.json"
+            property 'thunderbolt.mixinAudit', 'true'
             property 'forge.logging.console.level', 'debug'
 
             mods {
@@ -65,20 +67,20 @@ minecraft {
         }
 
         client {
-            property 'forge.enabledGameTestNamespaces', mod_id
+            property 'forge.enabledGameTestNamespaces', (findProperty('gametest_namespaces') ?: "${mod_id}_core").toString()
             if ((findProperty('disable_early_progress_window') ?: 'false').toBoolean()) {
                 jvmArgs '-Dforge.earlyprogresswindow=false'
             }
         }
 
         server {
-            property 'forge.enabledGameTestNamespaces', mod_id
+            property 'forge.enabledGameTestNamespaces', (findProperty('gametest_namespaces') ?: "${mod_id}_core").toString()
             args '--nogui'
         }
 
         gameTestServer {
             args '--world', 'gametest-world'
-            property 'forge.enabledGameTestNamespaces', mod_id
+            property 'forge.enabledGameTestNamespaces', (findProperty('gametest_namespaces') ?: "${mod_id}_core").toString()
             property stressOptions.stress_soak_rounds.systemName, stressOptions.stress_soak_rounds.value.toString()
             if (project.hasProperty('stress_rounds')) {
                 property stressOptions.stress_rounds.systemName, stressOptions.stress_rounds.value.toString()
@@ -133,15 +135,15 @@ repositories {
     if ((findProperty('use_local_upstream') ?: 'false').toBoolean()) {
         ivy {
             name = 'LocalAE2LTBuild'
-            url = uri(findProperty('ae2lt_build_libs') ?: '../AE2-Lightning-Tech 1.20/build/libs')
-            patternLayout { artifact '[artifact]-forge-1.20.1-[revision].jar' }
+            url = uri(findProperty('ae2lt_build_libs') ?: '../AE2-Lightning-Tech-Reborn/build/libs')
+            patternLayout { artifact '[artifact]-forge-1.19.2-[revision].jar' }
             metadataSources { artifact() }
             content { includeGroup 'com.moakiee.ae2lt' }
         }
         ivy {
             name = 'LocalThunderboltBuild'
-            url = uri(findProperty('thunderbolt_build_libs') ?: '../Thunderbolt-Core-main/build/libs')
-            patternLayout { artifact 'thunderbolt-forge-1.20.1-[revision].jar' }
+            url = uri(findProperty('thunderbolt_build_libs') ?: '../Thunderbolt-Core-Reborn/build/libs')
+            patternLayout { artifact 'thunderbolt-forge-1.19.2-[revision].jar' }
             metadataSources { artifact() }
             content { includeGroup 'com.moakiee.thunderbolt' }
         }
@@ -240,18 +242,18 @@ dependencies {
     compileOnly fg.deobf("maven.modrinth:applied-energistics-2-wireless-terminals:${ae2wtlib_version}")
     if ((findProperty('enable_ae2wtlib_runtime') ?: 'true').toBoolean()) {
         runtimeOnly fg.deobf("maven.modrinth:applied-energistics-2-wireless-terminals:${ae2wtlib_version}")
-        // AE2WTLib declares both as mandatory on 1.20.1.
+        // AE2WTLib declares both as mandatory on 1.19.2.
         runtimeOnly fg.deobf("dev.architectury:architectury-forge:${architectury_version}")
         runtimeOnly fg.deobf("me.shedaniel.cloth:cloth-config-forge:${cloth_config_version}")
     }
 
-    runtimeOnly fg.deobf("org.appliedenergistics:guideme:${guideme_version}")
+
 
     if ((findProperty('enable_jei_runtime') ?: 'true').toBoolean()) {
         runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
     }
     if ((findProperty('enable_jade_runtime') ?: 'true').toBoolean()) {
-        runtimeOnly fg.deobf("curse.maven:jade-324717:${jade_file_id}")
+        runtimeOnly fg.deobf("maven.modrinth:jade:kp0HjPre")
     }
 
     // MixinExtras ships inside the production jar and joins the dev classpath.
@@ -274,66 +276,46 @@ dependencies {
     // a plain `gradlew build` does not depend on third-party availability. Enable
     // with -Penable_integration_runtime=true .
     // ============================================================
-    // Forge-specific Modrinth version IDs avoid selecting a Fabric/NeoForge file.
+    // Version IDs below select the Forge 1.19.2 releases. Each profile is opt-in.
     if ((findProperty('enable_chiseling_runtime') ?: 'false').toBoolean()) {
-        def chiselingMods = (findProperty('chiseling_runtime_mods') ?: 'chipped,rechiseled').toString().split(',') as Set
-        if (chiselingMods.contains('chipped')) {
-            runtimeOnly fg.deobf('maven.modrinth:chipped:pi3f4er3')                 // Forge 3.0.7
-            runtimeOnly fg.deobf('maven.modrinth:resourceful-lib:OhsHaCcW')         // Forge 2.1.29
-            runtimeOnly fg.deobf('maven.modrinth:athena-ctm:DULOQFj7')              // Forge 3.1.2
+        def mods = (findProperty('chiseling_runtime_mods') ?: 'chipped,rechiseled').toString().split(',') as Set
+        if (mods.contains('chipped')) {
+            runtimeOnly fg.deobf('maven.modrinth:chipped:Do5hlMJ8')
+            runtimeOnly fg.deobf('maven.modrinth:resourceful-lib:VdgtVVWP')
         }
-        if (chiselingMods.contains('rechiseled')) {
-            runtimeOnly fg.deobf('maven.modrinth:rechiseled:H9XQzWIp')              // Forge 1.2.6
-            runtimeOnly fg.deobf('maven.modrinth:supermartijn642s-core-lib:F4zhN7VF') // Forge 1.1.25
-            runtimeOnly fg.deobf('maven.modrinth:supermartijn642s-config-lib:ZKor79dR') // Forge 1.1.8
-            runtimeOnly fg.deobf('maven.modrinth:fusion-connected-textures:w0vXLzFW') // Forge 1.3.16
+        if (mods.contains('rechiseled')) {
+            runtimeOnly fg.deobf('maven.modrinth:rechiseled:uxAMJdgj')
+            runtimeOnly fg.deobf('maven.modrinth:supermartijn642s-core-lib:vdXkU5eR')
+            runtimeOnly fg.deobf('maven.modrinth:supermartijn642s-config-lib:HHm0Di8Y')
+            runtimeOnly fg.deobf('maven.modrinth:fusion-connected-textures:5DieK1dJ')
         }
     }
-    if ((findProperty('enable_appmek_runtime') ?: 'false').toBoolean()
-            || (findProperty('enable_integration_runtime') ?: 'false').toBoolean()) {
-        runtimeOnly fg.deobf('maven.modrinth:applied-mekanistics:9n9p68Qq')       // Forge 1.4.3
+    def integrationProfiles = [
+        ars: ['ars-nouveau:bm2MrJeJ', 'geckolib:lxzmD9V4', 'patchouli:62ztr7HA'],
+        naturesaura: ['natures-aura:gHMllbMl', 'patchouli:62ztr7HA'],
+        agriculture: ['mystical-agriculture:3K5fUGlj', 'cucumber:dvkVwxka'],
+        extendedcrafting: ['extended-crafting:Sxv68w2W', 'cucumber:dvkVwxka'],
+        occultism: ['occultism:mSKrPJlp', 'geckolib:lxzmD9V4', 'smartbrainlib:R8SV4kEf', 'modonomicon:JoNsAUCa'],
+        botania: ['botania:aTGY8zMJ', 'patchouli:62ztr7HA'],
+        forbidden: ['forbidden-arcanus:DtMZ6pWv', 'valhelsia-core:WD3qvkz8'],
+        mekanism: ['mekanism:yj7d33HE', 'applied-mekanistics:1mwC2ZzC']
+    ]
+    if ((findProperty('enable_appmek_runtime') ?: 'false').toBoolean()) {
+        integrationProfiles.mekanism.each { runtimeOnly fg.deobf("maven.modrinth:${it}") }
     }
     if ((findProperty('enable_integration_runtime') ?: 'false').toBoolean()) {
-        // Library dependencies shared by multiple target mods. Versions are the
-        // actual Modrinth release numbers for the 1.20.1 Forge line (the
-        // original pins referenced versions that were never published).
-        runtimeOnly fg.deobf("maven.modrinth:cucumber:7.0.16")                    // MA + EC (7.0.7+ fixes the Watering Can sound code loading client classes on dedicated servers)
-        runtimeOnly fg.deobf("maven.modrinth:patchouli:1.20.1-84-forge")          // AA + Botania
-        runtimeOnly fg.deobf("maven.modrinth:geckolib:4.8.4-forge")               // Occultism + Ars (Forge build; the Maven endpoint serves Fabric for plain 4.8.4)
-        runtimeOnly fg.deobf("maven.modrinth:smartbrainlib:1.15")                 // Occultism (1.15 Maven artifact is the Forge-compatible build)
-        runtimeOnly fg.deobf("maven.modrinth:modonomicon:1.20.1-1.50.0")          // Occultism (1.60+ changed BookRecipePage's constructor; occultism 1.100.0 pairs with the 1.50 line)
-        runtimeOnly fg.deobf("maven.modrinth:codechicken-lib:4.4.0.509")          // DE
-        runtimeOnly fg.deobf("maven.modrinth:brandons-core:3.2.1.302")            // DE
-        runtimeOnly fg.deobf("maven.modrinth:lodestonelib:1.20.1-1.6.4.1")        // Malum
-        runtimeOnly fg.deobf("maven.modrinth:curios:5.14.1+1.20.1")               // Malum + Ars
-
-        // Target mods (one adapter package per mod)
-        runtimeOnly fg.deobf("maven.modrinth:actually-subtractions:1.2.14.20+mc1.20.1") // aa/ (Actually Additions 1.20.1 is published under this project)
-        runtimeOnly fg.deobf("maven.modrinth:ars-nouveau:4.12.6")                 // ars/
-        runtimeOnly fg.deobf("maven.modrinth:natures-aura:39.4")                // naturesaura/
-        runtimeOnly fg.deobf("maven.modrinth:mystical-agriculture:7.0.9")         // ma/
-        runtimeOnly fg.deobf("maven.modrinth:extended-crafting:6.0.5")            // ec/
-        runtimeOnly fg.deobf("maven.modrinth:occultism:1.20.1-1.100.0")           // occultism/
-        runtimeOnly fg.deobf("maven.modrinth:draconic-evolution:3.1.2.621")       // de/
-        runtimeOnly fg.deobf("maven.modrinth:malum:1.20.1-1.6.7")                 // malum/
-        runtimeOnly fg.deobf("maven.modrinth:botania:1.20.1-456-forge")           // botania/
-        runtimeOnly fg.deobf("maven.modrinth:blood-magic:3.3.8-50")
-        runtimeOnly fg.deobf("maven.modrinth:forbidden-arcanus:1.20.1-2.2.6")
-        runtimeOnly fg.deobf("maven.modrinth:valhelsia-core:1.1.2")
-        // Plain 1.1.6 on the Modrinth Maven endpoint is the NeoForge build
-        // (neoforge.mods.toml only); the Forge 1.20.1 build is mirrored locally.
-        runtimeOnly fg.deobf("maven.modrinth:avaritianeo:1.1.6-forge")           // avaritia (AvaritiaNeo split)
-        runtimeOnly fg.deobf("maven.modrinth:mekanism:10.4.16.80")                // mekmm/ base
-        runtimeOnly fg.deobf("maven.modrinth:mekanismmoremachine:1.20.1-1.2.1")   // mekmm/
+        def profiles = (findProperty('integration_mods') ?: integrationProfiles.keySet().join(',')).toString().split(',')
+        profiles.each { name ->
+            if (!integrationProfiles.containsKey(name)) throw new GradleException("Unknown 1.19.2 integration profile: ${name}")
+            integrationProfiles[name].each { runtimeOnly fg.deobf("maven.modrinth:${it}") }
+        }
     }
 }
 
 // Provider persistence tests exercise real Minecraft NBT and registry types,
 // so reuse the Minecraft/Forge classpath already available to main.
 if ((findProperty('enable_avaritia_tests') ?: 'false').toBoolean()) {
-    dependencies {
-        testRuntimeOnly fg.deobf("maven.modrinth:avaritianeo:1.1.6-forge")
-    }
+    throw new GradleException('AvaritiaNeo tests require a 1.20.1 runtime; this branch targets 1.19.2.')
 }
 
 sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
@@ -352,7 +334,7 @@ test {
     }
 }
 
-// GameTests load structure templates in 1.20.1 from the SNBT folder
+// GameTests load structure templates in 1.19.2 from the SNBT folder
 // `gameteststructures/` relative to the run directory: the datapack
 // `structures/` lookup only accepts compiled binary .nbt, so the text
 // templates cannot ship as ordinary resources. Keep the repo copies under

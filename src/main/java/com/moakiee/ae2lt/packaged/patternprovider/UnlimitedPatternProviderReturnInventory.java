@@ -7,7 +7,7 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.AEKeyFilter;
-import appeng.helpers.patternprovider.PatternProviderReturnInventory;
+import appeng.helpers.iface.PatternProviderReturnInventory;
 
 /**
  * Insert-only return inventory with unlimited amount per occupied key slot.

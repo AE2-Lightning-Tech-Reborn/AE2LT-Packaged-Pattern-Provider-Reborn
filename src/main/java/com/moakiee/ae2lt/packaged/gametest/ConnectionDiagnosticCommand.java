@@ -157,7 +157,7 @@ public final class ConnectionDiagnosticCommand {
                     : "ae2ltdiag: " + tally.passed + " passed, " + tally.failed + " failed";
             LOG.info("[ae2ltpp-conn] SUMMARY pass={} fail={} colocated_machines={} conn38_pending={}",
                     tally.passed, tally.failed, machines, conn38Pending);
-            source.sendSuccess(() -> Component.literal(summary), false);
+            source.sendSuccess( Component.literal(summary), false);
             if (conn38Pending) {
                 return 0;
             }
@@ -212,7 +212,7 @@ public final class ConnectionDiagnosticCommand {
         LOG.info("[ae2ltpp-conn] CONN38_DONE pass={} fail={}",
                 pending.tally.passed, pending.tally.failed);
         if (pending.tally.failed == 0) {
-            pending.source.sendSuccess(() -> Component.literal(followUp), false);
+            pending.source.sendSuccess( Component.literal(followUp), false);
         } else {
             pending.source.sendFailure(Component.literal(followUp));
         }

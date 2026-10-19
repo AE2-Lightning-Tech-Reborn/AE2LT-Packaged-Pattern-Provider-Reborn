@@ -17,7 +17,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -55,7 +55,7 @@ public final class PendingBatchInputs {
             var portKey = dimension + "@" + target.pos().asLong();
             if (!ports.add(portKey)) return List.of();
             result.add(new Delivery(adapter.batchAdapterId(), dimension, target.pos(), target.face(),
-                    BuiltInRegistries.BLOCK.getKey(target.level().getBlockState(target.pos()).getBlock()),
+                    Registry.BLOCK.getKey(target.level().getBlockState(target.pos()).getBlock()),
                     target.stacks().get(0)));
         }
         return List.copyOf(result);

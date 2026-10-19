@@ -11,8 +11,8 @@ import org.slf4j.LoggerFactory;
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
-import appeng.helpers.patternprovider.PatternProviderReturnInventory;
-import appeng.helpers.patternprovider.PatternProviderTarget;
+import appeng.helpers.iface.PatternProviderReturnInventory;
+import appeng.helpers.iface.PatternProviderTarget;
 
 import com.moakiee.ae2lt.packaged.logic.DispatchResult;
 

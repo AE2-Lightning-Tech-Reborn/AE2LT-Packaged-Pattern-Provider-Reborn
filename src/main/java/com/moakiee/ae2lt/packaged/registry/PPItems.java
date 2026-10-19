@@ -3,7 +3,7 @@ package com.moakiee.ae2lt.packaged.registry;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
@@ -18,7 +18,7 @@ import com.moakiee.ae2lt.packaged.item.PackagedCoreBaseItem;
 
 public final class PPItems {
     public static final DeferredRegister<Item> ITEMS =
-            DeferredRegister.create(Registries.ITEM, AE2LTPackagedProvider.MODID);
+            DeferredRegister.create(Registry.ITEM_REGISTRY, AE2LTPackagedProvider.MODID);
 
     public static final RegistryObject<MultiblockAdapterItem> NATURES_AURA_ALTAR_ADAPTER =
             registerPackagedCore("naturesaura_altar_packaged_core",
@@ -198,7 +198,7 @@ public final class PPItems {
                     AdapterIds.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE,
                     Set.of(AdapterIds.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE));
     public static final RegistryObject<HephaestusUpgradeReceiptItem> HEPHAESTUS_UPGRADE_RECEIPT =
-            ITEMS.register("hephaestus_upgrade_receipt", () -> new HephaestusUpgradeReceiptItem(new Item.Properties()));
+            ITEMS.register("hephaestus_upgrade_receipt", () -> new HephaestusUpgradeReceiptItem(new Item.Properties().tab(PPCreativeTabs.MAIN_TAB)));
     public static final RegistryObject<MultiblockAdapterItem> CHISELING_ADAPTER =
             registerPackagedCore("chiseling_packaged_core", AdapterIds.CHISELING, Set.of(AdapterIds.CHISELING));
 
@@ -209,7 +209,7 @@ public final class PPItems {
 
     /** Generic crafting base for the per-machine packaged cores. */
     public static final RegistryObject<Item> BASIC_PACKAGED_CORE =
-            registerSimpleItem("basic_packaged_core", new Item.Properties());
+            registerSimpleItem("basic_packaged_core", new Item.Properties().tab(PPCreativeTabs.MAIN_TAB));
 
     private PPItems() {
     }
@@ -231,9 +231,9 @@ public final class PPItems {
             Set<ResourceLocation> coveredIds) {
         return ITEMS.register(name,
                 () -> primaryId.equals(AdapterIds.RESONANT)
-                        ? new ResonantPackagedCoreItem(new Item.Properties().stacksTo(1))
+                        ? new ResonantPackagedCoreItem(new Item.Properties().tab(PPCreativeTabs.MAIN_TAB).stacksTo(1))
                         : new MultiblockAdapterItem(
-                        new Item.Properties().stacksTo(1),
+                        new Item.Properties().tab(PPCreativeTabs.MAIN_TAB).stacksTo(1),
                         primaryId,
                         coveredIds));
     }

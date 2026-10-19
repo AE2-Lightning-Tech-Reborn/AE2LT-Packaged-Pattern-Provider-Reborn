@@ -85,7 +85,7 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
         }
         // Enforce K=1 at bind time: pattern.amount must equal the recipe's
         // own result count (one terra plate cycle = one craft).
-        var result = holder.getResultItem(level.registryAccess());
+        var result = holder.getResultItem();
         if (result == null || result.isEmpty()) {
             return null;
         }
@@ -164,7 +164,7 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
             return null;
         }
         var recipe = bind.holder();
-        var result = recipe.getResultItem(level.registryAccess());
+        var result = recipe.getResultItem();
         if (result == null || result.isEmpty()) {
             return null;
         }

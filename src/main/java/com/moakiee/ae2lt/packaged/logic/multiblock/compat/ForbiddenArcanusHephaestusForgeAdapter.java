@@ -482,7 +482,7 @@ public final class ForbiddenArcanusHephaestusForgeAdapter implements MultiblockA
         var data = entity.getPersistentData();
         var dimension = ResourceLocation.tryParse(data.getString(OWNER_DIMENSION));
         if (dimension == null || !data.contains(OWNER_POSITION)) return false;
-        var ownerLevel = level.getServer().getLevel(ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, dimension));
+        var ownerLevel = level.getServer().getLevel(ResourceKey.create(net.minecraft.core.Registry.DIMENSION_REGISTRY, dimension));
         if (ownerLevel == null) return false;
         var ownerPos = BlockPos.of(data.getLong(OWNER_POSITION));
         if (!ownerLevel.isLoaded(ownerPos)) return false;

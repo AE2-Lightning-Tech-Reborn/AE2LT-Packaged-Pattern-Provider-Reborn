@@ -32,7 +32,7 @@ final class ResonantReservations {
 
     boolean reserve(ServerLevel level, PendingBatchInputs.Delivery delivery) {
         // Native ME storage may have semantics different from the exposed inventory; its own simulation wins.
-        if (capability(level, delivery.pos(), Capabilities.STORAGE, delivery.face()) != null) return true;
+        if (capability(level, delivery.pos(), Capabilities.STORAGE_MONITORABLE_ACCESSOR, delivery.face()) != null) return true;
         if (delivery.stack().what() instanceof AEItemKey key) {
             var handler = capability(level, delivery.pos(), ForgeCapabilities.ITEM_HANDLER, delivery.face());
             return handler == null || reserveItems(handler, new Port(delivery.pos(), delivery.face()), key, delivery.stack().amount());

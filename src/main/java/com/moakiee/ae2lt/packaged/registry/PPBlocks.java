@@ -2,7 +2,7 @@ package com.moakiee.ae2lt.packaged.registry;
 
 import java.util.function.Supplier;
 
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Registry;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -16,7 +16,7 @@ import com.moakiee.ae2lt.packaged.block.WirelessPackagedPatternProviderBlock;
 
 public final class PPBlocks {
     public static final DeferredRegister<Block> BLOCKS =
-            DeferredRegister.create(Registries.BLOCK, AE2LTPackagedProvider.MODID);
+            DeferredRegister.create(Registry.BLOCK_REGISTRY, AE2LTPackagedProvider.MODID);
 
     public static final RegistryObject<PackagedPatternProviderBlock> PACKAGED_PATTERN_PROVIDER =
             registerBlock("packaged_pattern_provider", PackagedPatternProviderBlock::new);
@@ -32,7 +32,7 @@ public final class PPBlocks {
 
     private static <T extends Block> RegistryObject<T> registerBlock(String name, Supplier<T> blockFactory) {
         var registered = BLOCKS.register(name, blockFactory);
-        PPItems.ITEMS.register(name, () -> new BlockItem(registered.get(), new Item.Properties()));
+        PPItems.ITEMS.register(name, () -> new BlockItem(registered.get(), new Item.Properties().tab(PPCreativeTabs.MAIN_TAB)));
         return registered;
     }
 }

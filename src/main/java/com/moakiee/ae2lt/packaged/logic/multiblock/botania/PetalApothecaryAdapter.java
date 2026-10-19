@@ -195,7 +195,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
             return null;
         }
         var recipe = bind.holder();
-        var result = recipe.getResultItem(level.registryAccess());
+        var result = recipe.getResultItem();
         if (result == null || result.isEmpty()) {
             return null;
         }

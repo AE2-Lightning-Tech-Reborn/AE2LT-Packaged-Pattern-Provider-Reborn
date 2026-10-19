@@ -305,7 +305,7 @@ public final class ActuallyAdditionsAtomicReconstructorAdapter implements Virtua
             return ItemStack.EMPTY;
         }
         try {
-            return typedRecipe.getResultItem(level.registryAccess()).copy();
+            return typedRecipe.getResultItem().copy();
         } catch (RuntimeException | LinkageError ignored) {
             return ItemStack.EMPTY;
         }

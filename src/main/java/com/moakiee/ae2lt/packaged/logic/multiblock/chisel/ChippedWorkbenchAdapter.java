@@ -18,7 +18,7 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -31,11 +31,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import org.jetbrains.annotations.Nullable;
 
-/** Chipped 3.x uses a recipe type per workbench and requires both physical halves. */
+/** Chipped 2.x uses a recipe type per workbench and requires both physical halves. */
 public final class ChippedWorkbenchAdapter implements LinearVirtualCraftingAdapter {
     private static final Set<String> BENCHES = Set.of("botanist_workbench", "glassblower", "carpenters_table",
-            "loom_table", "mason_table", "alchemy_bench", "tinkering_table");
-    private static Method recipeType;
+            "loom_table", "mason_table", "alchemy_bench", "mechanist_workbench");
     private static Method getResults;
 
     @Override public int priority() { return 120; }
@@ -44,7 +43,7 @@ public final class ChippedWorkbenchAdapter implements LinearVirtualCraftingAdapt
     @Override
     public boolean recognizesMain(ServerLevel level, BlockPos pos, @Nullable BlockEntity be) {
         var state = level.getBlockState(pos);
-        var id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        var id = Registry.BLOCK.getKey(state.getBlock());
         if (!id.getNamespace().equals("chipped") || !BENCHES.contains(id.getPath())
                 || !model(state).equals("main") || !state.hasProperty(HorizontalDirectionalBlock.FACING)) return false;
         var facing = state.getValue(HorizontalDirectionalBlock.FACING);
@@ -70,20 +69,17 @@ public final class ChippedWorkbenchAdapter implements LinearVirtualCraftingAdapt
     private static boolean permits(ServerLevel level, BlockPos pos, ChiselConversion conversion) {
         if (conversion.inputAmount() != conversion.outputAmount()) return false;
         try {
-            if (recipeType == null) {
-                recipeType = Class.forName("earth.terrarium.chipped.common.blocks.WorkbenchBlock")
-                        .getMethod("recipeType");
-            }
-            var type = (RecipeType<?>) recipeType.invoke(level.getBlockState(pos).getBlock());
+            var blockId = Registry.BLOCK.getKey(level.getBlockState(pos).getBlock());
+            var type = Registry.RECIPE_TYPE.get(blockId);
             if (type == null) return false;
             var input = new SimpleContainer(conversion.input().toStack(1));
             var recipe = (Recipe<?>) level.getRecipeManager().getRecipeFor((RecipeType) type, input, level).orElse(null);
             if (recipe == null) return false;
             if (getResults == null) {
-                getResults = Class.forName("earth.terrarium.chipped.common.recipes.ChippedRecipe")
-                        .getMethod("getResults", ItemStack.class);
+                getResults = Class.forName("earth.terrarium.chipped.common.recipe.ChippedRecipe")
+                        .getMethod("getResults", net.minecraft.world.Container.class);
             }
-            try (var results = (Stream<?>) getResults.invoke(recipe, conversion.input().toStack(1))) {
+            try (var results = (Stream<?>) getResults.invoke(recipe, input)) {
                 return results.anyMatch(value -> value instanceof ItemStack stack && !stack.isEmpty()
                         && conversion.output().equals(AEItemKey.of(stack)));
             }

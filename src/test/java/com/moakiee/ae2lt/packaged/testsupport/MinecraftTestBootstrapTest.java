@@ -7,7 +7,7 @@ import java.util.ArrayList;
 
 import org.junit.jupiter.api.Test;
 
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.eventbus.api.EventListenerHelper;
@@ -21,7 +21,7 @@ class MinecraftTestBootstrapTest {
         MinecraftTestBootstrap.initialize();
 
         assertEquals("FML3", NetworkConstants.init());
-        assertSame(Items.DIAMOND, BuiltInRegistries.ITEM.get(
+        assertSame(Items.DIAMOND, Registry.ITEM.get(
                 new ResourceLocation("minecraft", "diamond")));
         assertSame(new NetworkEvent(() -> null).getListenerList(),
                 EventListenerHelper.getListenerList(NetworkEvent.class));

@@ -44,7 +44,7 @@ public final class BotaniaRecipeLookup {
     @Nullable
     private static ItemStack safeResult(Recipe<?> recipe, ServerLevel level) {
         try {
-            return recipe.getResultItem(level.registryAccess());
+            return recipe.getResultItem();
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }
@@ -188,7 +188,7 @@ public final class BotaniaRecipeLookup {
         for (var recipe : recipes) {
             ItemStack result;
             try {
-                result = recipe.getResultItem(registries);
+                result = recipe.getResultItem();
             } catch (RuntimeException | LinkageError ignored) {
                 continue;
             }

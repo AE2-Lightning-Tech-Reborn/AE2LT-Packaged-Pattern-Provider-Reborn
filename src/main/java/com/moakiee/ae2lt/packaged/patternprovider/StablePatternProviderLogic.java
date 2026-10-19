@@ -26,7 +26,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.AEKeyFilter;
-import appeng.helpers.patternprovider.PatternProviderLogic;
+import appeng.helpers.iface.PatternProviderLogic;
 import appeng.me.helpers.MachineSource;
 import appeng.util.inv.filter.IAEItemFilter;
 
@@ -417,9 +417,9 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
         invalidateConnections();
     }
 
-    @Override
     public void clearContent() {
-        super.clearContent();
+        com.moakiee.ae2lt.packaged.compat.LegacyInventories.clear(getPatternInv());
+        getReturnInv().clear();
         cachedOutputFilter = null;
         outputFilterDirty = true;
         invalidateConnections();

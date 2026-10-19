@@ -55,24 +55,24 @@ public final class AvaritiaNeoTests {
     private static void startOrders(GameTestHelper helper, String recipeName, String recipeClass, int outputCount) {
         var level = helper.getLevel();
         var recipe = level.getRecipeManager().byKey(new ResourceLocation("avaritia", recipeName)).orElseThrow();
-        helper.assertTrue(recipe.getClass().getName().equals("net.byAqua3.avaritia.recipe." + recipeClass),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(recipe.getClass().getName().equals("net.byAqua3.avaritia.recipe." + recipeClass),
                 "Avaritia CPU fixture did not load the native extreme recipe");
         var amounts = new LinkedHashMap<AEItemKey, Long>();
         for (var ingredient : recipe.getIngredients()) {
             if (!ingredient.isEmpty()) {
                 var choices = ingredient.getItems();
-                helper.assertTrue(choices.length > 0, "Avaritia native recipe has an empty ingredient");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(choices.length > 0, "Avaritia native recipe has an empty ingredient");
                 amounts.merge(AEItemKey.of(choices[0]), 1L, Long::sum);
             }
         }
-        var result = recipe.getResultItem(level.registryAccess());
-        helper.assertTrue(!amounts.isEmpty() && result.getCount() == outputCount,
+        var result = recipe.getResultItem();
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!amounts.isEmpty() && result.getCount() == outputCount,
                 "Avaritia native recipe quantities changed");
         var output = AEItemKey.of(result);
-        helper.assertTrue(!amounts.containsKey(output), "Avaritia fixture output overlaps inputs");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!amounts.containsKey(output), "Avaritia fixture output overlaps inputs");
         var tableRelative = new BlockPos(4, 2, 4);
         var tableBlock = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("avaritia", "extreme_crafting_table"));
-        helper.assertTrue(tableBlock != null, "Avaritia extreme table is missing");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(tableBlock != null, "Avaritia extreme table is missing");
         helper.setBlock(tableRelative, tableBlock.defaultBlockState());
         var table = level.getBlockEntity(helper.absolutePos(tableRelative));
         Container matrix;
@@ -83,7 +83,7 @@ public final class AvaritiaNeoTests {
         } catch (ReflectiveOperationException failed) {
             throw new IllegalStateException("Avaritia table inventory layout changed", failed);
         }
-        helper.assertTrue(matrix.getContainerSize() == 81 && preview.getContainerSize() == 1,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(matrix.getContainerSize() == 81 && preview.getContainerSize() == 1,
                 "Avaritia CPU fixture has unexpected table inventories");
         var providerRelative = tableRelative.south();
         helper.setBlock(providerRelative, PPBlocks.PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
@@ -102,14 +102,14 @@ public final class AvaritiaNeoTests {
         provider.getLogic().updatePatterns();
         var fixture = new CraftingFixture(provider, matrix, preview, amounts, output, outputCount);
         helper.runAfterDelay(60, () -> {
-            helper.assertTrue(provider.getMainNode().isActive(), "Avaritia CPU provider is not active");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(provider.getMainNode().isActive(), "Avaritia CPU provider is not active");
             var grid = provider.getMainNode().getGrid();
-            helper.assertTrue(grid == chest.getMainNode().getGrid(), "Avaritia storage is on another grid");
-            helper.assertTrue(grid.getCraftingService().getCpus().size() == 1, "Avaritia fixture has no active CPU");
-            helper.assertTrue(grid.getCraftingService().isCraftable(output), "Avaritia pattern is not registered in ME");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid == chest.getMainNode().getGrid(), "Avaritia storage is on another grid");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid.getCraftingService().getCpus().size() == 1, "Avaritia fixture has no active CPU");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid.getCraftingService().isCraftable(output), "Avaritia pattern is not registered in ME");
             for (var entry : amounts.entrySet()) {
                 long supply = entry.getValue() * TOTAL_CRAFTS;
-                helper.assertTrue(grid.getStorageService().getInventory().insert(entry.getKey(), supply,
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid.getStorageService().getInventory().insert(entry.getKey(), supply,
                         Actionable.MODULATE, IActionSource.empty()) == supply, "Avaritia fixture could not store inputs");
             }
             helper.runAfterDelay(5, () -> beginOrder(helper, fixture, 1, 0));
@@ -137,7 +137,7 @@ public final class AvaritiaNeoTests {
     private static void pollPlan(GameTestHelper helper, CraftingFixture fixture, int crafts, int completed,
                                  Future<ICraftingPlan> future, int remainingTicks) {
         if (!future.isDone()) {
-            helper.assertTrue(remainingTicks > 0, "Avaritia ME calculation timed out");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(remainingTicks > 0, "Avaritia ME calculation timed out");
             helper.runAfterDelay(1, () -> pollPlan(helper, fixture, crafts, completed, future, remainingTicks - 1));
             return;
         }
@@ -152,13 +152,13 @@ public final class AvaritiaNeoTests {
         }
         var service = fixture.provider().getMainNode().getGrid().getCraftingService();
         if (completed == TOTAL_CRAFTS) {
-            helper.assertTrue(plan.simulation() && plan.missingItems().size() == fixture.inputs().size(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan.simulation() && plan.missingItems().size() == fixture.inputs().size(),
                     "Avaritia calculation did not report all depleted inputs");
             for (var entry : fixture.inputs().entrySet()) {
-                helper.assertTrue(plan.missingItems().get(entry.getKey()) == entry.getValue(),
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan.missingItems().get(entry.getKey()) == entry.getValue(),
                         "Avaritia calculation reported incorrect missing input quantities");
             }
-            helper.assertTrue(!service.submitJob(plan, null, null, false, IActionSource.empty()).successful(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!service.submitJob(plan, null, null, false, IActionSource.empty()).successful(),
                     "Avaritia CPU accepted an order with missing ingredients");
             helper.runAfterDelay(40, () -> {
                 assertResult(helper, fixture, completed);
@@ -166,24 +166,24 @@ public final class AvaritiaNeoTests {
             });
             return;
         }
-        helper.assertTrue(!plan.simulation() && plan.missingItems().isEmpty(), "Avaritia ME order has missing inputs");
-        helper.assertTrue(plan.finalOutput().what().equals(fixture.output())
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!plan.simulation() && plan.missingItems().isEmpty(), "Avaritia ME order has missing inputs");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan.finalOutput().what().equals(fixture.output())
                 && plan.finalOutput().amount() == (long) crafts * fixture.outputCount(), "Avaritia output count changed");
         for (var entry : fixture.inputs().entrySet()) {
-            helper.assertTrue(plan.usedItems().get(entry.getKey()) == entry.getValue() * crafts,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan.usedItems().get(entry.getKey()) == entry.getValue() * crafts,
                     "Avaritia CPU order uses incorrect input quantities");
         }
         fixture.matrix().setItem(0, new ItemStack(Items.EMERALD));
         var cpu = (CraftingCPUCluster) service.getCpus().iterator().next();
         var submitted = service.submitJob(plan, null, cpu, false, IActionSource.empty());
-        helper.assertTrue(submitted.successful(), "Avaritia CPU rejected order: " + submitted.errorCode());
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(submitted.successful(), "Avaritia CPU rejected order: " + submitted.errorCode());
         helper.runAfterDelay(40, () -> {
-            helper.assertTrue(cpu.isBusy(), "Avaritia CPU ignored the occupied manual table");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(cpu.isBusy(), "Avaritia CPU ignored the occupied manual table");
             var manual = fixture.matrix().getItem(0);
-            helper.assertTrue(manual.is(Items.EMERALD) && manual.getCount() == 1 && fixture.preview().isEmpty(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(manual.is(Items.EMERALD) && manual.getCount() == 1 && fixture.preview().isEmpty(),
                     "Avaritia virtual craft changed manual table contents");
             var stored = fixture.provider().getMainNode().getGrid().getStorageService().getInventory().getAvailableStacks();
-            helper.assertTrue(stored.get(fixture.output()) == (long) completed * fixture.outputCount(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(stored.get(fixture.output()) == (long) completed * fixture.outputCount(),
                     "Avaritia CPU produced output while the manual table was occupied");
             fixture.matrix().removeItemNoUpdate(0);
             fixture.matrix().setChanged();
@@ -194,7 +194,7 @@ public final class AvaritiaNeoTests {
     private static void pollOrder(GameTestHelper helper, CraftingFixture fixture, int completed,
                                   CraftingCPUCluster cpu, int remainingTicks) {
         if (cpu.isBusy()) {
-            helper.assertTrue(remainingTicks > 0,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(remainingTicks > 0,
                     "Avaritia CPU order timed out: " + fixture.provider().saveWithoutMetadata());
             helper.runAfterDelay(1, () -> pollOrder(helper, fixture, completed, cpu, remainingTicks - 1));
             return;
@@ -214,17 +214,17 @@ public final class AvaritiaNeoTests {
         var grid = fixture.provider().getMainNode().getGrid();
         var stored = grid.getStorageService().getInventory().getAvailableStacks();
         for (var entry : fixture.inputs().entrySet()) {
-            helper.assertTrue(stored.get(entry.getKey()) == entry.getValue() * (TOTAL_CRAFTS - completed),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(stored.get(entry.getKey()) == entry.getValue() * (TOTAL_CRAFTS - completed),
                     "Avaritia CPU lost or duplicated inputs");
         }
-        helper.assertTrue(stored.get(fixture.output()) == (long) completed * fixture.outputCount(),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(stored.get(fixture.output()) == (long) completed * fixture.outputCount(),
                 "Avaritia CPU lost or duplicated native recipe outputs");
-        helper.assertTrue(stored.size() == (completed == TOTAL_CRAFTS ? 1 : fixture.inputs().size() + 1),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(stored.size() == (completed == TOTAL_CRAFTS ? 1 : fixture.inputs().size() + 1),
                 "Avaritia ME storage has unexpected keys");
-        helper.assertTrue(grid.getCraftingService().getCpus().stream().noneMatch(cpu -> cpu.isBusy()),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(grid.getCraftingService().getCpus().stream().noneMatch(cpu -> cpu.isBusy()),
                 "Avaritia CPU remained busy after completing order");
-        helper.assertTrue(fixture.provider().getLogic().getReturnInv().isEmpty(), "Avaritia return inventory is not empty");
-        helper.assertTrue(fixture.matrix().isEmpty() && fixture.preview().isEmpty(), "Avaritia virtual craft changed the table");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(fixture.provider().getLogic().getReturnInv().isEmpty(), "Avaritia return inventory is not empty");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(fixture.matrix().isEmpty() && fixture.preview().isEmpty(), "Avaritia virtual craft changed the table");
     }
 
     private record CraftingFixture(PackagedPatternProviderBlockEntity provider, Container matrix, Container preview,

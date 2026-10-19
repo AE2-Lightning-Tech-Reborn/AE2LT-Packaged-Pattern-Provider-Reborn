@@ -32,8 +32,8 @@ class CompatibilityReflectionContractTest {
         // taken, the remainder is written back, and the write is re-read and
         // verified before the extraction is confirmed.
         assertTrue(source.contains("extractOutput(BlockEntity be, int amount)"));
-        assertTrue(source.contains("var extracted = stack.copyWithCount(amount);"));
-        assertTrue(source.contains("var remaining = stack.copyWithCount(stack.getCount() - amount);"));
+        assertTrue(source.contains("var extracted = com.moakiee.ae2lt.packaged.compat.LegacyStacks.copyWithCount(stack, amount);"));
+        assertTrue(source.contains("var remaining = com.moakiee.ae2lt.packaged.compat.LegacyStacks.copyWithCount(stack, stack.getCount() - amount);"));
         assertTrue(source.contains("setOutputStackMethod.invoke(be, remaining);"));
         assertTrue(source.contains("ItemStack.isSameItemSameTags(afterStack, remaining)"));
     }

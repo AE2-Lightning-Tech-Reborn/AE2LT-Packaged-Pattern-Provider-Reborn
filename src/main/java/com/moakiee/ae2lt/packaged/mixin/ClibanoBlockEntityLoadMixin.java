@@ -1,6 +1,6 @@
 package com.moakiee.ae2lt.packaged.mixin;
 
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
@@ -22,7 +22,7 @@ public abstract class ClibanoBlockEntityLoadMixin {
             at = @At("TAIL"), remap = false)
     private void ae2ltpp$restoreDismantleStateBeforeWorldAttachment(CompoundTag tag, CallbackInfo callback) {
         if (((BlockEntity) (Object) this).getLevel() == null && tag.contains("State", Tag.TAG_COMPOUND)) {
-            replaceState = NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(), tag.getCompound("State"));
+            replaceState = NbtUtils.readBlockState(tag.getCompound("State"));
         }
     }
 }

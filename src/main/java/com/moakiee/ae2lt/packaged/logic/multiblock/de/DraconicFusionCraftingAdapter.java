@@ -638,8 +638,8 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
                     return ItemStack.EMPTY;
                 }
                 var original = stack.copy();
-                var extracted = stack.copyWithCount(amount);
-                var remaining = stack.copyWithCount(stack.getCount() - amount);
+                var extracted = com.moakiee.ae2lt.packaged.compat.LegacyStacks.copyWithCount(stack, amount);
+                var remaining = com.moakiee.ae2lt.packaged.compat.LegacyStacks.copyWithCount(stack, stack.getCount() - amount);
                 setOutputStackMethod.invoke(be, remaining);
                 var after = getOutputStackMethod.invoke(be);
                 if (!(after instanceof ItemStack afterStack)
@@ -802,7 +802,7 @@ public final class DraconicFusionCraftingAdapter implements MultiblockAdapter {
                 return null;
             }
             try {
-                var result = vanillaRecipe.getResultItem(level.registryAccess());
+                var result = vanillaRecipe.getResultItem();
                 return result != null && !result.isEmpty() ? result.copy() : null;
             } catch (RuntimeException | LinkageError e) {
                 return null;

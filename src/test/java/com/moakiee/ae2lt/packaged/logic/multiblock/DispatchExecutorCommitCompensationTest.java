@@ -22,7 +22,7 @@ import appeng.api.config.Actionable;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
-import appeng.helpers.patternprovider.PatternProviderReturnInventory;
+import appeng.helpers.iface.PatternProviderReturnInventory;
 
 class DispatchExecutorCommitCompensationTest {
     @Test

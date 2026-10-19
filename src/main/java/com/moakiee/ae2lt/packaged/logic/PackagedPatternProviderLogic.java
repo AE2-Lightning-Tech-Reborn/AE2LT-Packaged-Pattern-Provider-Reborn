@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
@@ -352,7 +352,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                     && candidate.adapter() instanceof InputBatchCraftingAdapter) {
                 var env = resolveLaneEnv(level, candidate);
                 if (env != null && dispatchReady(candidate, pattern, env, tick)
-                        && candidate.adapter().canDispatch(env.level(), env.pos(), candidate.handle(), adapterScope())) {
+                        && candidate.adapter().canDispatch(env.level, env.pos(), candidate.handle(), adapterScope())) {
                     capacity += inputBatchLimiter.remaining(candidate.lane(), tick);
                 }
             } else {
@@ -385,7 +385,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                     && candidate.adapter() instanceof LinearVirtualCraftingAdapter adapter) {
                 var env = resolveLaneEnv(level, candidate);
                 if (env == null) continue;
-                var result = adapter.planVirtualWithBinding(env.level(), env.pos(), pattern,
+                var result = adapter.planVirtualWithBinding(env.level, env.pos(), pattern,
                         BatchCopies.copy(template), candidate.handle(), getActionSource());
                 if (result == null || result.outputs().isEmpty()) continue;
                 boolean unbounded = adapter instanceof UnboundedVirtualCraftingAdapter;
@@ -399,7 +399,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                 if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
                 if (!result.commit()) continue;
                 pendingFlushSoundId = adapter.flushSoundId();
-                pendingFlushEffect = new PendingVirtualFlushEffect(adapter, env.level(), env.pos(), candidate.handle());
+                pendingFlushEffect = new PendingVirtualFlushEffect(adapter, env.level, env.pos(), candidate.handle());
                 enqueueVirtualOutputs(outputs);
                 PatternProviderPowerCost.consumeRaw(grid, cost * copies);
                 recordSuccessfulPush(pattern);
@@ -410,8 +410,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                     || !(candidate.adapter() instanceof InputBatchCraftingAdapter adapter)) continue;
             var env = resolveLaneEnv(level, candidate);
             if (env == null || !dispatchReady(candidate, pattern, env, tick)
-                    || !candidate.adapter().canDispatch(env.level(), env.pos(), candidate.handle(), adapterScope())) continue;
-            var plan = adapter.planBatchWithBinding(env.level(), env.pos(), pattern,
+                    || !candidate.adapter().canDispatch(env.level, env.pos(), candidate.handle(), adapterScope())) continue;
+            var plan = adapter.planBatchWithBinding(env.level, env.pos(), pattern,
                     BatchCopies.copy(template), candidate.handle(), getActionSource(), adapterScope());
             var ports = PendingBatchInputs.prepare(plan, adapter);
             if (ports.isEmpty()) continue;
@@ -443,7 +443,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
         pendingBatchInputs.adopt(deliveries);
         try {
             if (!((InputBatchCraftingAdapter) candidate.adapter()).onBatchAccepted(
-                    env.level(), env.pos(), pattern, candidate.handle(), (int) copies, adapterScope())) {
+                    env.level, env.pos(), pattern, candidate.handle(), (int) copies, adapterScope())) {
                 pendingBatchInputs.clear();
                 return false;
             }
@@ -473,10 +473,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
     private long insertBatchDelivery(ServerLevel providerLevel, PendingBatchInputs.Delivery delivery,
                                      Actionable mode) {
         var key = net.minecraft.resources.ResourceKey.create(
-                net.minecraft.core.registries.Registries.DIMENSION, delivery.dimension());
+                net.minecraft.core.Registry.DIMENSION_REGISTRY, delivery.dimension());
         var targetLevel = providerLevel.getServer().getLevel(key);
         if (targetLevel == null || !targetLevel.isLoaded(delivery.pos())
-                || !BuiltInRegistries.BLOCK.getKey(targetLevel.getBlockState(delivery.pos()).getBlock())
+                || !Registry.BLOCK.getKey(targetLevel.getBlockState(delivery.pos()).getBlock())
                 .equals(delivery.block())) return 0;
         if (delivery.adapter().equals(AdapterIds.RESONANT)) {
             return mode == Actionable.MODULATE ? ResonantDispatch.insert(targetLevel, delivery, getActionSource()) : 0;
@@ -642,7 +642,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
             }
 
             var result = virtualAdapter.planVirtualWithBinding(
-                    env.level(), env.pos(), pattern, inputs, candidate.handle(), getActionSource());
+                    env.level, env.pos(), pattern, inputs, candidate.handle(), getActionSource());
             if (result == null || result.outputs().isEmpty() || virtualBatch.maxCopies(result.outputs()) < 1) {
                 continue;
             }
@@ -662,7 +662,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                 pendingFlushSoundId = sid;
             }
             pendingFlushEffect = new PendingVirtualFlushEffect(
-                    virtualAdapter, env.level(), env.pos(), candidate.handle());
+                    virtualAdapter, env.level, env.pos(), candidate.handle());
             return true;
         }
         return false;
@@ -707,7 +707,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                     && (!(candidate.adapter() instanceof MekanismMoreMachinesAdapter)
                         || mekReturns.isDue(mekTarget(env), gameTick))) {
                 var extracted = candidate.adapter().extractOutputs(
-                        env.level(), env.pos(), filter, getActionSource(), adapterScope());
+                        env.level, env.pos(), filter, getActionSource(), adapterScope());
                 if (candidate.adapter() instanceof MekanismMoreMachinesAdapter) {
                     var target = mekTarget(env);
                     mekReturnTargets.put(target, candidate.adapter());
@@ -719,7 +719,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
             }
 
             if (candidate.adapter() instanceof MekanismMoreMachinesAdapter mek && isBlocking()
-                    && mek.containsPatternInput(env.level(), env.pos(),
+                    && mek.containsPatternInput(env.level, env.pos(),
                             ((PatternProviderLogicAccessor) this).ae2ltpp$getPatternInputs())) {
                 dispatchFailed(candidate, pattern, env, gameTick);
                 continue;
@@ -727,14 +727,14 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
 
             // 1. Cheap gate: is the machine accepting?
             if (!candidate.adapter().canDispatch(
-                    env.level(), env.pos(), candidate.handle(), adapterScope())) {
+                    env.level, env.pos(), candidate.handle(), adapterScope())) {
                 dispatchFailed(candidate, pattern, env, gameTick);
                 continue;
             }
 
             // 2. Build and execute the plan
             var plan = candidate.adapter().planWithBinding(
-                    env.level(), env.pos(), pattern, inputs, candidate.handle(),
+                    env.level, env.pos(), pattern, inputs, candidate.handle(),
                     getActionSource(), adapterScope());
             // AUTO extraction above may have charged output power. Recheck before
             // DispatchExecutor can commit inputs so consumeRaw never undercharges.
@@ -957,13 +957,13 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
     }
 
     private MekTarget mekTarget(LaneEnv env) {
-        return new MekTarget(env.level().dimension().location(),
-                MekanismMoreMachinesAdapter.resolveMainPos(env.level(), env.pos()).immutable());
+        return new MekTarget(env.level.dimension().location(),
+                MekanismMoreMachinesAdapter.resolveMainPos(env.level, env.pos()).immutable());
     }
 
     private MekRequest mekRequest(LaneCandidate candidate, IPatternDetails pattern, LaneEnv env) {
         return new MekRequest(mekTarget(env), pattern,
-                ((MekanismMoreMachinesAdapter) candidate.adapter()).dispatchMode(env.level(), env.pos()));
+                ((MekanismMoreMachinesAdapter) candidate.adapter()).dispatchMode(env.level, env.pos()));
     }
 
     private boolean dispatchReady(LaneCandidate candidate, IPatternDetails pattern, LaneEnv env, long tick) {
@@ -1010,7 +1010,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
         var filter = getOrBuildOutputFilter();
         for (var entry : mekReturnTargets.entrySet()) {
             if (!mekReturns.isDue(entry.getKey(), tick)) continue;
-            var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,
+            var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.Registry.DIMENSION_REGISTRY,
                     entry.getKey().dimension());
             var level = providerLevel.getServer().getLevel(key);
             if (level == null || !level.isLoaded(entry.getKey().pos())) continue;
@@ -1280,7 +1280,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
         if (id == null) {
             return null;
         }
-        return BuiltInRegistries.SOUND_EVENT.get(id);
+        return Registry.SOUND_EVENT.get(id);
     }
 
     private void runPendingFlushEffectSafely() {
@@ -1291,10 +1291,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
         }
         try {
             effect.adapter().onVirtualBatchFlush(
-                    effect.level(), effect.pos(), effect.handle(), getActionSource());
+                    effect.level, effect.pos(), effect.handle(), getActionSource());
         } catch (RuntimeException | LinkageError e) {
             LOG.warn("Virtual batch adapter flush effect failed at {} in {}",
-                    effect.pos(), effect.level().dimension().location(), e);
+                    effect.pos(), effect.level.dimension().location(), e);
         }
     }
 

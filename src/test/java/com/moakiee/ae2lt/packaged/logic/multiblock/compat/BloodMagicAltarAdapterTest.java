@@ -34,7 +34,7 @@ class BloodMagicAltarAdapterTest {
         assertTrue(BloodMagicAltarAdapter.recoverInput(handler, expected).isEmpty());
         assertEquals(1, handler.getStackInSlot(0).getCount());
 
-        handler.setStackInSlot(0, expected.copyWithCount(2));
+        handler.setStackInSlot(0, com.moakiee.ae2lt.packaged.compat.LegacyStacks.copyWithCount(expected, 2));
         assertTrue(BloodMagicAltarAdapter.recoverInput(handler, expected).isEmpty());
         assertEquals(2, handler.getStackInSlot(0).getCount());
     }

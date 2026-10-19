@@ -10,7 +10,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -94,7 +94,7 @@ public record ResonantLayout(GlobalPos source, ResourceLocation anchorBlock, Dir
     }
 
     public boolean matchesAnchor(BlockState state) {
-        return !state.isAir() && anchorBlock.equals(BuiltInRegistries.BLOCK.getKey(state.getBlock()));
+        return !state.isAir() && anchorBlock.equals(Registry.BLOCK.getKey(state.getBlock()));
     }
 
     /** Use the machine's horizontal facing when available, otherwise the bound/clicked face. */

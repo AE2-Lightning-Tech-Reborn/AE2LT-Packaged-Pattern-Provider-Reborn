@@ -16,7 +16,7 @@ import org.jetbrains.annotations.Nullable;
 
 import appeng.block.AEBaseEntityBlock;
 import appeng.block.crafting.PatternProviderBlock;
-import appeng.block.crafting.PushDirection;
+import com.moakiee.ae2lt.packaged.compat.PushDirection;
 import appeng.menu.locator.MenuLocators;
 import appeng.util.InteractionUtil;
 
@@ -26,16 +26,16 @@ class FixedPushDirectionProviderBlock<T extends StablePatternProviderBlockEntity
         extends AEBaseEntityBlock<T> {
 
     FixedPushDirectionProviderBlock() {
-        super(metalProps().forceSolidOn());
+        super(defaultProps(net.minecraft.world.level.material.Material.METAL));
         registerDefaultState(defaultBlockState().setValue(
-                PatternProviderBlock.PUSH_DIRECTION, PushDirection.ALL));
+                com.moakiee.ae2lt.packaged.compat.PushDirection.PROPERTY, PushDirection.ALL));
     }
 
     @Override
     protected void createBlockStateDefinition(
             StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(PatternProviderBlock.PUSH_DIRECTION);
+        builder.add(com.moakiee.ae2lt.packaged.compat.PushDirection.PROPERTY);
     }
 
     public void setSide(Level level, BlockPos pos, Direction facing) {
@@ -87,12 +87,12 @@ class FixedPushDirectionProviderBlock<T extends StablePatternProviderBlockEntity
 
     private void forceAllPushDirection(Level level, BlockPos pos) {
         var state = level.getBlockState(pos);
-        if (!state.hasProperty(PatternProviderBlock.PUSH_DIRECTION)
-                || state.getValue(PatternProviderBlock.PUSH_DIRECTION) == PushDirection.ALL) {
+        if (!state.hasProperty(com.moakiee.ae2lt.packaged.compat.PushDirection.PROPERTY)
+                || state.getValue(com.moakiee.ae2lt.packaged.compat.PushDirection.PROPERTY) == PushDirection.ALL) {
             return;
         }
 
-        level.setBlockAndUpdate(pos, state.setValue(PatternProviderBlock.PUSH_DIRECTION, PushDirection.ALL));
+        level.setBlockAndUpdate(pos, state.setValue(com.moakiee.ae2lt.packaged.compat.PushDirection.PROPERTY, PushDirection.ALL));
         var be = getBlockEntity(level, pos);
         if (be != null) {
             be.onNeighborChanged();

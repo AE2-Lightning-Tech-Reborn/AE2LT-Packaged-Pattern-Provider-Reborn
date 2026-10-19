@@ -554,7 +554,7 @@ public final class ArsNouveauImbuementChamberAdapter implements MultiblockAdapte
             return ItemStack.EMPTY;
         }
         try {
-            return typedRecipe.getResultItem(level.registryAccess()).copy();
+            return typedRecipe.getResultItem().copy();
         } catch (RuntimeException | LinkageError ignored) {
             return ItemStack.EMPTY;
         }

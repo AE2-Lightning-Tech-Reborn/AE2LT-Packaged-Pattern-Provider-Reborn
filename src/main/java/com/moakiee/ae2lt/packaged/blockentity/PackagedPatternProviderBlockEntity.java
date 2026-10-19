@@ -23,7 +23,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.networking.IGridNodeListener;
 import appeng.blockentity.grid.AENetworkBlockEntity;
-import appeng.helpers.patternprovider.PatternProviderLogic;
+import appeng.helpers.iface.PatternProviderLogic;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocator;
@@ -152,7 +152,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
                 || !acceptsWirelessTarget(level, pos)
                 || !super.addOrUpdateConnection(dimension, pos, boundFace)) return false;
         if (ResonantPackagedCoreItem.layout(getInstalledAdapterStack()) != null) {
-            resonantAnchorBlocks.put(pos.asLong(), net.minecraft.core.registries.BuiltInRegistries.BLOCK
+            resonantAnchorBlocks.put(pos.asLong(), net.minecraft.core.Registry.BLOCK
                     .getKey(level.getBlockState(pos).getBlock()));
         } else resonantAnchorBlocks.remove(pos.asLong());
         pruneResonantAnchorRecords();
@@ -177,7 +177,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
     @Override
     protected boolean isWirelessTargetPresent(ServerLevel targetLevel, BlockPos pos) {
         var recorded = resonantAnchorBlocks.get(pos.asLong());
-        if (recorded != null) return recorded.equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK
+        if (recorded != null) return recorded.equals(net.minecraft.core.Registry.BLOCK
                 .getKey(targetLevel.getBlockState(pos).getBlock()));
         var layout = ResonantPackagedCoreItem.layout(getInstalledAdapterStack());
         if (layout != null && layout.matchesAnchor(targetLevel.getBlockState(pos))) return true;
@@ -534,13 +534,12 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
         }
     }
 
-    @Override
     public void clearContent() {
         // clearContent is also used for inventory resets and chunk lifecycle
         // transitions. Do not drain the virtual output buffer here: destruction
         // routes pending outputs through addAdditionalDrops(), while a reset or
         // unload must keep them persisted for the next flush.
-        super.clearContent();
+        if (getLogic() instanceof com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderLogic stable) stable.clearContent();
     }
 
     @Override

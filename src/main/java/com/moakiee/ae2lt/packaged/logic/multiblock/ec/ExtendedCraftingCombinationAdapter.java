@@ -514,7 +514,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         static ItemStack getResultItem(Object recipe, ServerLevel level) {
             if (!(recipe instanceof Recipe<?> r)) return null;
             try {
-                return r.getResultItem(level.registryAccess());
+                return r.getResultItem();
             } catch (RuntimeException | LinkageError ignored) {
                 return null;
             }

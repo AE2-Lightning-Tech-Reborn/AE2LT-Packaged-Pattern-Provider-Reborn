@@ -16,7 +16,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.inventory.TransientCraftingContainer;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.crafting.Recipe;
@@ -367,7 +367,7 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
         return new RecipeMatch(layout.get(0), List.copyOf(pedestalAssignments));
     }
 
-    /** Never opened; only satisfies {@link TransientCraftingContainer}'s constructor. */
+    /** Never opened; only satisfies {@link CraftingContainer}'s constructor. */
     private static final AbstractContainerMenu DUMMY_MENU = new AbstractContainerMenu(null, -1) {
         @Override
         public ItemStack quickMoveStack(Player player, int index) {
@@ -395,12 +395,12 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
      * Builds a detached crafting grid to match recipes against.
      *
      * <p>1.21 offers {@code CraftingContainer.of(w, h, stacks)}; on 1.20.1 the
-     * equivalent is a {@link TransientCraftingContainer} bound to a dummy menu,
+     * equivalent is a {@link CraftingContainer} bound to a dummy menu,
      * which is what vanilla itself uses for off-screen recipe lookups.
      */
     private static CraftingContainer transientCraftingContainer(
             int width, int height, NonNullList<ItemStack> stacks) {
-        var container = new TransientCraftingContainer(DUMMY_MENU, width, height);
+        var container = new CraftingContainer(DUMMY_MENU, width, height);
         for (int slot = 0; slot < stacks.size() && slot < container.getContainerSize(); slot++) {
             container.setItem(slot, stacks.get(slot));
         }
@@ -422,7 +422,7 @@ public final class InfusionAltarAdapter implements MultiblockAdapter {
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return r.getResultItem();
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }

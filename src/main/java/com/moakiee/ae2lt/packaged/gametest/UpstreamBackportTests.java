@@ -43,7 +43,7 @@ public final class UpstreamBackportTests {
 
     private static void place(GameTestHelper h, BlockPos pos, String id) {
         var block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation(id));
-        h.assertTrue(block != null, "Missing native test block: " + id);
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(block != null, "Missing native test block: " + id);
         h.getLevel().setBlockAndUpdate(pos, block.defaultBlockState());
     }
     private static GenericStack stack(String id, long count) {
@@ -104,21 +104,21 @@ public final class UpstreamBackportTests {
             if (!ingredient.isEmpty()) inputs.merge(AEItemKey.of(ingredient.getItems()[0]), 1L, Long::sum);
         }
         var declared = inputs.entrySet().stream().map(entry -> new GenericStack(entry.getKey(), entry.getValue())).toList();
-        var output = recipe.getResultItem(level.registryAccess());
+        var output = recipe.getResultItem();
         var pattern = pattern(h, declared, List.of(new GenericStack(AEItemKey.of(output), output.getCount())));
         var core = h.absolutePos(new BlockPos(7, 2, 7));
         place(h, core, "draconicevolution:crafting_core");
         var adapter = new DraconicFusionCraftingAdapter();
         var binding = adapter.bind(level, core, pattern);
-        h.assertTrue(binding != null, "Native fusion recipe did not bind");
-        h.assertTrue(!adapter.canDispatch(level, core, binding.handle()), "Missing injectors must reject");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Native fusion recipe did not bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!adapter.canDispatch(level, core, binding.handle()), "Missing injectors must reject");
         placeInjectors(h, core);
         h.runAfterDelay(5, () -> {
-            h.assertTrue(adapter.canDispatch(level, core, binding.handle()), "Fresh injector positions were not refreshed");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.canDispatch(level, core, binding.handle()), "Fresh injector positions were not refreshed");
             injectorPositions(core).forEach(pos -> level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState()));
-            h.assertTrue(!adapter.canDispatch(level, core, binding.handle()), "Removed injectors stayed cached");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!adapter.canDispatch(level, core, binding.handle()), "Removed injectors stayed cached");
             placeInjectors(h, core);
-            h.assertTrue(adapter.canDispatch(level, core, binding.handle()), "Rebuilt injectors were not refreshed");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.canDispatch(level, core, binding.handle()), "Rebuilt injectors were not refreshed");
             h.succeed();
         });
     }
@@ -143,25 +143,25 @@ public final class UpstreamBackportTests {
         var pattern = pattern(h, inputs, outputs);
         var adapter = new ArsNouveauImbuementChamberAdapter();
         var binding = adapter.bind(level, pos, pattern);
-        h.assertTrue(binding != null, "Product plus catalyst pattern failed to bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Product plus catalyst pattern failed to bind");
         var plan = adapter.planWithBinding(level, pos, pattern, counters(inputs), binding.handle(), IActionSource.empty());
-        h.assertTrue(plan != null, "Native imbuement did not produce a dispatch plan");
-        var returnInv = new appeng.helpers.patternprovider.PatternProviderReturnInventory(() -> {});
-        h.assertTrue(DispatchExecutor.execute(plan, IActionSource.empty(), returnInv).success(), "Native catalyst dispatch failed");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null, "Native imbuement did not produce a dispatch plan");
+        var returnInv = new appeng.helpers.iface.PatternProviderReturnInventory(() -> {});
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(DispatchExecutor.execute(plan, IActionSource.empty(), returnInv).success(), "Native catalyst dispatch failed");
         var filter = new AllowedOutputFilter();
         outputs.forEach(output -> filter.allowStrict(output.what()));
         var collected = new ArrayList<GenericStack>();
         h.succeedWhen(() -> {
             var harvested = adapter.extractOutputs(level, pos, filter, IActionSource.empty());
             collected.addAll(harvested);
-            h.assertTrue(collected.size() == outputs.size() && collected.containsAll(outputs),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(collected.size() == outputs.size() && collected.containsAll(outputs),
                     "Native recipe/catalyst results are incomplete: " + collected + " expected " + outputs);
-            h.assertTrue(adapter.extractOutputs(level, pos, filter, IActionSource.empty()).isEmpty(), "Catalysts were returned twice");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.extractOutputs(level, pos, filter, IActionSource.empty()).isEmpty(), "Catalysts were returned twice");
             h.succeed();
         });
     }
 
-    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 150)
+    @GameTest(templateNamespace = "ae2ltpp_core", template = "adapterconnectiontests.adapter_conn", timeoutTicks = 150)
     public static void workbenchBatchInterfaceIsExposedToMe(GameTestHelper h) {
         var relative = new BlockPos(4, 2, 4);
         h.setBlock(relative, PPBlocks.PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
@@ -169,8 +169,8 @@ public final class UpstreamBackportTests {
         var provider = (PackagedPatternProviderBlockEntity) h.getLevel().getBlockEntity(h.absolutePos(relative));
         h.runAfterDelay(40, () -> {
             var node = provider.getMainNode().getNode();
-            h.assertTrue(node != null && node.isActive(), "Batch test grid is inactive");
-            h.assertTrue(node.getService(appeng.api.networking.crafting.ICraftingProvider.class) instanceof IBatchCraftingProvider,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(node != null && node.isActive(), "Batch test grid is inactive");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(node.getService(appeng.api.networking.crafting.ICraftingProvider.class) instanceof IBatchCraftingProvider,
                     "ME CPU cannot discover packaged workbench batch support");
             h.succeed();
         });
@@ -194,7 +194,7 @@ public final class UpstreamBackportTests {
             if (!ingredient.isEmpty()) amounts.merge(AEItemKey.of(ingredient.getItems()[0]), 1L, Long::sum);
         }
         var inputs = amounts.entrySet().stream().map(entry -> new GenericStack(entry.getKey(), entry.getValue())).toList();
-        var result = recipe.getResultItem(level.registryAccess());
+        var result = recipe.getResultItem();
         var table = h.absolutePos(new BlockPos(5, 2, 5));
         place(h, table, "avaritia:extreme_crafting_table");
         var matrix = (Container) level.getBlockEntity(table).getClass().getField("matrix").get(level.getBlockEntity(table));
@@ -211,14 +211,14 @@ public final class UpstreamBackportTests {
             var pattern = logic.getAvailablePatterns().get(0);
             var template = counters(inputs);
             matrix.setItem(0, new ItemStack(Items.DIRT));
-            h.assertTrue(logic.pushBatch(pattern, template, copies) == copies, "Occupied native table accepted batch inputs");
-            h.assertTrue(matrix.getItem(0).is(Items.DIRT), "Rejected batch changed manual items");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.pushBatch(pattern, template, copies) == copies, "Occupied native table accepted batch inputs");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(matrix.getItem(0).is(Items.DIRT), "Rejected batch changed manual items");
             matrix.clearContent();
             for (int round = 0; round < rounds; round++) {
-                h.assertTrue(logic.pushBatch(logic.getAvailablePatterns().get(0), template, copies) == 0,
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.pushBatch(logic.getAvailablePatterns().get(0), template, copies) == 0,
                         "Native workbench rejected batch at round " + round);
                 for (int i = 0; i < template.length; i++) {
-                    h.assertTrue(template[i].size() == 1
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(template[i].size() == 1
                                     && template[i].get(inputs.get(i).what()) == inputs.get(i).amount(),
                             "Borrowed template was mutated at round " + round);
                 }
@@ -226,9 +226,9 @@ public final class UpstreamBackportTests {
                 logic.updatePatterns();
             }
             var outputs = logic.drainVirtualBatch();
-            h.assertTrue(outputs.equals(List.of(new GenericStack(AEItemKey.of(result), copies * rounds * result.getCount()))),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(outputs.equals(List.of(new GenericStack(AEItemKey.of(result), copies * rounds * result.getCount()))),
                     "Batch quantities changed across reload");
-            h.assertTrue(logic.drainVirtualBatch().isEmpty(), "Reload duplicated batch outputs");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.drainVirtualBatch().isEmpty(), "Reload duplicated batch outputs");
             org.slf4j.LoggerFactory.getLogger("ae2ltpp-stress").info(
                     "STRESS PASS native Avaritia copiesPerBatch={} rounds={} reloads={} totalCrafts={}",
                     copies, rounds, rounds, copies * rounds);
@@ -265,13 +265,13 @@ public final class UpstreamBackportTests {
                     new AssertionError("Core recipe failed native deserialization: " + id));
             var result = name.equals("ars_apparatus_packaged_core")
                     ? (ItemStack) recipe.getClass().getField("result").get(recipe)
-                    : recipe.getResultItem(h.getLevel().registryAccess());
-            h.assertTrue(!result.isEmpty() && ForgeRegistries.ITEMS.getKey(result.getItem())
+                    : recipe.getResultItem();
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!result.isEmpty() && ForgeRegistries.ITEMS.getKey(result.getItem())
                     .equals(new ResourceLocation("ae2ltpp", name)), "Core recipe lost its result: " + id);
         }
         var recipe = h.getLevel().getRecipeManager().byKey(
                 new ResourceLocation("ae2ltpp", "packaged_core/de_fusion_packaged_core")).orElseThrow();
-        h.assertTrue(recipe.getIngredients().stream().allMatch(ingredient -> !ingredient.isEmpty()),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(recipe.getIngredients().stream().allMatch(ingredient -> !ingredient.isEmpty()),
                 "Fusion recipe has invalid native ingredients");
         h.succeed();
     }

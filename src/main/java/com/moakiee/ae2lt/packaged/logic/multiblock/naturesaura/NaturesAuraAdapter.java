@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.BlockItem;
@@ -74,7 +74,7 @@ public final class NaturesAuraAdapter implements MultiblockAdapter {
     public boolean recognizesMain(ServerLevel level, BlockPos pos, BlockEntity be) {
         return ModList.get().isLoaded("naturesaura")
                 && be instanceof NaturesAuraManagedMachine
-                && BuiltInRegistries.BLOCK.getKey(be.getBlockState().getBlock()).equals(kind.block);
+                && Registry.BLOCK.getKey(be.getBlockState().getBlock()).equals(kind.block);
     }
 
     @Override
@@ -192,7 +192,7 @@ public final class NaturesAuraAdapter implements MultiblockAdapter {
             leader.setChanged();
         });
         NaturesAuraCraftState.begin(leader, owner);
-        NaturesAuraCraftState.storeExpectedOutput(leader, recipe.getResultItem(level.registryAccess()));
+        NaturesAuraCraftState.storeExpectedOutput(leader, recipe.getResultItem());
         if (kind == Kind.TREE) {
             BlockEntity anchor = level.getBlockEntity(owner);
             undo.add(() -> {
@@ -385,7 +385,7 @@ public final class NaturesAuraAdapter implements MultiblockAdapter {
     private static boolean matchesOutput(IPatternDetails pattern, Recipe<?> recipe, ServerLevel level) {
         if (pattern.getOutputs().length != 1) return false;
         var output = pattern.getOutputs()[0];
-        ItemStack result = recipe.getResultItem(level.registryAccess());
+        ItemStack result = recipe.getResultItem();
         if (result.isEmpty() || output.amount() != result.getCount() || !(output.what() instanceof AEItemKey key)) return false;
         AEItemKey actual = AEItemKey.of(result);
         return OverloadPatternSemantics.isIdOnlyOutput(pattern, 0)
@@ -452,7 +452,7 @@ public final class NaturesAuraAdapter implements MultiblockAdapter {
         return NaturesAuraAccess.positions("TREE_RITUAL", center, 'W').stream()
                 .filter(pos -> level.isLoaded(pos)
                         && level.getBlockEntity(pos) instanceof NaturesAuraManagedMachine
-                        && level.getBlockState(pos).is(BuiltInRegistries.BLOCK.get(id("wood_stand"))))
+                        && level.getBlockState(pos).is(Registry.BLOCK.get(id("wood_stand"))))
                 .toList();
     }
 
@@ -462,7 +462,7 @@ public final class NaturesAuraAdapter implements MultiblockAdapter {
     }
 
     private RecipeType<?> recipeType() {
-        return BuiltInRegistries.RECIPE_TYPE.get(kind.type);
+        return Registry.RECIPE_TYPE.get(kind.type);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -471,7 +471,7 @@ public final class NaturesAuraAdapter implements MultiblockAdapter {
     }
 
     private static net.minecraft.world.level.block.Block goldBlock() {
-        return BuiltInRegistries.BLOCK.get(id("gold_powder"));
+        return Registry.BLOCK.get(id("gold_powder"));
     }
 
     private static ResourceLocation id(String path) {

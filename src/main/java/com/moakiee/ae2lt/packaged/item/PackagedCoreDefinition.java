@@ -130,7 +130,7 @@ public record PackagedCoreDefinition(
             for (var id : List.of("chisel:chisel", "chisel:iron_chisel", "rechiseled:chisel", "chipped:chisel",
                     "chipped:mason_table")) {
                 var candidate = new ResourceLocation(id);
-                if (net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(candidate)) return candidate;
+                if (net.minecraft.core.Registry.ITEM.containsKey(candidate)) return candidate;
             }
         }
         return targetItemId;

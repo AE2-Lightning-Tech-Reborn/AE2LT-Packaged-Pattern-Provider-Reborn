@@ -1,6 +1,6 @@
 package com.moakiee.ae2lt.packaged.registry;
 
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Registry;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
@@ -12,7 +12,7 @@ import com.moakiee.ae2lt.packaged.blockentity.WirelessPackagedPatternProviderBlo
 
 public final class PPBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES =
-            DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, AE2LTPackagedProvider.MODID);
+            DeferredRegister.create(Registry.BLOCK_ENTITY_TYPE_REGISTRY, AE2LTPackagedProvider.MODID);
 
     public static final RegistryObject<BlockEntityType<PackagedPatternProviderBlockEntity>>
             PACKAGED_PATTERN_PROVIDER = BLOCK_ENTITY_TYPES.register(

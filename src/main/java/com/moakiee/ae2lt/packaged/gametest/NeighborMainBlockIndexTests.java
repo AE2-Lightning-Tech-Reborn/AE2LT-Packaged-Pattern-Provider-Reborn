@@ -14,7 +14,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import com.moakiee.ae2lt.packaged.logic.multiblock.NeighborMainBlockIndex;
 
-@GameTestHolder("ae2ltpp")
+@GameTestHolder("ae2ltpp_core")
 @PrefixGameTestTemplate(false)
 public final class NeighborMainBlockIndexTests {
     @GameTest(template = "adapterconnectiontests.adapter_conn")
@@ -33,12 +33,12 @@ public final class NeighborMainBlockIndexTests {
         var index = new NeighborMainBlockIndex(helper.absolutePos(originRelative));
         var snapshot = index.adapterFaces(level);
         var previous = index.getAdapter(Direction.EAST);
-        helper.assertTrue(snapshot.equals(List.of(Direction.EAST)) && previous != null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(snapshot.equals(List.of(Direction.EAST)) && previous != null,
                 "Block-only neighbor was not indexed");
-        helper.assertTrue(level.getBlockEntity(helper.absolutePos(targetRelative)) == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(level.getBlockEntity(helper.absolutePos(targetRelative)) == null,
                 "Block-only test fixture unexpectedly has a block entity");
         for (int lookup = 0; lookup < 1000; lookup++) {
-            helper.assertTrue(index.adapterFaces(level) == snapshot, "Cache hit allocated a new snapshot");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(index.adapterFaces(level) == snapshot, "Cache hit allocated a new snapshot");
         }
         boolean immutable = false;
         try {
@@ -46,20 +46,20 @@ public final class NeighborMainBlockIndexTests {
         } catch (UnsupportedOperationException expected) {
             immutable = true;
         }
-        helper.assertTrue(immutable, "Caller could mutate the cached snapshot");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(immutable, "Caller could mutate the cached snapshot");
         helper.setBlock(targetRelative, Blocks.STONE);
         index.invalidate();
-        helper.assertTrue(index.getAdapter(Direction.EAST) == previous,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(index.getAdapter(Direction.EAST) == previous,
                 "Invalidation discarded the observation needed for ownership cleanup");
-        helper.assertTrue(index.adapterFaces(level).isEmpty() && index.getAdapter(Direction.EAST) == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(index.adapterFaces(level).isEmpty() && index.getAdapter(Direction.EAST) == null,
                 "Invalidation did not refresh the removed neighbor");
-        helper.assertTrue(snapshot.equals(List.of(Direction.EAST)), "Old snapshot changed during rebuild");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(snapshot.equals(List.of(Direction.EAST)), "Old snapshot changed during rebuild");
         helper.setBlock(targetRelative, spiritFire.defaultBlockState());
         index.invalidate();
         var restored = index.adapterFaces(level);
-        helper.assertTrue(restored.equals(List.of(Direction.EAST)) && index.getAdapter(Direction.EAST) != null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(restored.equals(List.of(Direction.EAST)) && index.getAdapter(Direction.EAST) != null,
                 "Replaced block-only neighbor was not rediscovered");
-        helper.assertTrue(index.adapterFaces(level) == restored, "Rebuilt snapshot was not reused");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(index.adapterFaces(level) == restored, "Rebuilt snapshot was not reused");
         helper.succeed();
     }
 }

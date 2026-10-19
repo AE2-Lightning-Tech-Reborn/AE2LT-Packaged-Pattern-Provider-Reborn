@@ -204,7 +204,7 @@ public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAd
         for (var recipe : recipes(level)) {
             ItemStack result;
             try {
-                result = recipe.getResultItem(level.registryAccess());
+                result = recipe.getResultItem();
             } catch (RuntimeException | LinkageError ignored) {
                 continue;
             }
@@ -232,7 +232,7 @@ public final class OccultismSpiritFireAdapter implements LinearVirtualCraftingAd
                                           Container input, ServerLevel level) {
         try {
             return ((net.minecraft.world.item.crafting.Recipe) recipe)
-                    .assemble(input, level.registryAccess())
+                    .assemble(input)
                     .copy();
         } catch (RuntimeException | LinkageError ignored) {
             return null;

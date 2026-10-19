@@ -17,14 +17,14 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
-import appeng.helpers.patternprovider.PatternProviderTarget;
+import appeng.helpers.iface.PatternProviderTarget;
 import appeng.parts.automation.StackWorldBehaviors;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingBatchInputs;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.server.level.ServerLevel;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,7 +48,7 @@ public final class ResonantDispatch {
     public static List<PendingBatchInputs.Delivery> plan(ResonantLayout layout, ResonantPatternAccess.Data data,
                                                         KeyCounter[] inputs, Anchor anchor, BlockPos providerPos) {
         if (data == null || inputs == null || !validAnchor(layout, anchor)) return null;
-        var level = anchor.level();
+        var level = anchor.level;
         var orientation = ResonantLayout.forward(level.getBlockState(anchor.pos()), anchor.face());
         var amounts = new LinkedHashMap<Port, Long>();
         var blocks = new HashMap<Port, net.minecraft.resources.ResourceLocation>();
@@ -87,7 +87,7 @@ public final class ResonantDispatch {
                 if (pos.equals(providerPos) || !validTarget(level, pos, target)) return null;
                 var port = new Port(pos, target.face(), stack.what());
                 amounts.merge(port, stack.amount(), Math::addExact);
-                blocks.put(port, BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock()));
+                blocks.put(port, Registry.BLOCK.getKey(level.getBlockState(pos).getBlock()));
             }
         } catch (ArithmeticException overflow) { return null; }
         if (!remaining.isEmpty() || amounts.isEmpty()) return null;
@@ -120,20 +120,20 @@ public final class ResonantDispatch {
     private static PatternProviderTarget resolve(ServerLevel level, PendingBatchInputs.Delivery delivery,
                                                  IActionSource source) {
         if (!level.dimension().location().equals(delivery.dimension()) || !level.isLoaded(delivery.pos())
-                || !BuiltInRegistries.BLOCK.getKey(level.getBlockState(delivery.pos()).getBlock()).equals(delivery.block())) {
+                || !Registry.BLOCK.getKey(level.getBlockState(delivery.pos()).getBlock()).equals(delivery.block())) {
             return null;
         }
         return PatternProviderTarget.get(level, delivery.pos(), level.getBlockEntity(delivery.pos()), delivery.face(), source);
     }
 
     public static boolean validAnchor(ResonantLayout layout, Anchor anchor) {
-        return anchor.level().isLoaded(anchor.pos()) && layout.matchesAnchor(anchor.level().getBlockState(anchor.pos()));
+        return anchor.level.isLoaded(anchor.pos()) && layout.matchesAnchor(anchor.level.getBlockState(anchor.pos()));
     }
 
     private static boolean validTarget(ServerLevel level, BlockPos pos, ResonantLayout.Target target) {
         if (!level.isInWorldBounds(pos) || !level.getWorldBorder().isWithinBounds(pos) || !level.isLoaded(pos)) return false;
         var state = level.getBlockState(pos);
-        return !state.isAir() && target.block().map(id -> id.equals(BuiltInRegistries.BLOCK.getKey(state.getBlock())))
+        return !state.isAir() && target.block().map(id -> id.equals(Registry.BLOCK.getKey(state.getBlock())))
                 .orElse(true);
     }
 
@@ -141,7 +141,7 @@ public final class ResonantDispatch {
     public static void extractOutputs(ResonantLayout layout, Anchor anchor, BlockPos providerPos,
                                       AllowedOutputFilter filter, IActionSource source, Consumer<GenericStack> retain) {
         if (!validAnchor(layout, anchor) || filter.isEmpty()) return;
-        var level = anchor.level();
+        var level = anchor.level;
         var orientation = ResonantLayout.forward(level.getBlockState(anchor.pos()), anchor.face());
         var seen = new HashSet<List<Object>>();
         for (var binding : layout.bindings()) {
@@ -150,8 +150,8 @@ public final class ResonantDispatch {
             var pos = anchor.pos().offset(target.offset());
             if (pos.equals(providerPos) || !validTarget(level, pos, target)
                     || !seen.add(List.of(pos, target.face()))) continue;
-            var storage = capability(level, pos, Capabilities.STORAGE, target.face());
-            if (storage != null) extract(storage, filter, source, retain);
+            var storage = capability(level, pos, Capabilities.STORAGE_MONITORABLE_ACCESSOR, target.face());
+            if (storage != null) extract(storage.getInventory(source), filter, source, retain);
             else {
                 for (var strategy : StackWorldBehaviors.createExternalStorageStrategies(level, pos, target.face()).values()) {
                     var wrapper = strategy.createWrapper(false, () -> {});

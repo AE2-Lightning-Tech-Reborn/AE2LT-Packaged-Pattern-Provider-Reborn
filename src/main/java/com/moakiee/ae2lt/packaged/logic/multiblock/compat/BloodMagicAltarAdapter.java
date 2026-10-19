@@ -197,7 +197,7 @@ public final class BloodMagicAltarAdapter implements MultiblockAdapter {
     @Nullable private static ItemStack output(Object recipe, ServerLevel level) {
         var direct = invoke(recipe, "getOutput", ItemStack.class);
         if (direct != null) return direct.copy();
-        if (recipe instanceof Recipe<?> vanilla) try { return vanilla.getResultItem(level.registryAccess()).copy(); }
+        if (recipe instanceof Recipe<?> vanilla) try { return vanilla.getResultItem().copy(); }
         catch (RuntimeException ignored) { }
         return null;
     }

@@ -40,7 +40,7 @@ public final class MekContinuousBackportTests {
     private static BlockEntity machine(GameTestHelper h, String name) {
         var main = h.absolutePos(new BlockPos(7, 2, 7));
         var block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("mekmm", name));
-        h.assertTrue(block != null, "Missing native MekMM controller");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(block != null, "Missing native MekMM controller");
         var state = block.defaultBlockState();
         h.getLevel().setBlockAndUpdate(main, state);
         block.setPlacedBy(h.getLevel(), main, state, null, new ItemStack(block));
@@ -81,7 +81,7 @@ public final class MekContinuousBackportTests {
     @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 160)
     public static void providerSends64PhysicalCopiesWithoutChangingBorrowedInputs(GameTestHelper h)
             throws ReflectiveOperationException {
-        h.assertTrue(available(), "MekMM and Applied Mekanistics are required for physical batch testing");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(available(), "MekMM and Applied Mekanistics are required for physical batch testing");
         var tile = machine(h, "large_electrolytic_separator");
         var providerPos = tile.getBlockPos().north(2);
         h.getLevel().setBlockAndUpdate(providerPos, PPBlocks.PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
@@ -98,15 +98,15 @@ public final class MekContinuousBackportTests {
                 var logic = (PackagedPatternProviderLogic) provider.getLogic();
                 var pattern = logic.getAvailablePatterns().get(0);
                 var template = counters(input);
-                h.assertTrue(logic.getBatchCapacity(pattern) == 64,
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.getBatchCapacity(pattern) == 64,
                         "Native input lane capacity=" + logic.getBatchCapacity(pattern));
-                h.assertTrue(logic.pushBatch(pattern, template, 130) == 66, "Native input lane did not accept exactly 64 copies");
-                h.assertTrue(template[0].get(input.what()) == 20, "Physical batch changed borrowed inputs");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(logic.pushBatch(pattern, template, 130) == 66, "Native input lane did not accept exactly 64 copies");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(template[0].get(input.what()) == 20, "Physical batch changed borrowed inputs");
                 var fluid = tile.getClass().getField("fluidTank").get(tile);
-                h.assertTrue(((Number) fluid.getClass().getMethod("getFluidAmount").invoke(fluid)).longValue() == 1280,
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(((Number) fluid.getClass().getMethod("getFluidAmount").invoke(fluid)).longValue() == 1280,
                         "Physical batch inserted the wrong fluid amount");
                 provider.load(provider.saveWithFullMetadata());
-                h.assertTrue(((Number) fluid.getClass().getMethod("getFluidAmount").invoke(fluid)).longValue() == 1280,
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(((Number) fluid.getClass().getMethod("getFluidAmount").invoke(fluid)).longValue() == 1280,
                         "Provider reload replayed completed batch inputs");
                 h.succeed();
             } catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
@@ -116,7 +116,7 @@ public final class MekContinuousBackportTests {
     @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
     public static void nativeRecipesRejectWrongOutputsAndArrangeReversedChemicalInputs(GameTestHelper h)
             throws ReflectiveOperationException {
-        h.assertTrue(available(), "MekMM and Applied Mekanistics are required for native recipe testing");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(available(), "MekMM and Applied Mekanistics are required for native recipe testing");
         var tile = machine(h, "large_chemical_infuser");
         var hydrogen = gas("hydrogen", 1);
         var chlorine = gas("chlorine", 1);
@@ -125,18 +125,18 @@ public final class MekContinuousBackportTests {
                 new GenericStack[]{chlorine, hydrogen}, new GenericStack[]{output}), h.getLevel());
         var adapter = new MekanismMoreMachinesAdapter();
         var binding = adapter.bind(h.getLevel(), tile.getBlockPos(), pattern);
-        h.assertTrue(binding != null, "Reversed native chemical recipe inputs did not bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Reversed native chemical recipe inputs did not bind");
         var inputs = new KeyCounter[]{counters(chlorine)[0], counters(hydrogen)[0]};
         var plan = adapter.planBatchWithBinding(h.getLevel(), tile.getBlockPos(), pattern, inputs,
                 binding.handle(), IActionSource.empty(), scope(h));
-        h.assertTrue(plan != null && plan.targets().size() == 2 && plan.onCommit() == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null && plan.targets().size() == 2 && plan.onCommit() == null,
                 "Native two-port batch plan was rejected");
-        h.assertTrue(plan.targets().get(0).stacks().equals(List.of(hydrogen))
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan.targets().get(0).stacks().equals(List.of(hydrogen))
                         && plan.targets().get(1).stacks().equals(List.of(chlorine)),
                 "Native chemical inputs were routed in pattern order instead of recipe order");
         var wrong = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
                 new GenericStack[]{chlorine, hydrogen}, new GenericStack[]{gas("oxygen", 1)}), h.getLevel());
-        h.assertTrue(adapter.bind(h.getLevel(), tile.getBlockPos(), wrong) == null,
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.bind(h.getLevel(), tile.getBlockPos(), wrong) == null,
                 "Native recipe binding accepted an unrelated declared output");
         h.succeed();
     }
@@ -152,7 +152,7 @@ public final class MekContinuousBackportTests {
         var pattern = pattern(h, input, outputs);
         var adapter = new MekanismMoreMachinesAdapter();
         var binding = adapter.bind(h.getLevel(), tile.getBlockPos(), pattern);
-        h.assertTrue(binding != null, "Native water-electrolysis pattern did not bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Native water-electrolysis pattern did not bind");
         var energy = tile.getClass().getMethod("getEnergyContainer").invoke(tile);
         var energyApi = Class.forName("mekanism.api.energy.IEnergyContainer");
         Method fill = energyApi.getMethod("setEnergy", Class.forName("mekanism.api.math.FloatingLong"));
@@ -166,7 +166,7 @@ public final class MekContinuousBackportTests {
         var collected = new KeyCounter();
         var filter = new AllowedOutputFilter();
         outputs.forEach(output -> filter.allowStrict(output.what()));
-        var returnInv = new appeng.helpers.patternprovider.PatternProviderReturnInventory(() -> {});
+        var returnInv = new appeng.helpers.iface.PatternProviderReturnInventory(() -> {});
         h.runAfterDelay(790, () -> {
             try {
                 h.fail("Continuous native state: started=" + started[0] + ", extended=" + extended[0]
@@ -178,7 +178,7 @@ public final class MekContinuousBackportTests {
         h.runAfterDelay(10, () -> {
             var plan = adapter.planWithBinding(h.getLevel(), tile.getBlockPos(), pattern, counters(input),
                     binding.handle(), IActionSource.empty(), scope);
-            h.assertTrue(plan != null && DispatchExecutor.execute(plan, IActionSource.empty(), returnInv).success(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null && DispatchExecutor.execute(plan, IActionSource.empty(), returnInv).success(),
                     "First native water order failed through bounding-block capabilities");
             started[0] = true;
         });
@@ -187,14 +187,14 @@ public final class MekContinuousBackportTests {
                 fill.invoke(energy, maximum);
                 if (!started[0]) return;
                 if (!extended[0] && ((Number) stored.invoke(left)).longValue() > 0) {
-                    h.assertTrue((int) fluid.getClass().getMethod("getFluidAmount").invoke(fluid) > 0
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue((int) fluid.getClass().getMethod("getFluidAmount").invoke(fluid) > 0
                             && Boolean.TRUE.equals(tile.getClass().getMethod("getActive").invoke(tile)),
                             "Continuous fixture did not retain a running native recipe");
-                    h.assertTrue(adapter.containsPatternInput(h.getLevel(), tile.getBlockPos(), Set.of(input.what())),
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.containsPatternInput(h.getLevel(), tile.getBlockPos(), Set.of(input.what())),
                             "Blocking inspection missed fluid in native input port");
                     var plan = adapter.planWithBinding(h.getLevel(), tile.getBlockPos(), pattern, counters(input),
                             binding.handle(), IActionSource.empty(), scope);
-                    h.assertTrue(plan != null && DispatchExecutor.execute(plan, IActionSource.empty(), returnInv).success(),
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null && DispatchExecutor.execute(plan, IActionSource.empty(), returnInv).success(),
                             "Running controller with owned outputs rejected the next order");
                     scope.load(scope.saveWithFullMetadata());
                     extended[0] = true;
@@ -203,10 +203,10 @@ public final class MekContinuousBackportTests {
                 adapter.extractOutputs(h.getLevel(), tile.getBlockPos(), filter, IActionSource.empty(), scope)
                         .forEach(stack -> collected.add(stack.what(), stack.amount()));
                 for (var output : outputs) {
-                    h.assertTrue(collected.get(output.what()) <= output.amount() * 2, "Continuous receipt duplicated outputs");
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(collected.get(output.what()) <= output.amount() * 2, "Continuous receipt duplicated outputs");
                     if (collected.get(output.what()) != output.amount() * 2) return;
                 }
-                h.assertTrue(adapter.extractOutputs(h.getLevel(), tile.getBlockPos(), filter, IActionSource.empty(), scope).isEmpty(),
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.extractOutputs(h.getLevel(), tile.getBlockPos(), filter, IActionSource.empty(), scope).isEmpty(),
                         "Completed receipt was harvested twice");
                 h.succeed();
             } catch (ReflectiveOperationException failure) {
@@ -226,7 +226,7 @@ public final class MekContinuousBackportTests {
         var pattern = pattern(h, input, outputs);
         var adapter = new MekanismMoreMachinesAdapter();
         var binding = adapter.bind(h.getLevel(), tile.getBlockPos(), pattern);
-        h.assertTrue(binding != null, "Native stress electrolysis pattern did not bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Native stress electrolysis pattern did not bind");
         var energy = tile.getClass().getMethod("getEnergyContainer").invoke(tile);
         var energyApi = Class.forName("mekanism.api.energy.IEnergyContainer");
         var fill = energyApi.getMethod("setEnergy", Class.forName("mekanism.api.math.FloatingLong"));
@@ -236,7 +236,7 @@ public final class MekContinuousBackportTests {
         var collected = new KeyCounter();
         var filter = new AllowedOutputFilter();
         outputs.forEach(output -> filter.allowStrict(output.what()));
-        var returnInv = new appeng.helpers.patternprovider.PatternProviderReturnInventory(() -> {});
+        var returnInv = new appeng.helpers.iface.PatternProviderReturnInventory(() -> {});
         int[] orders = {0};
         int[] reloads = {0};
         boolean[] extendedRunning = {false};
@@ -252,7 +252,7 @@ public final class MekContinuousBackportTests {
                             && Boolean.TRUE.equals(tile.getClass().getMethod("getActive").invoke(tile));
                     var plan = adapter.planWithBinding(h.getLevel(), tile.getBlockPos(), pattern, counters(input),
                             binding.handle(), IActionSource.empty(), scope);
-                    h.assertTrue(plan != null && DispatchExecutor.execute(plan, IActionSource.empty(), returnInv).success(),
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null && DispatchExecutor.execute(plan, IActionSource.empty(), returnInv).success(),
                             "Continuous stress order rejected at order " + orders[0]);
                     orders[0]++;
                     extendedRunning[0] |= running;
@@ -262,17 +262,17 @@ public final class MekContinuousBackportTests {
                     }
                     // Keep every earlier output unharvested while extending its receipt.
                     if (orders[0] < 128) return;
-                    h.assertTrue(extendedRunning[0], "Stress fixture never appended to a running machine with outputs");
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(extendedRunning[0], "Stress fixture never appended to a running machine with outputs");
                 }
                 adapter.extractOutputs(h.getLevel(), tile.getBlockPos(), filter, IActionSource.empty(), scope)
                         .forEach(stack -> collected.add(stack.what(), stack.amount()));
                 for (var output : outputs) {
                     long expected = output.amount() * 128;
-                    h.assertTrue(collected.get(output.what()) <= expected, "Stress receipt duplicated native output");
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(collected.get(output.what()) <= expected, "Stress receipt duplicated native output");
                     if (collected.get(output.what()) != expected) return;
                 }
-                h.assertTrue(returnInv.isEmpty(), "Stress dispatch needed unexpected input compensation");
-                h.assertTrue(adapter.extractOutputs(h.getLevel(), tile.getBlockPos(), filter, IActionSource.empty(), scope).isEmpty(),
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(returnInv.isEmpty(), "Stress dispatch needed unexpected input compensation");
+                com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.extractOutputs(h.getLevel(), tile.getBlockPos(), filter, IActionSource.empty(), scope).isEmpty(),
                         "Stress receipts returned a completed order twice");
                 org.slf4j.LoggerFactory.getLogger("ae2ltpp-stress").info(
                         "STRESS PASS native MekMM orders={} reloads={} hydrogen=2560 oxygen=1280 elapsedServerTicks={}",
@@ -295,13 +295,13 @@ public final class MekContinuousBackportTests {
         var pattern = pattern(h, input, List.of(gas("water_vapor", 1000)));
         var adapter = new MekanismMoreMachinesAdapter();
         var binding = adapter.bind(h.getLevel(), tile.getBlockPos(), pattern);
-        h.assertTrue(binding != null, "Native decondensentrating mode did not bind");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null, "Native decondensentrating mode did not bind");
         var plan = adapter.planWithBinding(h.getLevel(), tile.getBlockPos(), pattern, counters(input),
                 binding.handle(), IActionSource.empty(), scope);
-        h.assertTrue(plan != null && DispatchExecutor.execute(plan, IActionSource.empty(),
-                new appeng.helpers.patternprovider.PatternProviderReturnInventory(() -> {})).success(), "Native rotary order failed");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(plan != null && DispatchExecutor.execute(plan, IActionSource.empty(),
+                new appeng.helpers.iface.PatternProviderReturnInventory(() -> {})).success(), "Native rotary order failed");
         mode.setBoolean(tile, false);
-        h.assertTrue(!adapter.canDispatch(h.getLevel(), tile.getBlockPos(), binding.handle(), scope),
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(!adapter.canDispatch(h.getLevel(), tile.getBlockPos(), binding.handle(), scope),
                 "Mode switch silently extended the earlier receipt");
         h.succeed();
     }

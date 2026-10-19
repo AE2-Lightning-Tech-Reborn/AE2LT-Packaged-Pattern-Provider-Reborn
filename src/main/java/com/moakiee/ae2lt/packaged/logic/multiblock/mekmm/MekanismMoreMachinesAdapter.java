@@ -585,7 +585,7 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
             if (want <= 0) continue;
             var simulated = handler.extractItem(i, want, true);
             if (simulated.isEmpty() || simulated.getCount() <= 0
-                    || !ItemStack.isSameItemSameTags(simulated, stack.copyWithCount(simulated.getCount()))) {
+                    || !ItemStack.isSameItemSameTags(simulated, com.moakiee.ae2lt.packaged.compat.LegacyStacks.copyWithCount(stack, simulated.getCount()))) {
                 continue;
             }
             var extracted = handler.extractItem(i, simulated.getCount(), false);

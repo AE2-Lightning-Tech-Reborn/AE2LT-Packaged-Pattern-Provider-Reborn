@@ -362,38 +362,38 @@ public final class AdapterConnectionTests {
         var level = level(helper);
         var relative = new BlockPos(2, 1, 2);
         var tableBlock = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("avaritia", "extreme_crafting_table"));
-        helper.assertTrue(tableBlock != null, "AvaritiaNeo extreme table is missing");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(tableBlock != null, "AvaritiaNeo extreme table is missing");
         helper.setBlock(relative, tableBlock.defaultBlockState());
         var mainPos = helper.absolutePos(relative);
         var tile = level.getBlockEntity(mainPos);
         var adapter = new AvaritiaTableAdapter();
-        helper.assertTrue(adapter.recognizesMain(level, mainPos, tile), "Real Neo table is not recognized");
+        com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.recognizesMain(level, mainPos, tile), "Real Neo table is not recognized");
 
         try {
             var matrix = (Container) tile.getClass().getField("matrix").get(tile);
             var preview = (Container) tile.getClass().getField("result").get(tile);
-            helper.assertTrue(matrix.getContainerSize() == 81 && preview.getContainerSize() == 1,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(matrix.getContainerSize() == 81 && preview.getContainerSize() == 1,
                     "Unexpected Neo inventory layout");
             var recipe = level.getRecipeManager().byKey(new ResourceLocation("ae2ltpp",
                     "packaged_core/avaritia_neo_extreme_table_packaged_core")).orElse(null);
-            helper.assertTrue(recipe != null, "Neo core recipe was not loaded");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(recipe != null, "Neo core recipe was not loaded");
             var amounts = new LinkedHashMap<AEItemKey, Long>();
             for (var ingredient : recipe.getIngredients()) {
                 if (!ingredient.isEmpty()) {
                     var choices = ingredient.getItems();
-                    helper.assertTrue(choices.length > 0, "Neo core recipe has an empty ingredient");
+                    com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(choices.length > 0, "Neo core recipe has an empty ingredient");
                     amounts.merge(AEItemKey.of(choices[0]), 2L, Long::sum);
                 }
             }
             var encodedInputs = amounts.entrySet().stream()
                     .map(entry -> new GenericStack(entry.getKey(), entry.getValue())).toArray(GenericStack[]::new);
-            var result = recipe.getResultItem(level.registryAccess());
+            var result = recipe.getResultItem();
             var encoded = PatternDetailsHelper.encodeProcessingPattern(encodedInputs,
                     new GenericStack[] {new GenericStack(AEItemKey.of(result), 2L * result.getCount())});
             var pattern = PatternDetailsHelper.decodePattern(encoded, level);
-            helper.assertTrue(pattern != null, "Neo processing pattern could not be decoded");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(pattern != null, "Neo processing pattern could not be decoded");
             var binding = adapter.bind(level, mainPos, pattern);
-            helper.assertTrue(binding != null && binding.mode() == BindingMode.VIRTUAL,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(binding != null && binding.mode() == BindingMode.VIRTUAL,
                     "Neo recipe did not bind to the virtual lane");
             var counters = new KeyCounter[pattern.getInputs().length];
             for (int index = 0; index < counters.length; index++) {
@@ -405,24 +405,24 @@ public final class AdapterConnectionTests {
             var before = tile.saveWithoutMetadata();
             var planned = adapter.planVirtualWithBinding(level, mainPos, pattern, counters,
                     binding.handle(), IActionSource.empty());
-            helper.assertTrue(planned != null && planned.outputs().get(0).what().equals(AEItemKey.of(result))
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(planned != null && planned.outputs().get(0).what().equals(AEItemKey.of(result))
                             && planned.outputs().get(0).amount() == 2L * result.getCount(),
                     "Neo batch output is incorrect");
-            helper.assertTrue(before.equals(tile.saveWithoutMetadata()), "Virtual plan mutated the real Neo inventory");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(before.equals(tile.saveWithoutMetadata()), "Virtual plan mutated the real Neo inventory");
 
             preview.setItem(0, new ItemStack(Items.DIAMOND));
-            helper.assertTrue(adapter.planVirtualWithBinding(level, mainPos, pattern, counters,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.planVirtualWithBinding(level, mainPos, pattern, counters,
                     binding.handle(), IActionSource.empty()) == null, "Occupied Neo result slot must block crafting");
             preview.setItem(0, ItemStack.EMPTY);
             matrix.setItem(0, new ItemStack(Items.EMERALD));
-            helper.assertTrue(adapter.planVirtualWithBinding(level, mainPos, pattern, counters,
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.planVirtualWithBinding(level, mainPos, pattern, counters,
                     binding.handle(), IActionSource.empty()) == null, "Occupied Neo matrix must block crafting");
             var filter = new AllowedOutputFilter();
             filter.allowStrict(AEItemKey.of(result));
             before = tile.saveWithoutMetadata();
-            helper.assertTrue(adapter.extractOutputs(level, mainPos, filter, IActionSource.empty()).isEmpty(),
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(adapter.extractOutputs(level, mainPos, filter, IActionSource.empty()).isEmpty(),
                     "Neo manual ingredients must never be harvested");
-            helper.assertTrue(before.equals(tile.saveWithoutMetadata()), "Neo harvest mutated manual ingredients");
+            com.moakiee.ae2lt.packaged.compat.GameTestAssertions.assertTrue(before.equals(tile.saveWithoutMetadata()), "Neo harvest mutated manual ingredients");
             matrix.setItem(0, ItemStack.EMPTY);
             LOG.info("[ae2ltpp-conn] PASS conn42_avaritia_neo_virtual_crafting | real Neo core recipe, batch x2, read-only plan and ownership checks");
             helper.succeed();

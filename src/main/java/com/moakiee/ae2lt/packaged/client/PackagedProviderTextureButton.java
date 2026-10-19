@@ -2,7 +2,7 @@ package com.moakiee.ae2lt.packaged.client;
 
 import java.util.List;
 
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
@@ -33,7 +33,7 @@ final class PackagedProviderTextureButton extends Button implements ITooltip {
             ResourceLocation offTexture,
             ResourceLocation onTexture,
             Runnable listener) {
-        super(0, 0, 16, 16, Component.empty(), ignored -> listener.run(), DEFAULT_NARRATION);
+        super(0, 0, 16, 16, Component.empty(), ignored -> listener.run());
         this.offTexture = offTexture;
         this.onTexture = onTexture;
         this.listener = listener;
@@ -71,23 +71,23 @@ final class PackagedProviderTextureButton extends Button implements ITooltip {
     }
 
     @Override
-    protected void renderWidget(
-            GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        var yOffset = isHovered() ? 1 : 0;
+    public void renderButton(
+            PoseStack guiGraphics, int mouseX, int mouseY, float partialTick) {
+        var yOffset = isHoveredOrFocused() ? 1 : 0;
         // 1.20.1's Icon sheet has a single toolbar background (no hover/focus
         // variants) and Blitter carries no z-offset control, so the press
         // feedback is conveyed by the vertical nudge alone.
         Icon.TOOLBAR_BUTTON_BACKGROUND.getBlitter()
-                .dest(getX() - 1, getY() + yOffset, 18, 20)
-                .blit(guiGraphics);
+                .dest(x - 1, y + yOffset, 18, 20)
+                .blit(guiGraphics, 0);
 
         var texture = state ? onTexture : offTexture;
         var blitter = Blitter.texture(texture, 16, 16).src(0, 0, 16, 16);
         if (!active) {
             blitter.opacity(0.5f);
         }
-        blitter.dest(getX(), getY() + 1 + yOffset)
-                .blit(guiGraphics);
+        blitter.dest(x, y + 1 + yOffset)
+                .blit(guiGraphics, 0);
     }
 
     @Override
@@ -97,7 +97,7 @@ final class PackagedProviderTextureButton extends Button implements ITooltip {
 
     @Override
     public Rect2i getTooltipArea() {
-        return new Rect2i(getX(), getY(), 16, 16);
+        return new Rect2i(x, y, 16, 16);
     }
 
     @Override

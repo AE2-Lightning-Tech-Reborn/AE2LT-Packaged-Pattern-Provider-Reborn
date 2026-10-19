@@ -7,7 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeType;
 
@@ -31,7 +31,7 @@ public final class AdapterRecipeTypes {
         if (forgeType != null) {
             return forgeType;
         }
-        var vanillaType = BuiltInRegistries.RECIPE_TYPE.getOptional(id).orElse(null);
+        var vanillaType = Registry.RECIPE_TYPE.getOptional(id).orElse(null);
         if (vanillaType == null && MISSING_DIAGNOSTICS.add(id)) {
             LOG.warn("Recipe type {} is not registered in Forge or vanilla registries", id);
         }

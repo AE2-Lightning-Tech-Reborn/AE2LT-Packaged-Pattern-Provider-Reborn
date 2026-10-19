@@ -654,7 +654,7 @@ public final class AwakeningAltarAdapter implements MultiblockAdapter {
             return null;
         }
         try {
-            return r.getResultItem(level.registryAccess());
+            return r.getResultItem();
         } catch (RuntimeException | LinkageError ignored) {
             return null;
         }

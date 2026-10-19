@@ -264,7 +264,7 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
                     InsertionStrategy.CUSTOM,
                     reagentVoidInserter(reagentStack)));
         }
-        var expectedResult = recipe.getResultItem(level.registryAccess());
+        var expectedResult = recipe.getResultItem();
         if (expectedResult == null || expectedResult.isEmpty()) {
             return null;
         }
@@ -331,7 +331,7 @@ public final class RunicAltarAdapter implements MultiblockAdapter {
 
         ItemStack result;
         try {
-            result = currentRecipe.getResultItem(level.registryAccess());
+            result = currentRecipe.getResultItem();
         } catch (RuntimeException | LinkageError ignored) {
             return List.of();
         }

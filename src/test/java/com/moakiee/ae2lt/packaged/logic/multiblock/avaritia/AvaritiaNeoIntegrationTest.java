@@ -80,7 +80,7 @@ class AvaritiaNeoIntegrationTest {
         var layout = layout(recipe, List.of(new ItemStack(Items.IRON_INGOT), new ItemStack(Items.DIAMOND)));
         var grid = gridFromLayout(layout);
         assertTrue(recipe.matches(grid, null));
-        assertEquals(2, recipe.assemble(grid, RegistryAccess.EMPTY).getCount());
+        assertEquals(2, recipe.assemble(grid).getCount());
         grid.setItem(2, new ItemStack(Items.COBBLESTONE));
         assertFalse(recipe.matches(grid, null));
     }
@@ -100,7 +100,7 @@ class AvaritiaNeoIntegrationTest {
         assertEquals(81, remainders.size());
         assertTrue(((ItemStack) remainders.get(0)).is(Items.BUCKET));
         var outputs = (List<?>) adapterMethod("virtualOutputs", ItemStack.class, NonNullList.class, int.class)
-                .invoke(null, recipe.assemble(grid, RegistryAccess.EMPTY), remainders, 3);
+                .invoke(null, recipe.assemble(grid), remainders, 3);
         var result = (GenericStack) outputs.get(0);
         var bucket = (GenericStack) outputs.get(1);
         assertEquals(AEItemKey.of(output), result.what());

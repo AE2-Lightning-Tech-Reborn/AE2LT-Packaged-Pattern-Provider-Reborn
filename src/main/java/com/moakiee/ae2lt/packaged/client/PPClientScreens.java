@@ -49,7 +49,7 @@ public final class PPClientScreens {
     // Item#initializeClient on 1.20.1; see PackagedCoreClientExtensions.
 
     @SubscribeEvent
-    public static void wrapPackagedCoreItemModels(ModelEvent.ModifyBakingResult event) {
+    public static void wrapPackagedCoreItemModels(ModelEvent.BakingCompleted event) {
         var models = event.getModels();
         for (var definition : PackagedCoreDefinition.all()) {
             var key = new ModelResourceLocation(
