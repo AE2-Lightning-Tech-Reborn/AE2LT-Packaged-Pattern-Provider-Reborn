@@ -1,0 +1,24 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "forbidden_arcanus"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "ae2ltpp:basic_packaged_core"
+    },
+    {
+      "item": "forbidden_arcanus:dark_matter"
+    },
+    {
+      "item": "forbidden_arcanus:xpetrified_orb"
+    }
+  ],
+  "result": {
+    "id": "ae2ltpp:fa_black_hole_packaged_core",
+    "count": 1
+  }
+}

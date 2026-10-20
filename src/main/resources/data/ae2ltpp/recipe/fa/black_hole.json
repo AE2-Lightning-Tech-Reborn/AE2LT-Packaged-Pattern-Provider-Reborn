@@ -1,0 +1,6 @@
+{
+  "neoforge:conditions": [{"type": "neoforge:mod_loaded", "modid": "forbidden_arcanus"}],
+  "type": "ae2ltpp:fa_black_hole",
+  "fluid_tag": "c:experience",
+  "fluid_amount": 1200
+}

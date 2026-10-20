@@ -7,6 +7,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
+import com.moakiee.ae2lt.packaged.logic.PackagedCoreBootstrap;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InsertionStrategy;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
@@ -275,6 +276,15 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
         for (var holder : recipes(level)) {
             scanned++;
             var recipe = holder.value();
+            // Ordinary rituals may produce world effects rather than items. A
+            // core bootstrap must instead prove its real, exact item result;
+            // an invented pattern output must never unlock arbitrary rituals.
+            if (PackagedCoreBootstrap.isCorePattern(pattern)) {
+                var result = recipe.getResultItem(level.registryAccess());
+                var expected = pattern.getOutputs().getFirst();
+                if (result.isEmpty() || !expected.what().equals(AEItemKey.of(result))
+                        || expected.amount() != result.getCount()) continue;
+            }
             if (!OccultismRitualAccess.hasValidPentacle(recipe, level, mainPos)) {
                 pentacleFail++;
                 continue;

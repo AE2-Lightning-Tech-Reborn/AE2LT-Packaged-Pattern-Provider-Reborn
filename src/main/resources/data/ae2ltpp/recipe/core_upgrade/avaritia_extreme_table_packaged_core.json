@@ -1,0 +1,41 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "avaritia"
+    }
+  ],
+  "type": "ae2ltpp:core_upgrade",
+  "required_core": {
+    "id": "ae2ltpp:avaritia_end_table_packaged_core"
+  },
+  "ingredients": [
+    {
+      "item": "avaritia:diamond_lattice"
+    },
+    {
+      "item": "ae2:engineering_processor"
+    },
+    {
+      "item": "avaritia:diamond_lattice"
+    },
+    {
+      "item": "ae2:engineering_processor"
+    },
+    {
+      "item": "ae2:engineering_processor"
+    },
+    {
+      "item": "avaritia:diamond_lattice"
+    },
+    {
+      "item": "ae2:engineering_processor"
+    },
+    {
+      "item": "avaritia:diamond_lattice"
+    }
+  ],
+  "result": {
+    "id": "ae2ltpp:avaritia_extreme_table_packaged_core"
+  }
+}

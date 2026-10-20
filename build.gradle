@@ -201,6 +201,7 @@ dependencies {
         transitive = false
     }
     runtimeOnly "org.appliedenergistics:guideme:${guideme_version}"
+    compileOnly "curse.maven:jei-238222:7391682"
     runtimeOnly "curse.maven:jei-238222:7391682"
     runtimeOnly "curse.maven:jade-324717:5427817"
 
@@ -242,6 +243,7 @@ dependencies {
     runtimeOnly "maven.modrinth:justenoughcharacters:TdUA8TeZ"         // 4.5.23
 
     // AE2 在 1.21 把 JEI 集成移出主 mod,此 addon 把它补回来(配方、ghost 拖拽、搜索同步)
+    compileOnly "curse.maven:ae2-jei-integration-1074338:7727898"
     runtimeOnly "curse.maven:ae2-jei-integration-1074338:7727898"      // 1.2.1
 }
 

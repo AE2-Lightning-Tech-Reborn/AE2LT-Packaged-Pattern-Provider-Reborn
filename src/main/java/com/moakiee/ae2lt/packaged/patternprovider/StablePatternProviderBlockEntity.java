@@ -141,6 +141,10 @@ public abstract class StablePatternProviderBlockEntity
         super(type, pos, blockState);
     }
 
+    public int getPatternSlotCount() {
+        return SLOTS_PER_PAGE;
+    }
+
     public static void serverTick(
             Level level,
             BlockPos pos,

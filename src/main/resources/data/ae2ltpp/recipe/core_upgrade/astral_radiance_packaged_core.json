@@ -1,0 +1,41 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "astralsorcery"
+    }
+  ],
+  "type": "ae2ltpp:core_upgrade",
+  "required_core": {
+    "id": "ae2ltpp:astral_luminance_packaged_core"
+  },
+  "ingredients": [
+    {
+      "item": "astralsorcery:aquamarine"
+    },
+    {
+      "item": "astralsorcery:marble_runed"
+    },
+    {
+      "item": "astralsorcery:aquamarine"
+    },
+    {
+      "item": "astralsorcery:marble_runed"
+    },
+    {
+      "item": "astralsorcery:marble_runed"
+    },
+    {
+      "item": "astralsorcery:aquamarine"
+    },
+    {
+      "item": "astralsorcery:marble_runed"
+    },
+    {
+      "item": "astralsorcery:aquamarine"
+    }
+  ],
+  "result": {
+    "id": "ae2ltpp:astral_radiance_packaged_core"
+  }
+}

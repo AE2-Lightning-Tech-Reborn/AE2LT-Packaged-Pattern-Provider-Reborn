@@ -11,6 +11,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
+import com.moakiee.ae2lt.packaged.item.ResonantPackagedCoreItem;
 
 public final class PPItems {
     public static final DeferredRegister.Items ITEMS =
@@ -207,6 +208,15 @@ public final class PPItems {
     public static final DeferredItem<MultiblockAdapterItem> CHISELING_ADAPTER =
             registerPackagedCore("chiseling_packaged_core", AdapterIds.CHISELING, Set.of(AdapterIds.CHISELING));
 
+    public static final DeferredItem<MultiblockAdapterItem> FA_FORGE_ADAPTER =
+            registerPackagedCore("fa_hephaestus_forge_packaged_core", AdapterIds.FA_FORGE, Set.of(AdapterIds.FA_FORGE));
+    public static final DeferredItem<MultiblockAdapterItem> FA_CLIBANO_ADAPTER =
+            registerPackagedCore("fa_clibano_packaged_core", AdapterIds.FA_CLIBANO, Set.of(AdapterIds.FA_CLIBANO));
+    public static final DeferredItem<MultiblockAdapterItem> FA_BLACK_HOLE_ADAPTER =
+            registerPackagedCore("fa_black_hole_packaged_core", AdapterIds.FA_BLACK_HOLE, Set.of(AdapterIds.FA_BLACK_HOLE));
+    public static final DeferredItem<MultiblockAdapterItem> RESONANT_ADAPTER =
+            registerPackagedCore("resonant_packaged_core", AdapterIds.RESONANT, Set.of(AdapterIds.RESONANT));
+
     // ===== Crafting intermediates =====
 
     /** Generic crafting base for the per-machine packaged cores. */
@@ -221,7 +231,9 @@ public final class PPItems {
             ResourceLocation primaryId,
             Set<ResourceLocation> coveredIds) {
         return ITEMS.register(name,
-                () -> new MultiblockAdapterItem(
+                () -> primaryId.equals(AdapterIds.RESONANT)
+                        ? new ResonantPackagedCoreItem(new Item.Properties().stacksTo(1))
+                        : new MultiblockAdapterItem(
                         new Item.Properties().stacksTo(1),
                         primaryId,
                         coveredIds));
