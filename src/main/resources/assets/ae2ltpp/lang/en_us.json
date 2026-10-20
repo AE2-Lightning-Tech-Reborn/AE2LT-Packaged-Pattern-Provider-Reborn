@@ -16,6 +16,7 @@
   "ae2ltpp.gui.machine_recognition.normal_hint": "Place the provider directly against a supported machine.",
   "ae2ltpp.gui.machine_recognition.wireless_hint": "Link a supported machine and keep its chunk loaded.",
   "ae2ltpp.gui.machine_recognition.recipe_hint": "Dispatch also requires a matching core, recipe and machine operating conditions.",
+  "ae2ltpp.gui.wireless_connection_hint": "Link using Overloaded Wireless Connector",
   "ae2ltpp.gui.frequency_binding": "Bind Frequency",
   "ae2ltpp.gui.auto_return.on": "Automatic return enabled",
   "ae2ltpp.gui.auto_return.off": "Automatic return disabled",

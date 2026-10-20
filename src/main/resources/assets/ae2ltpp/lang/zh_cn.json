@@ -17,6 +17,7 @@
   "ae2ltpp.gui.machine_recognition.normal_hint": "请将供应器紧贴受支持的机器。",
   "ae2ltpp.gui.machine_recognition.wireless_hint": "请连接受支持的机器，并确认目标区块已加载。",
   "ae2ltpp.gui.machine_recognition.recipe_hint": "投料仍需匹配封包核心、样板配方与机器运行条件。",
+  "ae2ltpp.gui.wireless_connection_hint": "需要通过过载无线连接工具连接对应机器",
   "ae2ltpp.gui.frequency_binding": "绑定频率",
   "ae2ltpp.gui.auto_return.on": "自动回收：开启",
   "ae2ltpp.gui.auto_return.off": "自动回收：关闭",
