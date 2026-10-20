@@ -18,7 +18,9 @@ Build the machine, place the provider against it, install the Packaged Core, and
 
 * Item, fluid, and chemical inputs in the pattern are automatically sent to the corresponding ports.
 
-`Editor's note: This has not yet been tested with much precision. In practice, the provider does not appear to need to be near a so-called controller block and only needs to touch the large machine. If that does not work, try linking the Wireless version to the center block on the top or bottom of the machine, or place the regular version against one of those blocks. This text will be corrected after further testing.`
+A regular provider can touch the controller or any of the machine's bounding blocks; it does not need to touch an input or output port. Wireless providers can also link to either the controller or a bounding block.
+
+The green **Found** badge at the top right of the screen means a supported machine was recognized. Hover over it for machine names and the count; multiple wireless links to the same large machine count once. A gray **None** badge means no machine is currently recognized. Recognition is independent of recipe matching: dispatch still requires the correct core, recipe quantities and machine operating conditions.
 
 ## Covered machines
 

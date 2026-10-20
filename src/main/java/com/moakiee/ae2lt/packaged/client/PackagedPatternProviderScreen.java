@@ -65,6 +65,7 @@ public class PackagedPatternProviderScreen
         if (adapterSlot != null) {
             widgets.add("adapterCard", new UpgradesPanel(List.of(adapterSlot), List::of));
         }
+        widgets.add("machineRecognition", new MachineRecognitionWidget(menu));
     }
 
     @Override

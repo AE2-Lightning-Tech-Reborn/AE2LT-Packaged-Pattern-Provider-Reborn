@@ -26,7 +26,9 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
@@ -141,6 +143,53 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                                         PackagedPatternProviderBlockEntity host) {
         super(mainNode, host);
         this.neighborIndex = new NeighborMainBlockIndex(host.getBlockPos());
+    }
+
+    public record MachineRecognition(int count, Component names) {
+        public static final MachineRecognition EMPTY = new MachineRecognition(0, Component.empty());
+    }
+
+    /** Read-only machine discovery for the open menu, independent of recipe binding and dispatch. */
+    public MachineRecognition getMachineRecognition() {
+        if (!(getProviderHost().getLevel() instanceof ServerLevel level)) return MachineRecognition.EMPTY;
+        var machines = new java.util.LinkedHashMap<GlobalPos, Component>();
+        var core = installedAdapterStack();
+        if (core.getItem() instanceof ResonantPackagedCoreItem) {
+            var layout = ResonantPackagedCoreItem.layout(core);
+            if (layout != null) {
+                for (var anchor : resonantAnchors(level, layout, level.getGameTime())) {
+                    machines.put(GlobalPos.of(anchor.level().dimension(), anchor.pos()),
+                            anchor.level().getBlockState(anchor.pos()).getBlock().getName());
+                }
+            }
+        } else if (getProviderHost().getProviderMode() == ProviderMode.NORMAL) {
+            for (var face : Direction.values()) {
+                addRecognizedMachine(machines, level, getProviderHost().getBlockPos().relative(face));
+            }
+        } else {
+            for (var connection : getValidConnections(level, level.getGameTime())) {
+                var targetLevel = level.getServer().getLevel(connection.dimension());
+                if (targetLevel != null) addRecognizedMachine(machines, targetLevel, connection.pos());
+            }
+        }
+        if (machines.isEmpty()) return MachineRecognition.EMPTY;
+        var names = Component.empty();
+        for (var name : machines.values()) {
+            if (!names.getSiblings().isEmpty()) names.append(", ");
+            names.append(name);
+        }
+        return new MachineRecognition(machines.size(), names);
+    }
+
+    private static void addRecognizedMachine(Map<GlobalPos, Component> machines, ServerLevel level, BlockPos pos) {
+        if (!level.isLoaded(pos)) return;
+        var adapter = MultiblockAdapterRegistry.find(level, pos, level.getBlockEntity(pos));
+        if (adapter == null) return;
+        if (adapter instanceof MekanismMoreMachinesAdapter) {
+            pos = MekanismMoreMachinesAdapter.resolveMainPos(level, pos);
+            if (!level.isLoaded(pos)) return;
+        }
+        machines.put(GlobalPos.of(level.dimension(), pos.immutable()), level.getBlockState(pos).getBlock().getName());
     }
 
     // ===== Pattern lifecycle =====
