@@ -68,10 +68,12 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<RecipeHolder<
         }
         if (available.size() != mode.inputs().size()) return null;
         for (var holder : recipes.getOrDefault(mode, List.of())) {
-            // Reject an old cached recipe after datapack reload, even before provider cache invalidation.
+            // Mekanism's shared recipe cache can hold an equivalent client-side recipe instance.
+            // Revalidate against the current server recipe instead of comparing object identity;
+            // this also rejects removed recipes, changed recipe types and incompatible reloads.
             var live = level.getRecipeManager().byKey(holder.id()).orElse(null);
-            if (live == null || live.value() != holder.value()) continue;
-            var arranged = arrange(holder.value(), mode, pattern, available);
+            if (live == null || live.value().getType() != holder.value().getType()) continue;
+            var arranged = arrange(live.value(), mode, pattern, available);
             if (arranged != null) return arranged;
         }
         return null;
