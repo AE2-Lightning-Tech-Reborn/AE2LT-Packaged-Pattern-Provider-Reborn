@@ -6,7 +6,7 @@
     }
   ],
   "type": "astralsorcery:altar_crafting",
-  "baseFocusShatterChance": 0.0,
+  "base_focus_shatter_chance": 0.0,
   "duration": 100,
   "effects": [],
   "grid": {
@@ -35,7 +35,7 @@
       "MCM",
       "AMA"
     ],
-    "relayPattern": [
+    "relay_pattern": [
       "     ",
       "     ",
       "     ",
@@ -43,18 +43,18 @@
       "     "
     ]
   },
-  "mayChain": false,
-  "onlyNight": true,
-  "outputModifiers": [],
+  "may_chain": false,
+  "only_night": true,
+  "output_modifiers": [],
   "outputs": [
     {
       "id": "ae2ltpp:astral_resonance_packaged_core",
       "count": 1
     }
   ],
-  "requiredAdditionalInputs": [],
-  "requiredFluid": [],
-  "requiredLumen": [],
-  "requiredStarlight": [],
-  "requiredType": "resonance"
+  "required_additional_inputs": [],
+  "required_fluid": [],
+  "required_lumen": [],
+  "required_starlight": [],
+  "required_type": "resonance"
 }

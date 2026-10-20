@@ -1,6 +1,6 @@
 {
   "type": "astralsorcery:altar_crafting",
-  "baseFocusShatterChance": 0.0,
+  "base_focus_shatter_chance": 0.0,
   "duration": 25,
   "effects": [],
   "grid": {
@@ -23,7 +23,7 @@
       " I ",
       "   "
     ],
-    "relayPattern": [
+    "relay_pattern": [
       "     ",
       "     ",
       "     ",
@@ -31,16 +31,16 @@
       "     "
     ]
   },
-  "mayChain": false,
-  "onlyNight": false,
-  "outputModifiers": [],
+  "may_chain": false,
+  "only_night": false,
+  "output_modifiers": [],
   "outputs": [
     {
       "id": "minecraft:emerald",
       "count": 2
     }
   ],
-  "requiredAdditionalInputs": [
+  "required_additional_inputs": [
     {
       "ingredient": {
         "item": "minecraft:gold_ingot"
@@ -48,8 +48,8 @@
       "count": 3
     }
   ],
-  "requiredFluid": [],
-  "requiredLumen": [],
-  "requiredStarlight": [],
-  "requiredType": "illumination"
+  "required_fluid": [],
+  "required_lumen": [],
+  "required_starlight": [],
+  "required_type": "illumination"
 }

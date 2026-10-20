@@ -20,7 +20,7 @@ item_ids:
 * <ItemLink id="ae2ltpp:astral_radiance_packaged_core" />
 * <ItemLink id="ae2ltpp:astral_infuser_packaged_core" />
 
-适用于星辉魔法 1.21.1 / 2.0.0 开发版。四级祭坛核心向下兼容，灌注器使用独立核心。核心在对应级别的祭坛中制作，灌注器核心在共鸣祭坛制作。
+适用于星辉魔法 1.21.1 / 2.0.2。四级祭坛核心向下兼容，灌注器使用独立核心。核心在对应级别的祭坛中制作，灌注器核心在共鸣祭坛制作。
 
 ## 使用
 

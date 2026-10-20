@@ -1,6 +1,6 @@
 {
   "type": "astralsorcery:altar_crafting",
-  "baseFocusShatterChance": 0.0,
+  "base_focus_shatter_chance": 0.0,
   "duration": 25,
   "effects": [],
   "grid": {
@@ -17,7 +17,7 @@
       " I ",
       "   "
     ],
-    "relayPattern": [
+    "relay_pattern": [
       "     ",
       "     ",
       "     ",
@@ -25,9 +25,9 @@
       "     "
     ]
   },
-  "mayChain": false,
-  "onlyNight": false,
-  "outputModifiers": [
+  "may_chain": false,
+  "only_night": false,
+  "output_modifiers": [
     {
       "type": "astralsorcery:set_block",
       "block_states": [
@@ -46,9 +46,9 @@
       "count": 1
     }
   ],
-  "requiredAdditionalInputs": [],
-  "requiredFluid": [],
-  "requiredLumen": [],
-  "requiredStarlight": [],
-  "requiredType": "illumination"
+  "required_additional_inputs": [],
+  "required_fluid": [],
+  "required_lumen": [],
+  "required_starlight": [],
+  "required_type": "illumination"
 }
