@@ -102,3 +102,34 @@ Chisel Reborn 和 Chisel Modern 使用相同 mod id，必须分别运行。每�
 - 精简环境可见 LT 的缺少 ExtendedAE 条件、Malum 部分第三方修复配方、MekMM 部分未注册条目的既有资源加载日志。主兼容组明确检查全部新增测试配方存在，缺依赖或测试配方解析失败会使测试失败。
 
 测试源码、测试配方和第三方模组均不打入发布 JAR。可用 `jar tf build/libs/ae2ltpp-1.2.0-beta.1.jar` 检查当前产物；不应包含 `GameTests`、`/compat/` 测试配方或嵌入的第三方 JAR。
+
+## 女仆祭坛、经验球与渡鸦灌注（2026-10-20）
+
+独立入口为 `scripts/maid-test.init.gradle`。本次加载 Touhou Little Maid 1.5.3、Apothic Enchanting 1.6.2、Placebo 9.9.2、Apothic Attributes 2.10.1，使用 NeoForge 21.1.235 满足这些可选模组的依赖；项目默认编译版本仍为 21.1.230。
+
+```bash
+bash ./gradlew --no-configuration-cache -I scripts/maid-test.init.gradle \
+  -Pae2lt_jar=/path/to/ae2lt.jar \
+  -Pthunderbolt_maven_notation= -Pthunderbolt_jar=/path/to/thunderbolt.jar \
+  -PppMaidJar=/path/to/touhoulittlemaid.jar \
+  -PppApothicJar=/path/to/ApothicEnchanting.jar \
+  -PppPlaceboJar=/path/to/Placebo.jar \
+  -PppAttributesJar=/path/to/ApothicAttributes.jar \
+  -Pneo_version=21.1.235 -PppIncludeCoreTests=true test runGameTestServer
+```
+
+117 项 JUnit 与 28 项 GameTest 通过。GameTest 合并本次 11 项测试与原核心组 17 项测试；原核心组的 FA 专属场景在 FA 缺席时跳过，不代表重新验证了 FA 原生加工。覆盖以下行为：
+
+- 原生六柱女仆祭坛加工、核心经真实 ME 合成 CPU 制作并安装、附近手工掉落物不被收走、P 点物品固定转换为 0.6 P。
+- 原生 P 点实体部分吸收、女仆信标实际存取回执、P 点 AEKey 的 NBT／网络／样板往返。
+- 真实破坏面板选择网络中存量最多的经验流体；合并经验球逐份支付，部分入网保存余量，重载后继续支付，存储不足不消耗经验球。
+- 渡鸦首个核心消耗基础核心、3 个青金石及完整 0→100 级经验；缺基础核心或用其他核心替代均拒绝。普通附魔台和换成普通附魔台后的旧绑定均拒绝。
+- 日常灌注调用原生属性版匹配和组装方法，保留 KeepNBT 配方组件；环境数值按配方要求提供。
+- 样板、台内青金石／流体接口、ME 网络共同供料；模拟后库存变化时无成品且回退已扣材料。
+- 全部首级机器核心的数据配方包含基础核心；EC、无尽贪婪与星辉的原生升级配方和供应器升级配方均要求前一级核心。
+
+经验流体测试把水、熔岩加入**仅测试环境**的经验标签，以验证不同流体竞争和精确数量；测试还为渡鸦台提供仅测试环境的流体接口。原生渡鸦台没有经验槽，生产逻辑只在其他模组提供该接口时使用台内流体。这些夹具不会进入发布 JAR。真实模组经验流体由生产标签 `ae2ltpp:experience` 选择，默认含可选的 `c:experience`、`forge:experience` 和常见模组经验流体 ID，换算为 20 mB／点经验。
+
+省略四个可选 JAR 参数并传入 `-PppNoExperienceFixture=true` 可验证可选模组和经验流体均缺席：不注册对应加工逻辑、不加载核心配方，经验球保留。可选模组场景的跳过不能当作正向功能验证。
+
+额外使用 `-I scripts/maid-client-test.init.gradle runClient` 启动自动退出的隔离客户端。客户端检查 JEI 核心页中的基础核心与 619400 mB 实际原料、P 点样板转换器、两种核心模型，并保存截图至 `build/maid-client`；`client-result.txt` 必须明确为 `PASS`。截图中的水是上述测试流体替身。

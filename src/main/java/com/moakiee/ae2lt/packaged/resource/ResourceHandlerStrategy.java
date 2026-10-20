@@ -11,7 +11,8 @@ import appeng.parts.automation.HandlerStrategy;
 
 /** Uses AE2's standard import/export transaction and power accounting. */
 final class ResourceHandlerStrategy extends HandlerStrategy<MEStorage, GenericStack> {
-    ResourceHandlerStrategy() { super(PackagedResourceKeyType.INSTANCE); }
+    private final AEKeyType type;
+    ResourceHandlerStrategy(AEKeyType type) { super(type); this.type = type; }
     @Override public GenericStack getStack(AEKey key, long amount) {
         return isSupported(key) && amount > 0 ? new GenericStack(key, amount) : null;
     }
@@ -26,7 +27,7 @@ final class ResourceHandlerStrategy extends HandlerStrategy<MEStorage, GenericSt
         return new ExternalStorageFacade() {
             @Override public int getSlots() { return snapshot.size(); }
             @Override public GenericStack getStackInSlot(int slot) { return snapshot.get(slot); }
-            @Override public AEKeyType getKeyType() { return PackagedResourceKeyType.INSTANCE; }
+            @Override public AEKeyType getKeyType() { return type; }
             @Override protected int insertExternal(AEKey key, int amount, Actionable mode) {
                 return (int) ResourceHandlerStrategy.this.insert(storage, key, amount, mode);
             }

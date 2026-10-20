@@ -118,6 +118,11 @@ public final class DispatchExecutor {
                 if (plan.onCommit() != null) {
                     plan.onCommit().run();
                 }
+                if (plan.outputCommit() != null) {
+                    // Native instant crafts hand their actual results directly to
+                    // the provider's persistent queue before releasing ownership.
+                    plan.outputCommit().accept(retain);
+                }
                 return DispatchResult.success(null);
             } catch (RuntimeException | LinkageError e) {
                 commitFailed = true;

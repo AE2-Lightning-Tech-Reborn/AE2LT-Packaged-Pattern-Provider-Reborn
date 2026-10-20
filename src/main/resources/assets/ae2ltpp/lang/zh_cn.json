@@ -110,5 +110,14 @@
   "ae2ltpp.jei.fa.black_hole": "黑洞：经验流体转化",
   "ae2ltpp.jei.fa.output": "产物",
   "ae2ltpp.jei.fa.native_rules": "仍需原生结构、等级及强化物品",
-  "ae2ltpp.jei.fa.amount_rules": "编码样板时使用页面所示数量"
+  "ae2ltpp.jei.fa.amount_rules": "编码样板时使用页面所示数量",
+  "item.ae2ltpp.maid_altar_packaged_core": "女仆祭坛封包核心",
+  "key.ae2ltpp.maid_power": "P 点",
+  "ae2ltpp.jei.maid.title": "女仆祭坛封包",
+  "ae2ltpp.jei.maid.help": "每个 P 点物品转换为 0.6 P；祭坛仍需完整搭建。",
+  "item.ae2ltpp.apothic_infusion_packaged_core": "渡鸦灌注封包核心",
+  "ae2ltpp.jei.raven.title": "渡鸦灌注封包",
+  "ae2ltpp.jei.raven.help": "仅限渡鸦附魔台。消耗 %s mB 经验和 3 个青金石，依次从样板、台内、ME 网络扣除。",
+  "ae2ltpp.jei.maid.crafting_help": "消耗样板中的物品与 P 点，祭坛仍需完整搭建。",
+  "ae2ltpp.jei.raven.core_help": "基础封包核心 ×1 + 青金石 ×3\n经验流体 619400 mB（0 → 100 级）"
 }

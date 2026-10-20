@@ -208,6 +208,12 @@ public final class PPItems {
     public static final DeferredItem<MultiblockAdapterItem> CHISELING_ADAPTER =
             registerPackagedCore("chiseling_packaged_core", AdapterIds.CHISELING, Set.of(AdapterIds.CHISELING));
 
+    public static final DeferredItem<MultiblockAdapterItem> APOTHIC_INFUSION_ADAPTER =
+            registerPackagedCore("apothic_infusion_packaged_core", AdapterIds.APOTHIC_INFUSION, Set.of(AdapterIds.APOTHIC_INFUSION));
+
+    public static final DeferredItem<MultiblockAdapterItem> MAID_ALTAR_ADAPTER =
+            registerPackagedCore("maid_altar_packaged_core", AdapterIds.MAID_ALTAR, Set.of(AdapterIds.MAID_ALTAR));
+
     public static final DeferredItem<MultiblockAdapterItem> FA_FORGE_ADAPTER =
             registerPackagedCore("fa_hephaestus_forge_packaged_core", AdapterIds.FA_FORGE, Set.of(AdapterIds.FA_FORGE));
     public static final DeferredItem<MultiblockAdapterItem> FA_CLIBANO_ADAPTER =

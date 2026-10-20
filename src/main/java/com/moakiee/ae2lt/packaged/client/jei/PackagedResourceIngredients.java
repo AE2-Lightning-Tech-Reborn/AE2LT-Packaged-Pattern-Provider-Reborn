@@ -5,6 +5,8 @@ import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.GenericStack;
 import com.moakiee.ae2lt.packaged.resource.ForbiddenEssenceResources;
 import com.moakiee.ae2lt.packaged.resource.PackagedResourceKey;
+import com.moakiee.ae2lt.packaged.resource.MaidPowerKey;
+import appeng.api.stacks.AEKey;
 import mezz.jei.api.ingredients.*;
 import mezz.jei.api.ingredients.subtypes.UidContext;
 import mezz.jei.api.registration.IModIngredientRegistration;
@@ -17,12 +19,13 @@ import net.neoforged.fml.ModList;
 
 /** Real quantities for ghost slots; these are never obtainable inventory items. */
 public final class PackagedResourceIngredients {
-    public record Resource(PackagedResourceKey key, long amount) {}
+    public record Resource(AEKey key, long amount) {}
     public static final IIngredientType<Resource> TYPE = () -> Resource.class;
     private PackagedResourceIngredients() {}
     public static void register(IModIngredientRegistration registration) {
-        var values = ModList.get().isLoaded("forbidden_arcanus")
-                ? ForbiddenEssenceResources.ALL.stream().map(key -> new Resource(key, 1)).toList() : List.<Resource>of();
+        var values = new java.util.ArrayList<Resource>();
+        if (ModList.get().isLoaded("forbidden_arcanus")) ForbiddenEssenceResources.ALL.forEach(key -> values.add(new Resource(key, 1)));
+        if (ModList.get().isLoaded("touhou_little_maid")) values.add(new Resource(MaidPowerKey.INSTANCE, 100));
         registration.register(TYPE, values, new Helper(), new Renderer());
         if (ModList.get().isLoaded("ae2jeiintegration")) Bridge.register();
     }
@@ -43,7 +46,8 @@ public final class PackagedResourceIngredients {
             var mc = Minecraft.getInstance();
             AEKeyRendering.drawInGui(mc, graphics, 0, 0, value.key());
             if (value.amount() > 1) {
-                String amount = value.amount() < 10000 ? Long.toString(value.amount()) : value.amount() / 1000 + "k";
+                String amount = value.key() == MaidPowerKey.INSTANCE ? java.math.BigDecimal.valueOf(value.amount(), 2).stripTrailingZeros().toPlainString()
+                        : value.amount() < 10000 ? Long.toString(value.amount()) : value.amount() / 1000 + "k";
                 graphics.pose().pushPose();
                 graphics.pose().scale(0.75F, 0.75F, 1);
                 graphics.drawString(mc.font, amount, 22 - mc.font.width(amount), 13, 0xFFFFFF, true);
@@ -51,7 +55,8 @@ public final class PackagedResourceIngredients {
             }
         }
         @Override public List<Component> getTooltip(Resource value, TooltipFlag flags) {
-            return List.of(value.key().getDisplayName(), Component.literal(Long.toString(value.amount())),
+            return List.of(value.key().getDisplayName(), Component.literal(value.key() == MaidPowerKey.INSTANCE
+                    ? java.math.BigDecimal.valueOf(value.amount(), 2).stripTrailingZeros().toPlainString() + " P" : Long.toString(value.amount())),
                     Component.translatable("ae2ltpp.resource.help"));
         }
     }
@@ -62,7 +67,8 @@ public final class PackagedResourceIngredients {
                     new tamaized.ae2jeiintegration.api.integrations.jei.IngredientConverter<Resource>() {
                         @Override public IIngredientType<Resource> getIngredientType() { return TYPE; }
                         @Override public Resource getIngredientFromStack(GenericStack stack) {
-                            return stack.what() instanceof PackagedResourceKey key ? new Resource(key, stack.amount()) : null;
+                            return stack.what() instanceof PackagedResourceKey || stack.what() instanceof MaidPowerKey
+                                    ? new Resource(stack.what(), stack.amount()) : null;
                         }
                         @Override public GenericStack getStackFromIngredient(Resource value) {
                             return new GenericStack(value.key(), value.amount());

@@ -45,6 +45,8 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
     @Override public ResourceLocation getPluginUid() { return ResourceLocation.parse("ae2ltpp:cores"); }
     @Override public void registerCategories(IRecipeCategoryRegistration registration) {
         FAJeiRecipes.categories(registration);
+        MaidAltarJeiRecipes.categories(registration);
+        RavenInfusionJeiRecipes.categories(registration);
         helpers = registration.getJeiHelpers();
         registration.addRecipeCategories(new Category(helpers.getGuiHelper()
                 .createDrawableItemStack(PPItems.BASIC_PACKAGED_CORE.toStack())));
@@ -61,6 +63,8 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
     @Override public void onRuntimeAvailable(IJeiRuntime available) {
         runtime = available;
         FAJeiRecipes.recipes(available);
+        MaidAltarJeiRecipes.recipes(available);
+        RavenInfusionJeiRecipes.recipes(available);
         var manager = available.getRecipeManager();
         var results = new ArrayList<ItemStack>();
         results.add(PPItems.BASIC_PACKAGED_CORE.toStack());
@@ -71,6 +75,8 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
             var seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Object, Boolean>());
             manager.createRecipeCategoryLookup().limitFocus(List.of(focus)).get().filter(c -> !c.getRecipeType().equals(TYPE))
                     .filter(c -> !result.is(PPItems.FA_FORGE_ADAPTER.get()) || c.getRecipeType().equals(FAJeiRecipes.TYPE))
+                    .filter(c -> !result.is(PPItems.APOTHIC_INFUSION_ADAPTER.get()) || c.getRecipeType().equals(RavenInfusionJeiRecipes.TYPE))
+                    .filter(c -> !result.is(PPItems.MAID_ALTAR_ADAPTER.get()) || c.getRecipeType().equals(MaidAltarJeiRecipes.TYPE))
                     .forEach(category -> collect(category, result, focus, recipes, seen));
         }
         var level = Minecraft.getInstance().level;
@@ -150,6 +156,9 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
         @Override public void draw(CoreRecipe recipe, IRecipeSlotsView slots, GuiGraphics graphics, double mx, double my) {
             var font = Minecraft.getInstance().font;
             graphics.drawString(font, font.plainSubstrByWidth((recipe.category() == null ? Component.translatable("ae2ltpp.jei.upgrade") : recipe.category().getTitle()).getString(), 244), 2, 2, 0x404040, false);
+            if (recipe.result().is(PPItems.APOTHIC_INFUSION_ADAPTER.get())) {
+                graphics.drawWordWrap(font, Component.translatable("ae2ltpp.jei.raven.core_help"), 2, 42, 244, 0x444444);
+            }
             graphics.drawString(font, Component.translatable(recipe.category() == null ? "ae2ltpp.jei.installed_core_short" : "ae2ltpp.jei.native_recipe"), 2, getHeight() - 32, 0x305F9C, false);
             graphics.drawString(font, Component.translatable("ae2ltpp.jei.order_hint"), 2, getHeight() - 19, 0x404040, false);
         }

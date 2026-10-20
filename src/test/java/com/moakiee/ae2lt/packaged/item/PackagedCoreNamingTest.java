@@ -57,6 +57,8 @@ class PackagedCoreNamingTest {
             "astral_radiance_packaged_core",
             "astral_infuser_packaged_core",
             "chiseling_packaged_core",
+            "apothic_infusion_packaged_core",
+            "maid_altar_packaged_core",
             "fa_hephaestus_forge_packaged_core",
             "fa_clibano_packaged_core",
             "fa_black_hole_packaged_core",

@@ -119,6 +119,9 @@ public final class AdapterIds {
     public static final ResourceLocation CHISEL = id("chisel/chiseling_packaged_core");
     public static final ResourceLocation RESONANT = id("ae2cs/resonant_packaged_core");
 
+    public static final ResourceLocation APOTHIC_INFUSION = ResourceLocation.parse("ae2ltpp:apothic_infusion_packaged_core");
+    public static final ResourceLocation MAID_ALTAR = id("touhou_little_maid/altar_packaged_core");
+
     public static final ResourceLocation FA_FORGE = id("forbidden_arcanus/hephaestus_forge_packaged_core");
     public static final ResourceLocation FA_CLIBANO = id("forbidden_arcanus/clibano_packaged_core");
     public static final ResourceLocation FA_BLACK_HOLE = id("forbidden_arcanus/black_hole_packaged_core");
