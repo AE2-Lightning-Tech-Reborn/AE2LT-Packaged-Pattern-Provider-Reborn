@@ -109,5 +109,14 @@
   "ae2ltpp.jei.fa.black_hole": "Black Hole: XP Fluid Conversion",
   "ae2ltpp.jei.fa.output": "Outputs",
   "ae2ltpp.jei.fa.native_rules": "Native structure, tier and enhancers required",
-  "ae2ltpp.jei.fa.amount_rules": "Use the amounts shown when encoding patterns"
+  "ae2ltpp.jei.fa.amount_rules": "Use the amounts shown when encoding patterns",
+  "item.ae2ltpp.maid_altar_packaged_core": "Maid Altar Packaged Core",
+  "key.ae2ltpp.maid_power": "Power Points",
+  "ae2ltpp.jei.maid.title": "Packaged Maid Altar",
+  "ae2ltpp.jei.maid.help": "Each power point item yields 0.6 P. Requires a complete altar.",
+  "item.ae2ltpp.apothic_infusion_packaged_core": "Raven Infusion Packaged Core",
+  "ae2ltpp.jei.raven.title": "Packaged Raven Infusion",
+  "ae2ltpp.jei.raven.help": "Raven table only. %s mB XP + 3 lapis. Pattern, table, then ME supply the cost.",
+  "ae2ltpp.jei.maid.crafting_help": "Consumes the pattern items and P. A fully formed altar is required.",
+  "ae2ltpp.jei.raven.core_help": "1 Basic Core + 3 Lapis Lazuli\n619400 mB experience (levels 0 to 100)"
 }

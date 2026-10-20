@@ -67,6 +67,8 @@ public record PackagedCoreDefinition(
             core("astral_radiance_packaged_core", "astralsorcery", "altar_radiance"),
             core("astral_infuser_packaged_core", "astralsorcery", "infuser"),
             core("chiseling_packaged_core", "chisel", "chisel"),
+            core("apothic_infusion_packaged_core", "apothic_enchanting", "raven_enchanting_table"),
+            core("maid_altar_packaged_core", "touhou_little_maid", "hakurei_gohei"),
             core("fa_hephaestus_forge_packaged_core", "forbidden_arcanus", "hephaestus_forge_tier_1"),
             core("fa_clibano_packaged_core", "forbidden_arcanus", "clibano_core"),
             core("fa_black_hole_packaged_core", "forbidden_arcanus", "dark_matter"),
@@ -124,6 +126,8 @@ public record PackagedCoreDefinition(
             case "astral_radiance_packaged_core" -> PPItems.ASTRAL_RADIANCE_ADAPTER;
             case "astral_infuser_packaged_core" -> PPItems.ASTRAL_INFUSER_ADAPTER;
             case "chiseling_packaged_core" -> PPItems.CHISELING_ADAPTER;
+            case "apothic_infusion_packaged_core" -> PPItems.APOTHIC_INFUSION_ADAPTER;
+            case "maid_altar_packaged_core" -> PPItems.MAID_ALTAR_ADAPTER;
             case "fa_hephaestus_forge_packaged_core" -> PPItems.FA_FORGE_ADAPTER;
             case "fa_clibano_packaged_core" -> PPItems.FA_CLIBANO_ADAPTER;
             case "fa_black_hole_packaged_core" -> PPItems.FA_BLACK_HOLE_ADAPTER;

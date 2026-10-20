@@ -1,0 +1,35 @@
+// Use with maid-test.init.gradle and its native dependency properties, after runGameTestServer.
+allprojects {
+    afterEvaluate {
+        sourceSets.create('maidClientProbe') {
+            java.srcDir 'src/maidClientTest/java'
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        dependencies.add('maidClientProbeRuntimeOnly', 'curse.maven:jei-238222:7391682')
+        dependencies.add('maidClientProbeRuntimeOnly', 'curse.maven:ae2-jei-integration-1074338:7727898')
+        configurations.maidClientProbeRuntimeOnly.extendsFrom(configurations.maidTestRuntimeOnly)
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.maidClientProbe)
+        neoForge.runs.client {
+            sourceSet = sourceSets.maidClientProbe
+            gameDirectory = project.layout.buildDirectory.dir('maid-client').get().asFile
+            programArguments.addAll '--quickPlaySingleplayer', 'MaidQA', '--width', '1200', '--height', '900'
+        }
+        tasks.named('runClient') {
+            doFirst {
+                project.file('build/maid-client/client-result.txt').delete()
+                def options = project.file('build/maid-client/options.txt')
+                if (!options.exists()) {
+                    options.parentFile.mkdirs()
+                    options.text = 'onboardAccessibility:false\nlang:zh_cn\npauseOnLostFocus:false\nrenderDistance:3\nsimulationDistance:3\nmaxFps:60\n'
+                }
+                def save = project.file('build/maid-client/saves/MaidQA/level.dat')
+                if (!save.exists()) { save.parentFile.mkdirs(); save.bytes = project.file('build/maid-native/world/level.dat').bytes }
+            }
+            doLast {
+                def result = project.file('build/maid-client/client-result.txt')
+                if (!result.exists() || !result.text.startsWith('PASS')) throw new GradleException('Client probe failed: ' + (result.exists() ? result.text : 'no result'))
+            }
+        }
+    }
+}

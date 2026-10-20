@@ -66,6 +66,7 @@ public class AE2LTPackagedProvider {
     public AE2LTPackagedProvider(IEventBus modEventBus, ModContainer modContainer) {
         PPItems.ITEMS.register(modEventBus);
         com.moakiee.ae2lt.packaged.recipe.CoreUpgradeRecipes.register(modEventBus);
+        com.moakiee.ae2lt.packaged.recipe.RavenRecipes.register(modEventBus);
         com.moakiee.ae2lt.packaged.recipe.FARecipes.register(modEventBus);
         PPDataComponents.COMPONENTS.register(modEventBus);
         PPBlocks.BLOCKS.register(modEventBus);
@@ -78,11 +79,18 @@ public class AE2LTPackagedProvider {
         modEventBus.addListener(ResonantCoreSelectPacket::register);
         modEventBus.addListener(com.moakiee.ae2lt.packaged.resource.PackagedResourceStorage::registerKeyType);
         modEventBus.addListener(com.moakiee.ae2lt.packaged.resource.ForbiddenEssenceStorage::registerCapabilities);
+        modEventBus.addListener(com.moakiee.ae2lt.packaged.resource.MaidPowerStorage::registerCapabilities);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             com.moakiee.ae2lt.packaged.resource.PackagedResourceStorage.registerBehaviors();
+            if (ModList.get().isLoaded("apothic_enchanting")) {
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.apothic.RavenInfusionAdapter());
+            }
+            if (ModList.get().isLoaded("touhou_little_maid")) {
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.maid.MaidAltarAdapter());
+            }
             if (ModList.get().isLoaded("forbidden_arcanus")) {
                 MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FAForgeAdapter());
                 MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FAClibanoAdapter());

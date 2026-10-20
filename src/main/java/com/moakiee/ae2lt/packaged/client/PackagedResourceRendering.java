@@ -18,6 +18,7 @@ import net.neoforged.fml.ModList;
 
 public final class PackagedResourceRendering implements AEKeyRenderHandler<PackagedResourceKey> {
     public static void register() {
+        MaidPowerRendering.register();
         AEKeyRendering.register(PackagedResourceKeyType.INSTANCE, PackagedResourceKey.class, new PackagedResourceRendering());
     }
     @Override public void drawInGui(Minecraft client, GuiGraphics graphics, int x, int y, PackagedResourceKey key) {

@@ -1,0 +1,35 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "touhou_little_maid"
+    }
+  ],
+  "type": "touhou_little_maid:altar_recipe_serializers",
+  "power": 1.0,
+  "entity": "minecraft:item",
+  "ingredients": [
+    {
+      "item": "ae2ltpp:basic_packaged_core"
+    },
+    {
+      "item": "minecraft:red_wool"
+    },
+    {
+      "item": "minecraft:diamond"
+    },
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "minecraft:gold_ingot"
+    },
+    {
+      "item": "minecraft:redstone"
+    }
+  ],
+  "result": {
+    "id": "ae2ltpp:maid_altar_packaged_core",
+    "count": 1
+  }
+}

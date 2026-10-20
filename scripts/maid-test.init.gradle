@@ -1,0 +1,35 @@
+// Isolated native orb/altar/infusion tests. Optional jars are supplied explicitly.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || dep.group == 'com.moakiee.thunderbolt'
+                || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep.group == 'maven.modrinth' && dep.name in ['extended-crafting', 'cucumber'])
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('maidTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+            if (providers.gradleProperty('ppIncludeCoreTests').orElse('false').get().toBoolean()) {
+                java.srcDir 'src/coreTest/java'
+                resources.srcDir 'src/coreTest/resources'
+            }
+        }
+        for (property in ['ppMaidJar', 'ppApothicJar', 'ppPlaceboJar', 'ppAttributesJar']) {
+            def path = providers.gradleProperty(property).orNull
+            if (path != null) dependencies.add('maidTestRuntimeOnly', files(path))
+        }
+        if (providers.gradleProperty('ppNoExperienceFixture').orElse('false').get().toBoolean()) {
+            tasks.named('processMaidTestResources') { exclude 'data/ae2ltpp/tags/fluid/experience.json' }
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.maidTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.maidTest
+            gameDirectory = project.layout.buildDirectory.dir('maid-native').get().asFile
+        }
+    }
+}

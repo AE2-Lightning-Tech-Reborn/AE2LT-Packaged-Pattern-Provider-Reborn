@@ -4,6 +4,7 @@
   "package": "com.moakiee.ae2lt.packaged.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ExperienceOrbMixin",
     "PatternProviderLogicAccessor",
     "PatternProviderLogicMixin",
     "AstralInventoryViewMixin",
