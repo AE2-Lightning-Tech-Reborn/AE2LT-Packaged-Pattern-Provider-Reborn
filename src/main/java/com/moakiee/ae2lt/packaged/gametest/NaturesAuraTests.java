@@ -16,20 +16,27 @@ import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 import net.minecraftforge.items.ItemStackHandler;
@@ -155,12 +162,222 @@ public final class NaturesAuraTests {
         h.succeed();
     }
 
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void cancelledBreakLeavesPaidAltarUntouched(GameTestHelper h) throws Exception {
+        var f = new Fixture(h, NaturesAuraAdapter.Kind.ALTAR, "ALTAR", "altar/infused_iron");
+        f.dispatch();
+        var input = f.inventory().getStackInSlot(0).copy();
+        Consumer<BlockEvent.BreakEvent> cancel = event -> {
+            if (event.getLevel() == h.getLevel() && event.getPos().equals(f.pos)) event.setCanceled(true);
+        };
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, cancel);
+        try {
+            var event = new BlockEvent.BreakEvent(h.getLevel(), f.pos,
+                    h.getLevel().getBlockState(f.pos), h.makeMockPlayer());
+            h.assertTrue(MinecraftForge.EVENT_BUS.post(event), "Fixture did not cancel the break");
+            h.assertTrue(ItemStack.matches(input, f.inventory().getStackInSlot(0)),
+                    "Cancelled break removed the paid altar input");
+            h.assertTrue(NaturesAuraCraftState.active(f.machine()), "Cancelled break discarded craft ownership");
+            h.assertTrue(f.dropped(input) == 0, "Cancelled break refunded paid input");
+        } finally {
+            MinecraftForge.EVENT_BUS.unregister(cancel);
+        }
+        h.succeed();
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 240)
+    public static void destroyingAltarDropsCapturedProductExactlyOnce(GameTestHelper h) throws Exception {
+        completedAltarRemoval(h, false);
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 240)
+    public static void explodingAltarDropsCapturedProductExactlyOnce(GameTestHelper h) throws Exception {
+        completedAltarRemoval(h, true);
+    }
+
+    private static void completedAltarRemoval(GameTestHelper h, boolean explode) throws Exception {
+        var f = new Fixture(h, NaturesAuraAdapter.Kind.ALTAR, "ALTAR", "altar/infused_iron");
+        var be = f.machine();
+        var container = NaturesAuraAccess.field(be, "container");
+        container.getClass().getMethod("storeAura", int.class, boolean.class).invoke(container, 100000, false);
+        f.dispatch();
+        h.runAfterDelay(160, () -> {
+            h.assertTrue(NaturesAuraCraftState.active(be) && f.inventory().getStackInSlot(0).isEmpty(),
+                    "Fixture did not finish a paid altar craft");
+            if (explode) {
+                // Use the real explosion removal path without blasting the newly dropped item entities.
+                var explosion = new Explosion(h.getLevel(), null, f.pos.getX() + .5, f.pos.getY() + .5,
+                        f.pos.getZ() + .5, 1, false, Explosion.BlockInteraction.DESTROY);
+                explosion.getToBlow().add(f.pos);
+                explosion.finalizeExplosion(false);
+            } else {
+                h.assertTrue(h.getLevel().destroyBlock(f.pos, true), "Fixture did not destroy altar");
+            }
+            h.assertTrue(f.dropped(((AEItemKey) f.product.what()).toStack()) == f.product.amount(),
+                    "Removing altar lost or duplicated its captured product");
+            h.assertTrue(!NaturesAuraCraftState.active(be), "Removed altar retained paid craft state");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void treeReloadWithoutRecipeReleasesUnconsumedInputsOnce(GameTestHelper h) throws Exception {
+        var f = new Fixture(h, NaturesAuraAdapter.Kind.TREE, "TREE_RITUAL", "tree_ritual/ancient_sapling");
+        f.dispatch();
+        var remaining = new KeyCounter();
+        for (var stand : f.stands) {
+            var inventory = (ItemStackHandler) NaturesAuraAccess.field(h.getLevel().getBlockEntity(stand), "items");
+            var stack = inventory.getStackInSlot(0);
+            if (!stack.isEmpty()) remaining.add(AEItemKey.of(stack), stack.getCount());
+        }
+        h.assertTrue(!remaining.isEmpty(), "Fixture did not retain ritual inputs");
+        // A datapack update removed the recipe while the world was offline.
+        f.reload(saved -> saved.putString("recipe", "ae2ltpp:removed_tree_ritual"));
+        var restored = f.machine();
+        var tick = restored.getClass().getMethod("tick");
+        tick.invoke(restored);
+        h.assertTrue(!NaturesAuraCraftState.active(restored) && NaturesAuraAccess.recipe(restored) == null,
+                "Missing saved recipe left the ritual permanently owned");
+        h.assertTrue(!restored.getPersistentData().contains(NaturesAuraCraftState.TREE_LINK),
+                "Missing saved recipe retained the tree link");
+        for (var entry : remaining) {
+            h.assertTrue(f.dropped(((AEItemKey) entry.getKey()).toStack(1)) == entry.getLongValue(),
+                    "Missing saved recipe did not refund exactly the unconsumed inputs");
+        }
+        for (var stand : f.stands) {
+            var inventory = (ItemStackHandler) NaturesAuraAccess.field(h.getLevel().getBlockEntity(stand), "items");
+            h.assertTrue(inventory.getStackInSlot(0).isEmpty(), "Refunded input remained on a stand");
+        }
+        tick.invoke(restored);
+        for (var entry : remaining) {
+            h.assertTrue(f.dropped(((AEItemKey) entry.getKey()).toStack(1)) == entry.getLongValue(),
+                    "Missing saved recipe refunded an input twice");
+        }
+        h.assertTrue(f.harvest().isEmpty(), "Missing saved recipe produced an unpaid result");
+        h.succeed();
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void destroyingOfferingDropsPaidQueueExactlyOnce(GameTestHelper h) throws Exception {
+        var f = new Fixture(h, NaturesAuraAdapter.Kind.OFFERING, "OFFERING_TABLE", "offering/sky_ingot");
+        f.dispatch();
+        var be = f.machine();
+        h.assertTrue(h.getLevel().destroyBlock(f.pos, true), "Fixture did not destroy offering table");
+        h.assertTrue(f.dropped(((AEItemKey) f.product.what()).toStack()) == f.product.amount(),
+                "Removing offering table lost or duplicated its paid output queue");
+        h.assertTrue(!NaturesAuraCraftState.active(be), "Removed offering table retained paid craft state");
+        h.succeed();
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void destroyingSecondaryStandRefundsRemainingRitualInputsOnce(GameTestHelper h) throws Exception {
+        removeSecondaryStand(h, false);
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void playerBreakingSecondaryStandRefundsRemainingRitualInputsOnce(GameTestHelper h) throws Exception {
+        removeSecondaryStand(h, true);
+    }
+
+    private static void removeSecondaryStand(GameTestHelper h, boolean playerBreak) throws Exception {
+        var f = new Fixture(h, NaturesAuraAdapter.Kind.TREE, "TREE_RITUAL", "tree_ritual/ancient_sapling");
+        f.dispatch();
+        var stands = f.stands;
+        var expected = new KeyCounter();
+        for (var stand : stands) {
+            var inventory = (ItemStackHandler) NaturesAuraAccess.field(h.getLevel().getBlockEntity(stand), "items");
+            for (int i = 0; i < inventory.getSlots(); i++) {
+                var stack = inventory.getStackInSlot(i);
+                if (!stack.isEmpty()) expected.add(AEItemKey.of(stack), stack.getCount());
+            }
+        }
+        var secondary = stands.stream().filter(pos -> !pos.equals(f.pos)).findFirst().orElseThrow();
+        var be = f.machine();
+        if (playerBreak) {
+            var state = h.getLevel().getBlockState(secondary);
+            state.getBlock().playerWillDestroy(h.getLevel(), secondary, state, h.makeMockPlayer());
+        }
+        h.assertTrue(h.getLevel().destroyBlock(secondary, true), "Fixture did not destroy secondary stand");
+        h.assertTrue(!NaturesAuraCraftState.active(be) && NaturesAuraAccess.recipe(be) == null,
+                "Removing secondary stand left a running paid ritual");
+        for (var entry : expected) {
+            h.assertTrue(f.dropped(((AEItemKey) entry.getKey()).toStack()) == entry.getLongValue(),
+                    "Removing secondary stand lost or duplicated an unconsumed input");
+        }
+        NaturesAuraCraftState.dropPending(h.getLevel(), f.pos);
+        for (var entry : expected) {
+            h.assertTrue(f.dropped(((AEItemKey) entry.getKey()).toStack()) == entry.getLongValue(),
+                    "Removed ritual refunded an input twice");
+        }
+        h.succeed();
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void playerBreakingAltarRefundsPaidInputExactlyOnce(GameTestHelper h) throws Exception {
+        var f = new Fixture(h, NaturesAuraAdapter.Kind.ALTAR, "ALTAR", "altar/infused_iron");
+        f.dispatch();
+        var be = f.machine();
+        var input = f.inventory().getStackInSlot(0).copy();
+        var state = h.getLevel().getBlockState(f.pos);
+        // Follow the committed player-break callbacks, including Nature's Aura's native inventory drop.
+        state.getBlock().playerWillDestroy(h.getLevel(), f.pos, state, h.makeMockPlayer());
+        h.assertTrue(h.getLevel().removeBlock(f.pos, false), "Fixture did not remove altar");
+        h.assertTrue(f.dropped(input) == input.getCount(),
+                "Player break lost or duplicated the paid altar input: " + f.dropped(input));
+        h.assertTrue(!NaturesAuraCraftState.active(be), "Player break retained paid craft state");
+        h.succeed();
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void removingUnrelatedStandPreservesNearbyPaidRitual(GameTestHelper h) throws Exception {
+        var f = new Fixture(h, NaturesAuraAdapter.Kind.TREE, "TREE_RITUAL", "tree_ritual/ancient_sapling");
+        f.dispatch();
+        BlockPos unrelated = null;
+        for (var first : f.stands) {
+            for (var second : f.stands) {
+                var candidate = f.pos.offset(first.subtract(second));
+                var relative = h.relativePos(candidate);
+                if (!f.stands.contains(candidate) && h.getLevel().getBlockState(candidate).isAir()
+                        && relative.getX() >= 0 && relative.getX() < 16
+                        && relative.getZ() >= 0 && relative.getZ() < 16) {
+                    unrelated = candidate;
+                    break;
+                }
+            }
+            if (unrelated != null) break;
+        }
+        h.assertTrue(unrelated != null, "Fixture did not find an unrelated nearby stand position");
+        var input = f.inventory().getStackInSlot(0).copy();
+        h.getLevel().setBlockAndUpdate(unrelated, f.machine().getBlockState());
+        h.assertTrue(h.getLevel().destroyBlock(unrelated, false), "Fixture did not remove unrelated stand");
+        h.assertTrue(NaturesAuraCraftState.active(f.machine()) && NaturesAuraAccess.recipe(f.machine()) != null,
+                "Removing unrelated stand cancelled a nearby paid ritual");
+        h.assertTrue(ItemStack.matches(input, f.inventory().getStackInSlot(0)) && f.dropped(input) == 0,
+                "Removing unrelated stand refunded nearby ritual inputs");
+        h.succeed();
+    }
+
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void waterloggingAltarPreservesPaidCraft(GameTestHelper h) throws Exception {
+        var f = new Fixture(h, NaturesAuraAdapter.Kind.ALTAR, "ALTAR", "altar/infused_iron");
+        f.dispatch();
+        var be = f.machine();
+        var input = f.inventory().getStackInSlot(0).copy();
+        h.getLevel().setBlockAndUpdate(f.pos, be.getBlockState().cycle(BlockStateProperties.WATERLOGGED));
+        h.assertTrue(f.machine() == be && NaturesAuraCraftState.active(be),
+                "Same-block update discarded paid craft ownership");
+        h.assertTrue(ItemStack.matches(input, f.inventory().getStackInSlot(0)) && f.dropped(input) == 0,
+                "Same-block update refunded the paid input");
+        h.succeed();
+    }
+
     private static final class Fixture {
         final GameTestHelper h;
         final BlockPos center;
         final BlockPos pos;
         final NaturesAuraAdapter adapter;
         final List<GenericStack> inputs = new ArrayList<>();
+        final List<BlockPos> stands = new ArrayList<>();
         final GenericStack product;
         final IPatternDetails pattern;
 
@@ -171,7 +388,6 @@ public final class NaturesAuraTests {
                 h.getLevel().setBlockAndUpdate(center.offset(x, -1, z), Blocks.DIRT.defaultBlockState());
             }
             var structure = Class.forName("de.ellpeck.naturesaura.blocks.multi.Multiblocks").getField(structureName).get(null);
-            var stands = new ArrayList<BlockPos>();
             BiFunction<BlockPos, Object, Boolean> place = (position, matcher) -> {
                 try {
                     var state = (BlockState) matcher.getClass().getMethod("defaultState").invoke(matcher);
@@ -221,6 +437,12 @@ public final class NaturesAuraTests {
         BlockEntity machine() { return h.getLevel().getBlockEntity(pos); }
         ItemStackHandler inventory() { return (ItemStackHandler) NaturesAuraAccess.field(machine(), "items"); }
 
+        long dropped(ItemStack stack) {
+            return h.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(center).inflate(8)).stream()
+                    .filter(item -> ItemStack.isSameItemSameTags(stack, item.getItem()))
+                    .mapToLong(item -> item.getItem().getCount()).sum();
+        }
+
         void dispatch() {
             var binding = adapter.bind(h.getLevel(), pos, pattern);
             h.assertTrue(binding != null, "Native recipe failed to bind");
@@ -240,8 +462,13 @@ public final class NaturesAuraTests {
         }
 
         void reload() {
+            reload(saved -> {});
+        }
+
+        void reload(Consumer<CompoundTag> edit) {
             var original = machine();
             var saved = original.saveWithFullMetadata();
+            edit.accept(saved);
             var replacement = original.getType().create(pos, original.getBlockState());
             h.getLevel().removeBlockEntity(pos);
             replacement.load(saved);

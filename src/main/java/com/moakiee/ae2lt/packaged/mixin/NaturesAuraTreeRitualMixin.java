@@ -71,6 +71,10 @@ public abstract class NaturesAuraTreeRitualMixin implements NaturesAuraManagedMa
                 NaturesAuraAccess.setRitual(be, ae2ltpp$resumeRitualPos, recipe);
                 NaturesAuraAccess.setTimer(be, ae2ltpp$resumeTimer);
             }
+            if (NaturesAuraAccess.recipe(be) == null) {
+                // Release paid inputs when the saved ritual can no longer be resumed.
+                NaturesAuraCraftState.cancelWithoutResult(be);
+            }
             ae2ltpp$resumeRecipe = null;
             ae2ltpp$resumeRitualPos = null;
         }

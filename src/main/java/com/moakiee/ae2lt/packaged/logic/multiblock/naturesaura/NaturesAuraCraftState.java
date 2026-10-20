@@ -16,16 +16,12 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraftforge.event.level.BlockEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.items.ItemStackHandler;
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 
 /** Stores results emitted by a paid native craft until the provider harvests them. */
-@Mod.EventBusSubscriber(modid = "ae2ltpp")
 public final class NaturesAuraCraftState {
     public static final String KEY = "ae2ltpp:natures_aura_craft";
     public static final String TREE_LINK = "ae2ltpp:natures_aura_tree_link";
@@ -150,20 +146,18 @@ public final class NaturesAuraCraftState {
         return List.copyOf(results);
     }
 
-    /** Forge 1.20.1 has no NeoForge BlockDropsEvent; copy pending output on break. */
-    @SubscribeEvent
-    public static void onBreak(BlockEvent.BreakEvent event) {
-        if (event.isCanceled()) return;
-        if (!(event.getLevel() instanceof ServerLevel level)) return;
-        BlockPos broken = event.getPos();
-        BlockEntity be = level.getBlockEntity(broken);
+    /** Release paid contents only when the block entity is actually being removed. */
+    public static void beforeBlockEntityRemoval(ServerLevel level, BlockPos pos) {
+        BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof NaturesAuraManagedMachine)) return;
         if (active(be)) {
-            dropPending(level, broken);
+            dropPending(level, pos);
             return;
         }
-        BlockPos leader = findTreeLeader(level, broken);
-        if (leader != null) dropPending(level, leader);
+        if (isTreeMachine(be)) {
+            BlockPos leader = findTreeLeader(level, pos);
+            if (leader != null) dropPending(level, leader);
+        }
     }
 
     public static void dropPending(ServerLevel level, BlockPos pos) {
@@ -268,7 +262,10 @@ public final class NaturesAuraCraftState {
             for (BlockPos stand : NaturesAuraAccess.positions("TREE_RITUAL", center, 'W')) {
                 if (!level.isLoaded(stand)) continue;
                 BlockEntity candidate = level.getBlockEntity(stand);
-                if (candidate instanceof NaturesAuraManagedMachine && active(candidate)) return stand;
+                if (!(candidate instanceof NaturesAuraManagedMachine) || !isTreeMachine(candidate)
+                        || !active(candidate)) continue;
+                CompoundTag state = candidate.getPersistentData().getCompound(KEY);
+                if (center.equals(findTreeCenter(level, state))) return stand;
             }
         }
         return null;
