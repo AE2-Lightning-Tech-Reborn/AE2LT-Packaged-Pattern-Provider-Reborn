@@ -37,6 +37,12 @@ public class PackagedRitualLifecycleRegressionTest {
                 Set.of("runAutoReturnTick", "autoReturnNormal", "autoReturnWireless"), -1)
                 + """
                     // This harness covers ordinary/ritual forwarding. Mek polling has separate tests.
+                    // Core-specific filtering is exercised by the optional native core-order tests.
+                    private record InstalledStack(Object item) { Object getItem() { return item; } }
+                    private InstalledStack installedAdapterStack() { return new InstalledStack(null); }
+                    private static final class ResonantPackagedCoreItem {}
+                    private AllowedOutputFilter autoReturnFilter(MultiblockAdapter adapter, ServerLevel level,
+                            BlockPos pos, AllowedOutputFilter ordinary) { return ordinary; }
                     private void pollOutputs(MultiblockAdapter adapter, ServerLevel level, BlockPos pos,
                             AllowedOutputFilter filter, long tick) {
                         var outputs = adapter.extractOutputs(level, pos, filter, getActionSource(), adapterScope());
@@ -58,8 +64,7 @@ public class PackagedRitualLifecycleRegressionTest {
         String wireless = extract(provider, Set.of("autoReturnWireless"), -1);
         expectFailure(HARNESS.replace("/* RITUAL */", methods).replace("/* PROVIDER */",
                 polling.replace(wireless, wireless.replace(
-                        "if (filter.isEmpty() && !adapter.supportsPatternIndependentHarvest())",
-                        "if (false)"))));
+                        "!adapter.supportsPatternIndependentHarvest()", "false"))));
 
         // Extraction's OFF guard must run before any world lookup or mutation.
         String extraction = extract(ritual, Set.of("extractOutputs"), 5);

@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "ae2ltpp.refmap.json",
   "mixins": [
+    "ExperienceOrbMixin",
     "MenuTypeBuilderAccessor",
     "PatternProviderLogicAccessor",
     "PatternProviderLogicMixin",

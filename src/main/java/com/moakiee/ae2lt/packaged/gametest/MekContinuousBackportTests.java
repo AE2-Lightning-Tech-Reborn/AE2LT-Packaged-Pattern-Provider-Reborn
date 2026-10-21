@@ -78,6 +78,33 @@ public final class MekContinuousBackportTests {
         return ModList.get().isLoaded("mekmm") && ModList.get().isLoaded("appmek");
     }
 
+    @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 80)
+    public static void queuedBatchRenewsOnlyRemainingOutputOwnership(GameTestHelper h) throws ReflectiveOperationException {
+        h.assertTrue(available(), "MekMM and Applied Mekanistics are required");
+        var tile = machine(h, "large_electrolytic_separator");
+        var provider = scope(h);
+        var adapter = new MekanismMoreMachinesAdapter();
+        var remaining = List.of(gas("hydrogen", 30), gas("oxygen", 10));
+        var key = "mekmm:harvest";
+        com.moakiee.ae2lt.packaged.logic.multiblock.ExpectedStackHarvestOwnership.store(
+                h.getLevel(), tile.getBlockPos(), provider, key,
+                Math.max(0, h.getLevel().getGameTime() - 100), remaining);
+        provider.setState(tile.getBlockPos(), "mekmm:mode@" + h.getLevel().dimension().location(),
+                adapter.dispatchMode(h.getLevel(), tile.getBlockPos()).toString());
+        h.assertTrue(adapter.refreshBatchOwnership(h.getLevel(), tile.getBlockPos(), provider),
+                "Queued inputs could not renew their remaining output claim");
+        var claim = com.moakiee.ae2lt.packaged.logic.multiblock.ExpectedStackHarvestOwnership.load(
+                h.getLevel(), tile.getBlockPos(), provider, key);
+        h.assertTrue(claim != null && claim.remaining().equals(remaining)
+                && claim.createdTick() == h.getLevel().getGameTime(),
+                "Renewal restored harvested amounts or kept an expired clock");
+        com.moakiee.ae2lt.packaged.logic.multiblock.ExpectedStackHarvestOwnership.clear(
+                h.getLevel(), tile.getBlockPos(), provider, key);
+        h.assertTrue(!adapter.refreshBatchOwnership(h.getLevel(), tile.getBlockPos(), provider),
+                "Deleted output ownership was recreated");
+        h.succeed();
+    }
+
     @GameTest(template = "adapterconnectiontests.adapter_conn", timeoutTicks = 160)
     public static void providerSends64PhysicalCopiesWithoutChangingBorrowedInputs(GameTestHelper h)
             throws ReflectiveOperationException {

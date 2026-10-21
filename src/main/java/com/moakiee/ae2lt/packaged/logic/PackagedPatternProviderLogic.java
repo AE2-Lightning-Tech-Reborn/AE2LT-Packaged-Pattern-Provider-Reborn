@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -148,6 +150,53 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                                         PackagedPatternProviderBlockEntity host) {
         super(mainNode, host);
         this.neighborIndex = new NeighborMainBlockIndex(host.getBlockPos());
+    }
+
+    public record MachineRecognition(int count, Component names) {
+        public static final MachineRecognition EMPTY = new MachineRecognition(0, Component.empty());
+    }
+
+    /** Read-only machine discovery for the open menu, independent of recipe binding and dispatch. */
+    public MachineRecognition getMachineRecognition() {
+        if (!(getProviderHost().getLevel() instanceof ServerLevel level)) return MachineRecognition.EMPTY;
+        var machines = new java.util.LinkedHashMap<GlobalPos, Component>();
+        var core = installedAdapterStack();
+        if (core.getItem() instanceof ResonantPackagedCoreItem) {
+            var layout = ResonantPackagedCoreItem.layout(core);
+            if (layout != null) {
+                for (var anchor : resonantAnchors(level, layout, level.getGameTime())) {
+                    machines.put(GlobalPos.of(anchor.level().dimension(), anchor.pos()),
+                            anchor.level().getBlockState(anchor.pos()).getBlock().getName());
+                }
+            }
+        } else if (getProviderHost().getProviderMode() == ProviderMode.NORMAL) {
+            for (var face : Direction.values()) {
+                addRecognizedMachine(machines, level, getProviderHost().getBlockPos().relative(face));
+            }
+        } else {
+            for (var connection : getValidConnections(level, level.getGameTime())) {
+                var targetLevel = level.getServer().getLevel(connection.dimension());
+                if (targetLevel != null) addRecognizedMachine(machines, targetLevel, connection.pos());
+            }
+        }
+        if (machines.isEmpty()) return MachineRecognition.EMPTY;
+        var names = Component.empty();
+        for (var name : machines.values()) {
+            if (!names.getSiblings().isEmpty()) names.append(", ");
+            names.append(name);
+        }
+        return new MachineRecognition(machines.size(), names);
+    }
+
+    private static void addRecognizedMachine(Map<GlobalPos, Component> machines, ServerLevel level, BlockPos pos) {
+        if (!level.isLoaded(pos)) return;
+        var adapter = MultiblockAdapterRegistry.find(level, pos, level.getBlockEntity(pos));
+        if (adapter == null) return;
+        if (adapter instanceof MekanismMoreMachinesAdapter) {
+            pos = MekanismMoreMachinesAdapter.resolveMainPos(level, pos);
+            if (!level.isLoaded(pos)) return;
+        }
+        machines.put(GlobalPos.of(level.dimension(), pos.immutable()), level.getBlockState(pos).getBlock().getName());
     }
 
     // ===== Pattern lifecycle =====
@@ -328,10 +377,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
     public long getBatchCapacity(IPatternDetails pattern) {
         if (!getGridNode().isActive() || isBusy() || getCraftingLockedReason() != LockCraftingMode.NONE
                 || !getAvailablePatterns().contains(pattern)) return 0;
-        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem
+                && !PackagedCoreBootstrap.isCorePattern(pattern)) {
             return ResonantPackagedCoreItem.layout(installedAdapterStack()) != null && resonantPattern(pattern) != null ? 1 : 0;
         }
-        if (!BatchCopies.eligible(pattern) || !batchControlsAllowDispatch()) return 1;
+        if (PackagedCoreBootstrap.isCorePattern(pattern) || !BatchCopies.eligible(pattern) || !batchControlsAllowDispatch()) return 1;
         if (!(getProviderHost().getLevel() instanceof ServerLevel level)) return 0;
         if (pendingBatchInputs.hasPending()) return 0;
         long tick = level.getGameTime();
@@ -366,7 +416,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
     public long pushBatch(IPatternDetails pattern, KeyCounter[] template, long maxCraft) {
         if (maxCraft <= 0) return maxCraft;
         if (template == null) return maxCraft;
-        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+        if (PackagedCoreBootstrap.isCorePattern(pattern) || installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
             return pushPattern(pattern, BatchCopies.copy(template)) ? maxCraft - 1 : maxCraft;
         }
         if (!BatchCopies.eligible(pattern) || !batchControlsAllowDispatch()) {
@@ -414,7 +464,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
             var plan = adapter.planBatchWithBinding(env.level(), env.pos(), pattern,
                     BatchCopies.copy(template), candidate.handle(), getActionSource(), adapterScope());
             var ports = PendingBatchInputs.prepare(plan, adapter);
-            if (ports.isEmpty()) continue;
+            if (!PendingBatchInputs.matchesInputs(ports, template)) continue;
             long maximum = Math.min(maxCraft, inputBatchLimiter.remaining(candidate.lane(), tick));
             long copies = BatchCopies.fittingLong(maximum, n -> {
                 if (!Double.isFinite(cost * n) || !PatternProviderPowerCost.canAfford(grid, cost * n)) return false;
@@ -440,7 +490,9 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                                  LaneCandidate candidate, IPatternDetails pattern,
                                  long copies, double cost, IGrid grid, long tick,
                                  List<PendingBatchInputs.Delivery> deliveries) {
-        pendingBatchInputs.adopt(deliveries);
+        pendingBatchInputs.adopt(deliveries, new PendingBatchInputs.Ownership(
+                ((InputBatchCraftingAdapter) candidate.adapter()).batchAdapterId(), env.level().dimension().location(),
+                env.pos(), BuiltInRegistries.BLOCK.getKey(env.level().getBlockState(env.pos()).getBlock())));
         try {
             if (!((InputBatchCraftingAdapter) candidate.adapter()).onBatchAccepted(
                     env.level(), env.pos(), pattern, candidate.handle(), (int) copies, adapterScope())) {
@@ -494,9 +546,27 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
     private void deliverPendingBatchInputs(ServerLevel providerLevel) {
         if (!pendingBatchInputs.hasPending()) return;
         try {
+            var owner = pendingBatchInputs.ownership();
+            if (owner != null) {
+                var dimension = net.minecraft.resources.ResourceKey.create(
+                        net.minecraft.core.registries.Registries.DIMENSION, owner.dimension());
+                var targetLevel = providerLevel.getServer().getLevel(dimension);
+                if (targetLevel == null || !targetLevel.isLoaded(owner.pos())
+                        || !owner.block().equals(BuiltInRegistries.BLOCK.getKey(targetLevel.getBlockState(owner.pos()).getBlock()))) return;
+                boolean renewed = false;
+                for (var adapter : MultiblockAdapterRegistry.activeAdapters()) {
+                    if (adapter instanceof InputBatchCraftingAdapter batch && batch.batchAdapterId().equals(owner.adapter())
+                            && adapter.recognizesMain(targetLevel, owner.pos(), targetLevel.getBlockEntity(owner.pos()))) {
+                        renewed = batch.refreshBatchOwnership(targetLevel, owner.pos(), adapterScope());
+                        break;
+                    }
+                }
+                // Removed output claims must never be recreated from the original totals.
+                if (!renewed) return;
+            }
             pendingBatchInputs.deliver(delivery -> insertBatchDelivery(providerLevel, delivery, Actionable.MODULATE));
         } catch (RuntimeException | LinkageError failure) {
-            LOG.warn("Pending batch input delivery stopped; unresolved ownership was removed from retry", failure);
+            LOG.warn("Pending batch input delivery stopped; ambiguous transfers are retained without retry or refund", failure);
         } finally {
             getProviderHost().saveChanges();
         }
@@ -528,8 +598,33 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
             return false;
         }
 
+        if (getProviderHost() instanceof PackagedPatternProviderBlockEntity packaged
+                && PackagedCoreBootstrap.isCorePattern(patternDetails)) {
+            for (var recipe : sl.getRecipeManager().getAllRecipesFor(
+                    com.moakiee.ae2lt.packaged.recipe.CoreUpgradeRecipes.TYPE.get())) {
+                int upgradeMode = recipe.completionMode(installedAdapterStack(), patternDetails, inputHolder);
+                if (upgradeMode < 0) continue;
+                var output = appeng.api.stacks.AEItemKey.of(recipe.result());
+                if (upgradeMode == 0 && !packaged.getCoreOrder().awaitsInstallation(output)) continue;
+                if (upgradeMode == 0) packaged.getAdapterInv().setItemDirect(0, ItemStack.EMPTY);
+                // Own the output before any notification can fail. Once accepted,
+                // the CPU must not refund inputs or replay the upgrade.
+                virtualBatch.enqueue(List.of(new GenericStack(output, 1)));
+                try {
+                    PatternProviderPowerCost.consumeRaw(grid, cost);
+                    recordSuccessfulPush(patternDetails);
+                    getProviderHost().saveChanges();
+                    alertGridTick();
+                } catch (RuntimeException | LinkageError failure) {
+                    LOG.error("Core upgrade accepted; retaining its output for delivery", failure);
+                }
+                return true;
+            }
+        }
+
         long gameTick = sl.getGameTime();
-        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
+        if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem
+                && !PackagedCoreBootstrap.isCorePattern(patternDetails)) {
             var layout = ResonantPackagedCoreItem.layout(installedAdapterStack());
             return layout != null && tryResonantPush(sl, layout, patternDetails, inputHolder, cost, gameTick);
         }
@@ -866,9 +961,9 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
 
         if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
             var layout = ResonantPackagedCoreItem.layout(installedAdapterStack());
-            if (layout != null && !pendingBatchInputs.hasPending() && (lastAutoReturnTick == Long.MIN_VALUE
+            if (!pendingBatchInputs.hasPending() && (lastAutoReturnTick == Long.MIN_VALUE
                     || elapsedTicks(gameTick, lastAutoReturnTick) >= AUTO_RETURN_INTERVAL_TICKS)) {
-                for (var anchor : resonantAnchors(sl, layout, gameTick)) {
+                for (var anchor : layout == null ? List.<ResonantDispatch.Anchor>of() : resonantAnchors(sl, layout, gameTick)) {
                     try {
                         ResonantDispatch.extractOutputs(layout, anchor, getProviderHost().getBlockPos(),
                                 getOrBuildOutputFilter(), getActionSource(),
@@ -877,6 +972,9 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                         LOG.warn("Resonant output collection stopped", failure);
                     }
                 }
+                // Core manufacturing uses native adapters even with a resonant core installed.
+                // Its harvest filter below admits only compatible core outputs.
+                runAutoReturnTick(sl, gameTick);
                 lastAutoReturnTick = gameTick;
             }
             return;
@@ -914,11 +1012,13 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
             if (adapter == null || adapter instanceof VirtualCraftingAdapter) {
                 continue;
             }
-            if (filter.isEmpty() && !adapter.supportsPatternIndependentHarvest()) {
+            var pos = getProviderHost().getBlockPos().relative(face);
+            var allowed = autoReturnFilter(adapter, level, pos, filter);
+            if (allowed.isEmpty() && (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem
+                    || !adapter.supportsPatternIndependentHarvest())) {
                 continue;
             }
-            var pos = getProviderHost().getBlockPos().relative(face);
-            pollOutputs(adapter, level, pos, filter, gameTick);
+            pollOutputs(adapter, level, pos, allowed, gameTick);
         }
     }
 
@@ -942,11 +1042,26 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
             if (adapter == null || adapter instanceof VirtualCraftingAdapter) {
                 continue;
             }
-            if (filter.isEmpty() && !adapter.supportsPatternIndependentHarvest()) {
+            var allowed = autoReturnFilter(adapter, targetLevel, conn.pos(), filter);
+            if (allowed.isEmpty() && (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem
+                    || !adapter.supportsPatternIndependentHarvest())) {
                 continue;
             }
-            pollOutputs(adapter, targetLevel, conn.pos(), filter, gameTick);
+            pollOutputs(adapter, targetLevel, conn.pos(), allowed, gameTick);
         }
+    }
+
+    private AllowedOutputFilter autoReturnFilter(MultiblockAdapter adapter, ServerLevel level,
+                                                 net.minecraft.core.BlockPos pos, AllowedOutputFilter ordinary) {
+        if (!(installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem)) return ordinary;
+        var cores = new AllowedOutputFilter();
+        var required = adapter.requiredAdapterId(level, pos);
+        for (var pattern : getAvailablePatterns()) {
+            if (PackagedCoreBootstrap.allows(pattern, required)) {
+                cores.allowStrict(pattern.getPrimaryOutput().what());
+            }
+        }
+        return cores;
     }
 
     private void resetMekScheduling() {
@@ -1042,7 +1157,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                     continue;
                 }
                 var pos = getProviderHost().getBlockPos().relative(face);
-                if (!isAdapterUnlocked(adapter, level, pos, installedCard)) {
+                if (!isAdapterUnlocked(adapter, level, pos, installedCard)
+                        && !PackagedCoreBootstrap.allows(pattern, adapter.requiredAdapterId(level, pos))) {
                     continue;
                 }
                 var result = adapter.bind(level, pos, pattern);
@@ -1065,7 +1181,8 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
                 if (adapter == null) {
                     continue;
                 }
-                if (!isAdapterUnlocked(adapter, targetLevel, conn.pos(), installedCard)) {
+                if (!isAdapterUnlocked(adapter, targetLevel, conn.pos(), installedCard)
+                        && !PackagedCoreBootstrap.allows(pattern, adapter.requiredAdapterId(targetLevel, conn.pos()))) {
                     continue;
                 }
                 var result = adapter.bind(targetLevel, conn.pos(), pattern);

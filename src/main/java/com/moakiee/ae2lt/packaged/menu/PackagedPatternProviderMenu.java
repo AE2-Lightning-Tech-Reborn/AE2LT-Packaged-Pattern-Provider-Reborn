@@ -20,6 +20,7 @@ import appeng.menu.slot.AppEngSlot;
 
 import com.moakiee.ae2lt.api.frequency.FrequencyBindingMenuHost;
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
+import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ReturnMode;
@@ -48,6 +49,16 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
     @GuiSync(22003)
     public int currentPage;
 
+    @GuiSync(22004)
+    public String coreOrderStatus = "idle";
+
+    @GuiSync(22005)
+    public int recognizedMachineCount;
+
+    @GuiSync(22006)
+    public Component recognizedMachineNames = Component.empty();
+
+    private int recognitionRefreshTicks;
     private final PackagedPatternProviderBlockEntity host;
     private final Slot adapterSlot;
 
@@ -64,6 +75,14 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
         adapterSlot.setEmptyTooltip(() -> List.of(Component.translatable("ae2ltpp.gui.adapter_slot")));
         this.adapterSlot = addSlot(adapterSlot, PackagedPatternProviderSlotSemantics.ADAPTER_CARD);
 
+        registerClientAction("orderCore", String.class, itemId -> {
+            if (!isServerSide()) return;
+            var resource = ResourceLocation.tryParse(itemId);
+            if (resource != null && resource.getNamespace().equals(AE2LTPackagedProvider.MODID)) {
+                this.host.getCoreOrder().request(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(resource));
+            }
+        });
+        registerClientAction("cancelCore", () -> { if (isServerSide()) this.host.getCoreOrder().cancel(); });
         registerClientAction("toggleAutoReturn", this::toggleAutoReturn);
         registerClientAction("toggleMode", this::toggleMode);
         registerClientAction("nextPage", () -> changePage(1));
@@ -75,12 +94,22 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
         return adapterSlot;
     }
 
+    public void clientOrderCore(ResourceLocation id) { sendClientAction("orderCore", id.toString()); }
+    public void clientCancelCore() { sendClientAction("cancelCore"); }
+
     @Override
     public void broadcastChanges() {
         if (isServerSide()) {
+            coreOrderStatus = host.getCoreOrder().status();
             returnMode = host.getReturnMode().ordinal();
             providerMode = host.getProviderMode().ordinal();
             titleTranslationKey = host.ae2lt$titleTranslationKey();
+            if (recognitionRefreshTicks-- <= 0 && host.getLogic() instanceof PackagedPatternProviderLogic logic) {
+                var recognition = logic.getMachineRecognition();
+                recognizedMachineCount = recognition.count();
+                recognizedMachineNames = recognition.names();
+                recognitionRefreshTicks = 9;
+            }
         }
         showPage(currentPage);
         super.broadcastChanges();

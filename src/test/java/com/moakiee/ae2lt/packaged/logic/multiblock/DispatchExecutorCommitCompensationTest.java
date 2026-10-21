@@ -26,6 +26,40 @@ import appeng.helpers.patternprovider.PatternProviderReturnInventory;
 
 class DispatchExecutorCommitCompensationTest {
     @Test
+    void nativeOutputUsesPersistentRetentionWhenReturnInventoryIsFull() {
+        var key = new TestKey();
+        var accepted = new AtomicLong();
+        var residuals = new ArrayList<GenericStack>();
+        var returns = new PatternProviderReturnInventory(() -> {}) {
+            @Override public long insert(int slot, AEKey what, long amount, Actionable mode) { return 0; }
+        };
+        var plan = new DispatchPlan(List.of(target(key, 1, accepted)), null, null,
+                sink -> sink.accept(new GenericStack(key, 3)));
+
+        assertTrue(DispatchExecutor.execute(plan, null, returns, residuals::add).success());
+        assertEquals(1, accepted.get());
+        assertEquals(List.of(new GenericStack(key, 3)), residuals);
+    }
+
+    @Test
+    void outputFollowedByNativeFailureCannotRefundCompleteCpuInput() {
+        var key = new TestKey();
+        var accepted = new AtomicLong();
+        var returns = new PatternProviderReturnInventory(() -> {});
+        var plan = new DispatchPlan(List.of(target(key, 1, accepted)), null,
+                (receipts, recovered) -> {
+                    accepted.set(0);
+                    receipts.forEach(receipt -> recovered.accept(receipt.stack()));
+                }, sink -> {
+                    sink.accept(new GenericStack(key, 2));
+                    throw new IllegalStateException("native callback failed after emitting output");
+                });
+
+        assertTrue(DispatchExecutor.execute(plan, null, returns).success());
+        assertEquals(3, returns.getAmount(0));
+    }
+
+    @Test
     void simulationFailureIsReportedWithoutModulatingInput() {
         var key = new TestKey();
         var modulated = new AtomicLong();

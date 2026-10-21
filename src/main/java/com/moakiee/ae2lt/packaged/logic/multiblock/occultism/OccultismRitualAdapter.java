@@ -621,6 +621,12 @@ public final class OccultismRitualAdapter implements MultiblockAdapter {
         int mismatchLogged = 0;
         for (var recipe : recipes(level)) {
             scanned++;
+            if (com.moakiee.ae2lt.packaged.logic.PackagedCoreBootstrap.isCorePattern(pattern)) {
+                var result = recipe.getResultItem(level.registryAccess());
+                var expected = pattern.getPrimaryOutput();
+                if (result.isEmpty() || !expected.what().equals(AEItemKey.of(result))
+                        || expected.amount() != result.getCount()) continue;
+            }
             var activation = OccultismReflection.getActivationItem(recipe);
             var ingredients = OccultismReflection.getIngredients(recipe);
             if (activation == null || ingredients == null) {

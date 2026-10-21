@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#c:experience", "required": false },
+    { "id": "#forge:experience", "required": false },
+    { "id": "create_enchantment_industry:experience", "required": false },
+    { "id": "industrialforegoing:essence", "required": false },
+    { "id": "mob_grinding_utils:fluid_xp", "required": false },
+    { "id": "enderio:xp_juice", "required": false },
+    { "id": "pneumaticcraft:memory_essence", "required": false }
+  ]
+}

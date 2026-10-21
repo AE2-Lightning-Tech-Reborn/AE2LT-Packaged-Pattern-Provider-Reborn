@@ -71,8 +71,52 @@ class PendingBatchInputsTest {
             throw new IllegalStateException("injected failure after insertion");
         }));
         assertEquals(List.of(remaining), queue.snapshot());
-        queue.deliver(d -> d.stack().amount());
+        assertEquals(List.of(item(64)), queue.uncertainSnapshot());
+        var tag = new CompoundTag();
+        queue.writeToNBT(tag);
+        var restored = new PendingBatchInputs();
+        restored.readFromNBT(tag);
+        assertEquals(queue.uncertainSnapshot(), restored.uncertainSnapshot());
+        restored.deliver(d -> d.stack().amount());
+        assertTrue(restored.snapshot().isEmpty());
+        assertTrue(restored.hasPending(), "Uncertain transfers must still prevent a new craft");
+        assertThrows(IllegalStateException.class, () -> restored.adopt(List.of(item(1))));
+    }
+
+    @Test
+    void controllerOwnershipSurvivesPartialDeliveryAndReload() {
+        var queue = new PendingBatchInputs();
+        var owner = new PendingBatchInputs.Ownership(new ResourceLocation("ae2ltpp:mekmm"),
+                new ResourceLocation("minecraft:overworld"), new BlockPos(9, 4, 2),
+                new ResourceLocation("mekmm:electrolytic_separator"));
+        queue.adopt(List.of(item(100)), owner);
+        queue.deliver(d -> 20);
+        var tag = new CompoundTag();
+        queue.writeToNBT(tag);
+        var restored = new PendingBatchInputs();
+        restored.readFromNBT(tag);
+        assertEquals(owner, restored.ownership());
+        assertEquals(List.of(item(80)), restored.snapshot());
+        restored.deliver(d -> d.stack().amount());
+        assertNull(restored.ownership());
+        restored.writeToNBT(tag);
+        queue.readFromNBT(tag);
+        assertNull(queue.ownership());
         assertFalse(queue.hasPending());
+    }
+
+    @Test
+    void portPlanMustExactlyMatchPaidInputs() {
+        var paid = new appeng.api.stacks.KeyCounter();
+        paid.add(AEItemKey.of(Items.IRON_INGOT), 2);
+        var inputs = new appeng.api.stacks.KeyCounter[]{paid};
+        assertTrue(PendingBatchInputs.matchesInputs(List.of(item(2)), inputs));
+        assertFalse(PendingBatchInputs.matchesInputs(List.of(item(1)), inputs));
+        assertFalse(PendingBatchInputs.matchesInputs(List.of(item(3)), inputs));
+        assertFalse(PendingBatchInputs.matchesInputs(List.of(delivery(
+                new GenericStack(AEFluidKey.of(Fluids.WATER), 2))), inputs));
+        assertFalse(PendingBatchInputs.matchesInputs(List.of(), inputs));
+        assertFalse(PendingBatchInputs.matchesInputs(List.of(item(Long.MAX_VALUE), item(1)), inputs));
     }
 
     @Test

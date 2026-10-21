@@ -106,7 +106,8 @@ public final class StablePatternProviderLogicRegressionTest {
         org.junit.jupiter.api.Assertions.assertFalse(item.contains("getSelectedProvider("));
         org.junit.jupiter.api.Assertions.assertTrue(item.contains("WirelessConnectorBlockOnlyTarget.shouldSubmit(providerSelected,"));
         org.junit.jupiter.api.Assertions.assertTrue(host.contains("public boolean acceptsWirelessTarget("));
-        org.junit.jupiter.api.Assertions.assertTrue(host.contains("installed.isEmpty()"));
+        org.junit.jupiter.api.Assertions.assertTrue(host.contains("PackagedCoreBootstrap.allows(pattern, required)"));
+        org.junit.jupiter.api.Assertions.assertTrue(host.contains("adapter.bind(serverLevel, pos, pattern) != null"));
         org.junit.jupiter.api.Assertions.assertTrue(host.contains("MultiblockAdapterItem.stackCovers(installed, required)"));
         org.junit.jupiter.api.Assertions.assertTrue(host.contains("public Component getWirelessTargetRejectionMessage()"));
     }

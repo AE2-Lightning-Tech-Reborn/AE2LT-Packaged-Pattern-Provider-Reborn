@@ -1,0 +1,17 @@
+// Optional native core-order regression fixtures; excluded from release jars.
+gradle.afterProject { p ->
+    if (!p.plugins.hasPlugin('net.minecraftforge.gradle')) return
+    // Prefer the optional, expanded fixture if a local checkout also has the older one.
+    p.sourceSets.main.java.exclude 'com/moakiee/ae2lt/packaged/gametest/CoreGameTests.java'
+    p.sourceSets.create('coreTest') {
+        java.srcDir p.file('src/coreTest/java')
+        compileClasspath += p.sourceSets.main.output + p.sourceSets.main.compileClasspath
+        runtimeClasspath += output + p.sourceSets.main.runtimeClasspath
+    }
+    if (!(p.findProperty('enable_integration_runtime') ?: 'false').toBoolean()) {
+        p.sourceSets.coreTest.java.exclude '**/CoreNativeHarvestTests.java'
+    }
+    p.minecraft.runs.gameTestServer {
+        mods { ae2ltpp { source p.sourceSets.coreTest } }
+    }
+}

@@ -79,9 +79,9 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<Recipe<?>>> r
         }
         if (available.size() != mode.inputs().size()) return null;
         for (var recipe : recipes.getOrDefault(mode, List.of())) {
-            var live = level.getRecipeManager().byKey(recipe.getId());
-            if (live.isEmpty() || live.get() != recipe) continue;
-            var arranged = arrange(recipe, mode, pattern, available);
+            var live = level.getRecipeManager().byKey(recipe.getId()).orElse(null);
+            if (live == null || live.getType() != recipe.getType()) continue;
+            var arranged = arrange(live, mode, pattern, available);
             if (arranged != null) return arranged;
         }
         return null;

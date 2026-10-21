@@ -1,0 +1,17 @@
+{
+  "includes": [
+    "common/common.json"
+  ],
+  "background": {
+    "texture": "guis/craftingreport.png",
+    "srcRect": [
+      0,
+      0,
+      238,
+      206
+    ]
+  },
+  "slots": {},
+  "text": {},
+  "widgets": {}
+}

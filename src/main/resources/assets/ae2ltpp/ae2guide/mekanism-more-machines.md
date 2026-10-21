@@ -18,7 +18,6 @@ Build the machine, place the provider against it, install the Packaged Core, and
 
 * Item, fluid, and chemical inputs in the pattern are automatically sent to the corresponding ports.
 
-`Editor's note: This has not yet been tested with much precision. In practice, the provider does not appear to need to be near a so-called controller block and only needs to touch the large machine. If that does not work, try linking the Wireless version to the center block on the top or bottom of the machine, or place the regular version against one of those blocks. This text will be corrected after further testing.`
 
 ## Covered machines
 
@@ -34,3 +33,7 @@ Build the machine, place the provider against it, install the Packaged Core, and
 * The machine still needs its own **energy**. Keep it adequately powered.
 
 Failed requests can retry on the next tick; duplicate failures within one tick are suppressed without blocking other patterns. Both chemical inputs to the Large Chemical Infuser are consumed according to the recipe. They are not resident catalysts; auto-return reads only output ports.
+
+Adjacent providers can touch the controller or a bounding block created by the machine itself. Wireless providers can link either with the Overloaded Wireless Connector; keep the target chunk loaded. Multiple links to one machine count only once.
+
+The green **Found** or gray **None** status shows machine discovery. Hover for machine names and count. Dispatch still requires a matching core, processing pattern and machine operating conditions. Wireless mode keeps its connection-tool instructions visible.

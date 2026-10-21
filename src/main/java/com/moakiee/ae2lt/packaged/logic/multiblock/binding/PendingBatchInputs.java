@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
 
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.InputBatchCraftingAdapter;
@@ -27,6 +28,13 @@ import net.minecraft.resources.ResourceLocation;
 public final class PendingBatchInputs {
     private static final Logger LOG = LoggerFactory.getLogger(PendingBatchInputs.class);
     private static final String TAG_PENDING = "ae2ltpp_pending_batch_inputs";
+    private static final String TAG_UNCERTAIN = TAG_PENDING + "_uncertain";
+    private static final String TAG_OWNER = TAG_PENDING + "_owner";
+
+    public record Ownership(ResourceLocation adapter, ResourceLocation dimension,
+                            BlockPos pos, ResourceLocation block) {
+        public Ownership { pos = pos.immutable(); }
+    }
 
     public record Delivery(ResourceLocation adapter, ResourceLocation dimension, BlockPos pos,
                            Direction face, ResourceLocation block, GenericStack stack) {
@@ -41,6 +49,26 @@ public final class PendingBatchInputs {
     }
 
     private final List<Delivery> pending = new ArrayList<>();
+    private final List<Delivery> uncertain = new ArrayList<>();
+    private Ownership ownership;
+
+    /** Every paid input must occur in the port plan exactly once. */
+    public static boolean matchesInputs(List<Delivery> deliveries, KeyCounter[] inputs) {
+        if (inputs == null || deliveries.isEmpty()) return false;
+        var expected = new java.util.HashMap<appeng.api.stacks.AEKey, Long>();
+        var actual = new java.util.HashMap<appeng.api.stacks.AEKey, Long>();
+        try {
+            for (var counter : inputs) {
+                if (counter == null) return false;
+                for (var entry : counter) {
+                    if (entry.getLongValue() <= 0) return false;
+                    expected.merge(entry.getKey(), entry.getLongValue(), Math::addExact);
+                }
+            }
+            for (var delivery : deliveries) actual.merge(delivery.stack().what(), delivery.stack().amount(), Math::addExact);
+            return actual.equals(expected);
+        } catch (ArithmeticException overflow) { return false; }
+    }
 
     /** Only one independent input per distinct port may enter a scaled batch. */
     public static List<Delivery> prepare(DispatchPlan plan, InputBatchCraftingAdapter adapter) {
@@ -71,10 +99,15 @@ public final class PendingBatchInputs {
     }
 
     public void adopt(List<Delivery> deliveries) {
+        adopt(deliveries, null);
+    }
+
+    public void adopt(List<Delivery> deliveries, Ownership owner) {
         if (hasPending() || deliveries.isEmpty()) {
             throw new IllegalStateException("batch input ownership conflict");
         }
         pending.addAll(deliveries);
+        ownership = owner;
     }
 
     /** Modulates each accepted port and retains only the uninserted remainder. */
@@ -92,20 +125,36 @@ public final class PendingBatchInputs {
             } catch (RuntimeException | LinkageError failure) {
                 // The attempted call may already have reached the machine. Do not replay it.
                 iterator.remove();
-                LOG.error("Batch input ownership is unknown at {} for {} x{}; removed from retry",
+                uncertain.add(delivery);
+                LOG.error("Batch input ownership is unknown at {} for {} x{}; retained without retry or refund",
                         delivery.pos(), delivery.stack().what(), amount, failure);
                 throw failure;
             }
             if (accepted == amount) iterator.remove();
             else if (accepted > 0) iterator.set(delivery.withAmount(amount - accepted));
         }
+        if (!hasPending()) ownership = null;
     }
 
     public void writeToNBT(CompoundTag parent) {
         parent.remove(TAG_PENDING);
-        if (pending.isEmpty()) return;
+        parent.remove(TAG_UNCERTAIN);
+        parent.remove(TAG_OWNER);
+        if (!pending.isEmpty()) parent.put(TAG_PENDING, writeDeliveries(pending));
+        if (!uncertain.isEmpty()) parent.put(TAG_UNCERTAIN, writeDeliveries(uncertain));
+        if (ownership != null) {
+            var owner = new CompoundTag();
+            owner.putString("adapter", ownership.adapter().toString());
+            owner.putString("dimension", ownership.dimension().toString());
+            owner.putLong("pos", ownership.pos().asLong());
+            owner.putString("block", ownership.block().toString());
+            parent.put(TAG_OWNER, owner);
+        }
+    }
+
+    private static ListTag writeDeliveries(List<Delivery> deliveries) {
         var list = new ListTag();
-        for (var delivery : pending) {
+        for (var delivery : deliveries) {
             var tag = new CompoundTag();
             tag.putString("adapter", delivery.adapter().toString());
             tag.putString("dimension", delivery.dimension().toString());
@@ -115,13 +164,29 @@ public final class PendingBatchInputs {
             tag.put("stack", writeStack(delivery.stack()));
             list.add(tag);
         }
-        parent.put(TAG_PENDING, list);
+        return list;
     }
 
     public void readFromNBT(CompoundTag parent) {
         clear();
-        if (!parent.contains(TAG_PENDING, Tag.TAG_LIST)) return;
-        var list = parent.getList(TAG_PENDING, Tag.TAG_COMPOUND);
+        readDeliveries(parent.getList(TAG_PENDING, Tag.TAG_COMPOUND), pending);
+        readDeliveries(parent.getList(TAG_UNCERTAIN, Tag.TAG_COMPOUND), uncertain);
+        if (parent.contains(TAG_OWNER, Tag.TAG_COMPOUND) && hasPending()) {
+            var owner = parent.getCompound(TAG_OWNER);
+            var adapter = ResourceLocation.tryParse(owner.getString("adapter"));
+            var dimension = ResourceLocation.tryParse(owner.getString("dimension"));
+            var block = ResourceLocation.tryParse(owner.getString("block"));
+            if (adapter != null && dimension != null && block != null) {
+                ownership = new Ownership(adapter, dimension, BlockPos.of(owner.getLong("pos")), block);
+            } else {
+                // An unreadable controller cannot authorize future insertions.
+                uncertain.addAll(pending);
+                pending.clear();
+            }
+        }
+    }
+
+    private static void readDeliveries(ListTag list, List<Delivery> deliveries) {
         for (int i = 0; i < list.size(); i++) {
             try {
                 var tag = list.getCompound(i);
@@ -132,7 +197,7 @@ public final class PendingBatchInputs {
                 var face = Direction.from3DDataValue(tag.getInt("face"));
                 if (stack == null || stack.amount() <= 0 || adapter == null || dimension == null
                         || block == null || face == null) continue;
-                pending.add(new Delivery(adapter, dimension, BlockPos.of(tag.getLong("pos")),
+                deliveries.add(new Delivery(adapter, dimension, BlockPos.of(tag.getLong("pos")),
                         face, block, stack));
             } catch (RuntimeException | LinkageError malformed) {
                 LOG.warn("Ignoring malformed pending batch input at index {}", i, malformed);
@@ -141,8 +206,10 @@ public final class PendingBatchInputs {
     }
 
     public List<Delivery> snapshot() { return List.copyOf(pending); }
-    public boolean hasPending() { return !pending.isEmpty(); }
-    public void clear() { pending.clear(); }
+    public List<Delivery> uncertainSnapshot() { return List.copyOf(uncertain); }
+    public Ownership ownership() { return ownership; }
+    public boolean hasPending() { return !pending.isEmpty() || !uncertain.isEmpty(); }
+    public void clear() { pending.clear(); uncertain.clear(); ownership = null; }
 
     private static CompoundTag writeStack(GenericStack stack) {
         var tag = new CompoundTag();

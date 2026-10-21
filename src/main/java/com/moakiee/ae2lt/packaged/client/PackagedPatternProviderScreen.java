@@ -36,6 +36,7 @@ public class PackagedPatternProviderScreen
     private Button previousPage;
     private Button nextPage;
     private boolean compactLayout;
+    private final WirelessConnectionHintWidget wirelessConnectionHint;
 
     public PackagedPatternProviderScreen(PackagedPatternProviderMenu menu, Inventory playerInventory,
                                          Component title, ScreenStyle style) {
@@ -64,6 +65,9 @@ public class PackagedPatternProviderScreen
             addToLeftToolbar(modeButton);
         }
 
+        widgets.add("machineRecognition", new MachineRecognitionWidget(menu));
+        wirelessConnectionHint = new WirelessConnectionHintWidget(menu);
+        widgets.add("wirelessConnectionHint", wirelessConnectionHint);
         var adapterSlot = menu.getAdapterSlot();
         if (adapterSlot != null) {
             widgets.add("adapterCard", new UpgradesPanel(List.of(adapterSlot), List::of));
@@ -72,7 +76,7 @@ public class PackagedPatternProviderScreen
 
     @Override
     protected void init() {
-        compactLayout = height < 255;
+        compactLayout = height < 269;
         imageHeight = style.getBackground().getSrcHeight() - (compactLayout ? 15 : 0);
         int offset = compactLayout ? 10 : 0;
         style.getSlots().get("ENCODED_PATTERN").setTop(42 - offset);
@@ -81,8 +85,24 @@ public class PackagedPatternProviderScreen
         style.getText().get("interface_config").getPosition().setTop(31 - offset);
         style.getText().get("interface_stored_items").getPosition().setTop(116 - offset);
         style.getWidget("adapterCard").setTop(72 - offset);
+        // Keep status clear of the compact core/page buttons. The compact footer
+        // fits in the blank band below the hotbar, including a 240px-high screen.
+        style.getWidget("machineRecognition").setLeft(compactLayout ? 178 : 135);
+        style.getWidget("machineRecognition").setTop(compactLayout ? 42 : 17);
+        style.getWidget("wirelessConnectionHint").setTop(compactLayout ? imageHeight - 7 : imageHeight + 2);
+        wirelessConnectionHint.setSize(176, compactLayout ? 7 : 10);
         super.init();
         hideUnsupportedToolbarButtons();
+        addRenderableWidget(Button.builder(Component.translatable("ae2ltpp.core_order.open"), b -> {
+            if (net.minecraftforge.fml.ModList.get().isLoaded("jei")
+                    && com.moakiee.ae2lt.packaged.client.jei.PackagedCoreJeiPlugin.open()) return;
+            openCoreSelector();
+        })
+                .bounds(leftPos + 8, topPos + 28 - offset, 88, 12)
+                .tooltip(Tooltip.create(Component.translatable("ae2ltpp.core_order.help"))).build());
+        addRenderableWidget(Button.builder(Component.literal("×"), b -> menu.clientCancelCore())
+                .bounds(leftPos + 96, topPos + 28 - offset, 10, 12)
+                .tooltip(Tooltip.create(Component.translatable("ae2ltpp.core_order.cancel"))).build());
         var patternSlots = menu.getSlots(SlotSemantics.ENCODED_PATTERN);
         for (int i = SLOTS_PER_PAGE; i < patternSlots.size(); i++) {
             var origin = patternSlots.get(i % SLOTS_PER_PAGE);
@@ -97,6 +117,10 @@ public class PackagedPatternProviderScreen
                     .bounds(leftPos + 148, topPos + 28 - offset, 14, 12)
                     .tooltip(Tooltip.create(Component.translatable("ae2ltpp.gui.next_page"))).build());
         }
+    }
+
+    public void openCoreSelector() {
+        switchToScreen(new CoreOrderScreen(this));
     }
 
     static ScreenStyle copyStyle(ScreenStyle style) {
@@ -160,6 +184,9 @@ public class PackagedPatternProviderScreen
         autoReturnButton.setState(menu.isAutoReturnEnabled());
         modeButton.setState(menu.isWirelessMode());
         menu.showPage(menu.currentPage);
+        setTextContent("interface_config", Component.empty());
+        setTextContent("interface_stored_items", Component.translatable(menu.coreOrderStatus.equals("idle")
+                ? "gui.ae2.ReturnInventory" : "ae2ltpp.core_order." + menu.coreOrderStatus));
         if (previousPage != null) previousPage.active = menu.currentPage > 0;
         if (nextPage != null) nextPage.active = menu.currentPage + 1 < menu.getTotalPages();
     }

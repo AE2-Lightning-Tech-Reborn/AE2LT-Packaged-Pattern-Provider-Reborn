@@ -31,4 +31,10 @@ public interface InputBatchCraftingAdapter extends MultiblockAdapter {
                                     AdapterPersistentScope scope) {
         return true;
     }
+
+    /** Renew only the remaining output claim while paid inputs await delivery. */
+    default boolean refreshBatchOwnership(ServerLevel level, BlockPos mainPos,
+                                          AdapterPersistentScope scope) {
+        return false;
+    }
 }

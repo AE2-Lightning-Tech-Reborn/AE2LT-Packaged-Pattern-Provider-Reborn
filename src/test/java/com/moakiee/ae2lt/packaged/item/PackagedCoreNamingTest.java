@@ -52,9 +52,10 @@ class PackagedCoreNamingTest {
             "avaritia_extreme_table_packaged_core",
             "avaritia_extreme_smithing_packaged_core",
             "bloodmagic_altar_packaged_core",
+            "forbidden_arcanus_black_hole_packaged_core",
             "forbidden_arcanus_clibano_packaged_core",
             "forbidden_arcanus_hephaestus_forge_packaged_core",
-            "chiseling_packaged_core", "resonant_packaged_core");
+            "chiseling_packaged_core", "resonant_packaged_core", "maid_altar_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
             "basic_packaged_core");

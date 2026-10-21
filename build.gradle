@@ -247,6 +247,8 @@ dependencies {
 
     runtimeOnly fg.deobf("org.appliedenergistics:guideme:${guideme_version}")
 
+    compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
+    compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
     if ((findProperty('enable_jei_runtime') ?: 'true').toBoolean()) {
         runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
     }
@@ -275,6 +277,9 @@ dependencies {
     // with -Penable_integration_runtime=true .
     // ============================================================
     // Forge-specific Modrinth version IDs avoid selecting a Fabric/NeoForge file.
+    if ((findProperty('enable_maid_runtime') ?: 'false').toBoolean()) {
+        runtimeOnly fg.deobf('maven.modrinth:touhou-little-maid:g1SKoGQJ') // Forge 1.20.1 / 1.5.3
+    }
     if ((findProperty('enable_chiseling_runtime') ?: 'false').toBoolean()) {
         def chiselingMods = (findProperty('chiseling_runtime_mods') ?: 'chipped,rechiseled').toString().split(',') as Set
         if (chiselingMods.contains('chipped')) {

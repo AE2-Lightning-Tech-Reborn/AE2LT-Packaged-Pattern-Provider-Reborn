@@ -60,17 +60,29 @@ public class AE2LTPackagedProvider {
                 .getModEventBus();
 
         PPItems.ITEMS.register(modEventBus);
+        com.moakiee.ae2lt.packaged.recipe.CoreUpgradeRecipes.register(modEventBus);
+        com.moakiee.ae2lt.packaged.recipe.FARecipes.register(modEventBus);
         PPBlocks.BLOCKS.register(modEventBus);
         PPBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
         PPMenuTypes.MENU_TYPES.register(modEventBus);
         PPCreativeTabs.CREATIVE_MODE_TABS.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
+        modEventBus.addListener(com.moakiee.ae2lt.packaged.resource.PackagedResourceStorage::registerKeyType);
+        modEventBus.addListener((net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent e) -> e.register(com.moakiee.ae2lt.packaged.resource.PackagedResourceInventory.class));
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.level.block.entity.BlockEntity.class,
+                com.moakiee.ae2lt.packaged.resource.ForbiddenEssenceStorage::attach);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.level.block.entity.BlockEntity.class,
+                com.moakiee.ae2lt.packaged.resource.MaidPowerStorage::attach);
         ResonantCoreSelectPacket.register();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
+            com.moakiee.ae2lt.packaged.resource.PackagedResourceStorage.registerBehaviors();
+            if (net.minecraftforge.fml.ModList.get().isLoaded("touhou_little_maid")) {
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.maid.MaidAltarAdapter());
+            }
             MultiblockAdapterRegistry.register(new ActuallyAdditionsAtomicReconstructorAdapter());
             MultiblockAdapterRegistry.register(new ActuallyAdditionsEmpowererAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauEnchantingApparatusAdapter());
@@ -92,6 +104,7 @@ public class AE2LTPackagedProvider {
             MultiblockAdapterRegistry.register(new OccultismRitualAdapter());
             MultiblockAdapterRegistry.register(new OccultismSpiritFireAdapter());
             MultiblockAdapterRegistry.register(new BloodMagicAltarAdapter());
+            MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FABlackHoleAdapter());
             MultiblockAdapterRegistry.register(new ForbiddenArcanusClibanoAdapter());
             MultiblockAdapterRegistry.register(new ForbiddenArcanusHephaestusForgeAdapter());
             MultiblockAdapterRegistry.register(new InfusionAltarAdapter());

@@ -64,7 +64,9 @@ public record PackagedCoreDefinition(
             core("avaritia_end_table_packaged_core", AVARITIA, "end_crafting_table"),
             core("avaritia_extreme_table_packaged_core", AVARITIA, "extreme_crafting_table"),
             core("avaritia_extreme_smithing_packaged_core", AVARITIA, "extreme_smithing_table"),
+            core("maid_altar_packaged_core", "touhou_little_maid", "hakurei_gohei"),
             core("bloodmagic_altar_packaged_core", BLOOD_MAGIC, "altar"),
+            core("forbidden_arcanus_black_hole_packaged_core", FORBIDDEN_ARCANUS, "black_hole"),
             core("forbidden_arcanus_clibano_packaged_core", FORBIDDEN_ARCANUS, "clibano_main_part"),
             core("forbidden_arcanus_hephaestus_forge_packaged_core", FORBIDDEN_ARCANUS, "hephaestus_forge"),
             core("chiseling_packaged_core", "chisel", "chisel"),
@@ -116,7 +118,9 @@ public record PackagedCoreDefinition(
             case "avaritia_end_table_packaged_core" -> PPItems.AVARITIA_END_TABLE_ADAPTER;
             case "avaritia_extreme_table_packaged_core" -> PPItems.AVARITIA_EXTREME_TABLE_ADAPTER;
             case "avaritia_extreme_smithing_packaged_core" -> PPItems.AVARITIA_EXTREME_SMITHING_ADAPTER;
+            case "maid_altar_packaged_core" -> PPItems.MAID_ALTAR_ADAPTER;
             case "bloodmagic_altar_packaged_core" -> PPItems.BLOOD_MAGIC_ALTAR_ADAPTER;
+            case "forbidden_arcanus_black_hole_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_BLACK_HOLE_ADAPTER;
             case "forbidden_arcanus_clibano_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_CLIBANO_ADAPTER;
             case "forbidden_arcanus_hephaestus_forge_packaged_core" -> PPItems.FORBIDDEN_ARCANUS_HEPHAESTUS_FORGE_ADAPTER;
             case "chiseling_packaged_core" -> PPItems.CHISELING_ADAPTER;

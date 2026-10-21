@@ -1,0 +1,27 @@
+// Optional Forge native maid and experience pickup fixtures; never packaged.
+gradle.afterProject { p ->
+    if (!p.plugins.hasPlugin('net.minecraftforge.gradle')) return
+    p.sourceSets.create('maidTest') {
+        compileClasspath += p.sourceSets.main.output + p.sourceSets.main.compileClasspath
+        runtimeClasspath += output + p.sourceSets.main.runtimeClasspath
+    }
+    p.minecraft.runs.gameTestServer {
+        property 'forge.enabledGameTestNamespaces', 'ae2ltpp_maid'
+        mods { ae2ltpp { source p.sourceSets.maidTest } }
+    }
+}
+gradle.projectsEvaluated {
+    allprojects { p ->
+        if (!p.plugins.hasPlugin('net.minecraftforge.gradle')) return
+        def directory = p.file(p.findProperty('ppTestRunDir') ?: 'run/maid-tests')
+        p.minecraft.runs.gameTestServer {
+            workingDirectory directory
+            property 'forge.logging.console.level', 'info'
+            jvmArgs '-Xmx2G', '-XX:ActiveProcessorCount=4'
+        }
+        p.tasks.named('syncGameTestStructures').configure { into new File(directory, 'gameteststructures') }
+        if ((p.findProperty('ppNoExperienceFixture') ?: 'false').toBoolean()) {
+            p.tasks.named('processMaidTestResources').configure { exclude 'data/ae2ltpp/tags/fluids/experience.json' }
+        }
+    }
+}

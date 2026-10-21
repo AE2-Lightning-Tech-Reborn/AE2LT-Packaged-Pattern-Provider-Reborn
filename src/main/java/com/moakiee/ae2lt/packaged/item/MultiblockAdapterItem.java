@@ -42,6 +42,8 @@ public class MultiblockAdapterItem extends Item {
         return requiredId != null && coveredIds.contains(requiredId);
     }
 
+    public Set<ResourceLocation> coveredAdapterIds() { return coveredIds; }
+
     /** Static helper: check an ItemStack against a required id. */
     public static boolean stackCovers(ItemStack stack, @Nullable ResourceLocation requiredId) {
         return requiredId != null

@@ -305,6 +305,19 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
         }
     }
 
+    @Override
+    public boolean refreshBatchOwnership(ServerLevel level, BlockPos mainPos, AdapterPersistentScope scope) {
+        mainPos = resolveMainPos(level, mainPos);
+        var be = level.getBlockEntity(mainPos);
+        var spec = be == null ? null : findSpec(level, be);
+        if (spec == null) return false;
+        var claim = ExpectedStackHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
+        var claimedMode = scope.getState(mainPos, ExpectedStackHarvestOwnership.qualifiedKey(level, HARVEST_MODE));
+        if (claim == null || claim.isEmpty() || !spec.activeMode(be).toString().equals(claimedMode)) return false;
+        ExpectedStackHarvestOwnership.store(level, mainPos, scope, HARVEST_STATE, claim.remaining());
+        return true;
+    }
+
     @Nullable
     private DispatchPlan planNativeRecipe(ServerLevel level, BlockPos mainPos,
                                           IPatternDetails pattern, KeyCounter[] inputs,

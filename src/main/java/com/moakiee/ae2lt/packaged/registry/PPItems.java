@@ -189,6 +189,9 @@ public final class PPItems {
                     AdapterIds.BLOOD_MAGIC_ALTAR,
                     Set.of(AdapterIds.BLOOD_MAGIC_ALTAR));
 
+    public static final RegistryObject<MultiblockAdapterItem> FORBIDDEN_ARCANUS_BLACK_HOLE_ADAPTER =
+            registerPackagedCore("forbidden_arcanus_black_hole_packaged_core", AdapterIds.FORBIDDEN_ARCANUS_BLACK_HOLE, Set.of(AdapterIds.FORBIDDEN_ARCANUS_BLACK_HOLE));
+
     public static final RegistryObject<MultiblockAdapterItem> FORBIDDEN_ARCANUS_CLIBANO_ADAPTER =
             registerPackagedCore("forbidden_arcanus_clibano_packaged_core",
                     AdapterIds.FORBIDDEN_ARCANUS_CLIBANO,
@@ -204,6 +207,9 @@ public final class PPItems {
 
     public static final RegistryObject<MultiblockAdapterItem> RESONANT_ADAPTER =
             registerPackagedCore("resonant_packaged_core", AdapterIds.RESONANT, Set.of(AdapterIds.RESONANT));
+
+    public static final RegistryObject<MultiblockAdapterItem> MAID_ALTAR_ADAPTER =
+            registerPackagedCore("maid_altar_packaged_core", AdapterIds.MAID_ALTAR, Set.of(AdapterIds.MAID_ALTAR));
 
     // ===== Crafting intermediates =====
 

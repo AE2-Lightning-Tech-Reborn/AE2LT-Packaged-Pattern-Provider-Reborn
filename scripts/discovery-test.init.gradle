@@ -1,0 +1,12 @@
+// Optional Forge machine discovery regressions; never packaged in release jars.
+gradle.afterProject { p ->
+    if (!p.plugins.hasPlugin('net.minecraftforge.gradle')) return
+    p.sourceSets.create('discoveryTest') {
+        compileClasspath += p.sourceSets.main.output + p.sourceSets.main.compileClasspath
+        runtimeClasspath += output + p.sourceSets.main.runtimeClasspath
+    }
+    p.minecraft.runs.gameTestServer {
+        property 'forge.enabledGameTestNamespaces', 'ae2ltpp_discovery'
+        mods { ae2ltpp { source p.sourceSets.discoveryTest } }
+    }
+}

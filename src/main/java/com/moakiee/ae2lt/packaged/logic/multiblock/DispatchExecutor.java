@@ -114,11 +114,19 @@ public final class DispatchExecutor {
             }
         }
 
+        boolean[] producedOutput = {false};
         boolean commitFailed = modulationFailed;
         if (!partial) {
             try {
                 if (plan.onCommit() != null) {
                     plan.onCommit().run();
+                }
+                if (plan.outputCommit() != null) {
+                    plan.outputCommit().accept(stack -> {
+                        if (stack == null || stack.what() == null || stack.amount() <= 0) return;
+                        producedOutput[0] = true;
+                        routeRecovered(stack, returnInv, residualSink);
+                    });
                 }
                 return DispatchResult.success(null);
             } catch (RuntimeException | LinkageError e) {
@@ -167,7 +175,7 @@ public final class DispatchExecutor {
         // AE2 retains the complete input holder. Only a confirmed full rollback
         // of a failed commit may hand ownership back without also retaining inputs.
         // A throwing modulation has unknown effects, even if prior insertions recover.
-        if (commitFailed && !modulationFailed && !compensationFailed
+        if (commitFailed && !modulationFailed && !compensationFailed && !producedOutput[0]
                 && acceptedByKey.equals(recoveredByKey)) {
             return DispatchResult.failure("Dispatch commit failed; all accepted inputs were recovered.");
         }

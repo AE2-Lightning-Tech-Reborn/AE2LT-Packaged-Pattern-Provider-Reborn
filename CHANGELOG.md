@@ -2,6 +2,14 @@
 
 ## Unreleased — Forge 1.20.1
 
+- Backported live-server MekMM recipe validation, machine recognition status and persistent wireless connection instructions, with compact-screen layout support.
+
+- Backported the Touhou Little Maid altar, P-point ME resource and experience-orb fluid collection. Six native EC/Avaritia higher-tier core recipes now require the preceding core.
+- Backported EC combination live-recipe checks and physical-batch ownership renewal with persisted ambiguous receipts.
+- Added provider-owned core orders, first-core bootstrap and EC/Avaritia tier upgrades through actual ME crafting CPU receipts.
+- Added optional JEI core recipes and ordering, preserving native ingredient counts and installed-core upgrade requirements. Core manufacturing also works with a resonant core installed and collects only the matching core outputs.
+- Backported native Forbidden Arcanus essence conversions, ME essence storage and JEI encoding, plus datapack-driven black-hole XP-fluid conversion. Adapted to FA 2.2.6; the newer essence jar is unavailable on this version.
+
 - Backported resonant cores with portable input/output layouts and Crystal Science pattern support, plus a 144-slot provider with four pages and switchable adjacent/wireless dispatch. See [Forge verification](RESONANT_BACKPORT.zh-CN.md).
 - Fixed hidden-page slot editing and ensured undelivered resonant inputs drop exactly once when the provider breaks.
 - Backported cheaper recipes for 20 specialized cores while preserving Forge serializers and native machine tiers.

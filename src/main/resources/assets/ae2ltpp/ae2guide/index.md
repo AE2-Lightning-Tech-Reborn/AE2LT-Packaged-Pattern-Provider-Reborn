@@ -42,6 +42,14 @@ Insert the corresponding **Packaged Core** into the provider to select the type 
 
 Craft specialized cores from a Basic Packaged Core and a small amount of machine materials. EC table cores use the matching tier's components and still require that tier of table. Higher cores continue to cover lower tiers. The fusion core uses basic injectors and 32,000 RF.
 
+### Automatic crafting and upgrades
+
+Use the provider's core crafting button to request a core. The network needs a crafting CPU, ingredients, and encoded processing patterns. A finished first core installs into an empty core slot; an occupied slot sends the result back to ME. A separate selector is available without JEI.
+
+A provider without a core may run its machine's real core-manufacturing pattern. Place a normal provider beside that machine; for a wireless provider, insert the core pattern before binding the machine. Native recipe, structure, and energy requirements still apply. This admission rule unlocks only the matching core recipe.
+
+EC and Re-Avaritia table cores support tier upgrades. Encode the upgrade materials as a processing pattern, omitting the installed core, and place the order from that provider. The installed core is checked and consumed only when the materials complete. Missing materials or a changed core prevent completion. If the pattern explicitly includes the old core, ME supplies it and receives the upgrade output. Cancellation, full storage, and reloads preserve any core already delivered to the provider's output buffer.
+
 ## Resonant layouts and extended provider
 
 [Resonant layouts](resonant.md) route materials through configured machine ports. The Extended Packaged Pattern Provider stores 144 patterns across four pages and switches between adjacent and wireless targets.
@@ -90,3 +98,19 @@ Craft specialized cores from a Basic Packaged Core and a small amount of machine
 ### Re-Avaritia
 * [Crafting Tables — Sculk / Nether / End / Extreme](avaritia-tables.md)
 * [Extreme Smithing Table](avaritia-extreme-smithing.md)
+
+## Core ordering and upgrades
+
+Open **Core Crafting** on the provider and choose a core. The network needs materials, a processing pattern, power and a crafting CPU. A corresponding real machine can manufacture its first core with an empty core slot, including wireless connections. The requester installs the finished core if its slot is empty; otherwise it returns the result to ME.
+
+EC and Avaritia tier-upgrade patterns may omit the old core: an order placed on this provider consumes its installed old core at completion and installs the upgrade. Explicitly including the old core consumes network materials and returns the result to ME. Missing materials or a changed installed core prevent the upgrade.
+
+* [Black Hole](black-hole.md)
+
+For an installed-core upgrade, encode the target core recipe materials without its Basic Packaged Core. For example, EC Advanced requires four Luminessence, two Advanced Components and two Black Iron Ingots → one Advanced Table Packaged Core. The provider consumes its installed Basic Table core on completion. To consume an old core from ME instead, explicitly add that specialized core to the pattern.
+
+### Touhou Little Maid
+
+* [Maid altar and P power](maid-altar.md)
+
+The six higher-tier EC / Avaritia native core recipes also consume their predecessor core.

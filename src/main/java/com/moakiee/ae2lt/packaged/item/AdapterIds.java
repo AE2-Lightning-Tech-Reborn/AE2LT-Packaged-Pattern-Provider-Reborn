@@ -28,6 +28,8 @@ import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
  * core holding the old id.
  */
 public final class AdapterIds {
+    public static final ResourceLocation MAID_ALTAR = id("touhou_little_maid/altar_packaged_core");
+    public static final ResourceLocation FORBIDDEN_ARCANUS_BLACK_HOLE = id("forbidden_arcanus/black_hole_packaged_core");
 
     public static final ResourceLocation CHISELING = new ResourceLocation("ae2ltpp", "chiseling_packaged_core");
 

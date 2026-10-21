@@ -33,6 +33,7 @@ public final class PPClientScreens {
     @SubscribeEvent
     public static void registerScreens(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
+            ResourceRendering.register();
             registerHiddenToolbarButtons();
             MenuScreens.register(
                     PackagedPatternProviderMenu.TYPE,

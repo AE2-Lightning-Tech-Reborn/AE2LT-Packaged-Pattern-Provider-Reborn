@@ -1,0 +1,39 @@
+{
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "touhou_little_maid"
+    }
+  ],
+  "type": "touhou_little_maid:altar_crafting",
+  "power": 1.0,
+  "ingredients": [
+    {
+      "item": "ae2ltpp:basic_packaged_core"
+    },
+    {
+      "item": "minecraft:red_wool"
+    },
+    {
+      "item": "minecraft:diamond"
+    },
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "minecraft:gold_ingot"
+    },
+    {
+      "item": "minecraft:redstone"
+    }
+  ],
+  "output": {
+    "type": "minecraft:item",
+    "nbt": {
+      "Item": {
+        "id": "ae2ltpp:maid_altar_packaged_core",
+        "Count": 1
+      }
+    }
+  }
+}

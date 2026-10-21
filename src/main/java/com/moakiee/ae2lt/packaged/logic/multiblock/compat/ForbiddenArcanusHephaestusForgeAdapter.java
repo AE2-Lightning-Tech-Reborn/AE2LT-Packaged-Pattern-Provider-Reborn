@@ -3,6 +3,7 @@ package com.moakiee.ae2lt.packaged.logic.multiblock.compat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.moakiee.ae2lt.packaged.logic.multiblock.fa.FAForgeConversion;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -74,7 +75,10 @@ public final class ForbiddenArcanusHephaestusForgeAdapter implements MultiblockA
     }
 
     @Override @Nullable public BindingResult bind(ServerLevel level, BlockPos pos, IPatternDetails pattern) {
-        if (!recognizesMain(level, pos, level.getBlockEntity(pos)) || pattern.getOutputs().length != 1
+        if (!recognizesMain(level, pos, level.getBlockEntity(pos))) return null;
+        var conversion = FAForgeConversion.match(level, pattern);
+        if (conversion != null) return new BindingResult(conversion, BindingMode.REAL);
+        if (pattern.getOutputs().length != 1
                 || !(pattern.getOutputs()[0].what() instanceof AEItemKey)) return null;
         var matches = new ArrayList<Ritual>();
         for (var entry : level.registryAccess().registryOrThrow(RITUALS).entrySet()) {
@@ -106,7 +110,10 @@ public final class ForbiddenArcanusHephaestusForgeAdapter implements MultiblockA
     }
 
     @Override public boolean canDispatch(ServerLevel level, BlockPos pos, Object handle, AdapterPersistentScope scope) {
-        if (!(handle instanceof List<?>) || !recognizesMain(level, pos, level.getBlockEntity(pos))) return false;
+        if (!recognizesMain(level, pos, level.getBlockEntity(pos))) return false;
+        if (handle instanceof FAForgeConversion.Match) return FAForgeConversion.idle(level.getBlockEntity(pos))
+                && SlotHarvestOwnership.load(level, pos, scope, CLAIM) == null;
+        if (!(handle instanceof List<?>) || level.getBlockEntity(pos).getPersistentData().contains(FAForgeConversion.JOB)) return false;
         var entity = level.getBlockEntity(pos);
         var manager = call(entity, "getRitualManager");
         if (manager == null || !Boolean.FALSE.equals(call(manager, "isRitualActive"))) return false;
@@ -135,6 +142,11 @@ public final class ForbiddenArcanusHephaestusForgeAdapter implements MultiblockA
 
     @Override @Nullable public DispatchPlan planWithBinding(ServerLevel level, BlockPos pos, IPatternDetails pattern,
             KeyCounter[] inputs, Object handle, IActionSource source, AdapterPersistentScope scope) {
+        if (handle instanceof FAForgeConversion.Match) {
+            if (!canDispatch(level, pos, handle, scope)) return null;
+            var match = FAForgeConversion.match(level, pattern, inputs);
+            return match == null ? null : FAForgeConversion.plan(level, level.getBlockEntity(pos), match, scope);
+        }
         if (!(handle instanceof List<?> rituals) || !canDispatch(level, pos, handle, scope)) return null;
         var supplied = supplied(inputs);
         if (supplied == null) return null;
@@ -207,6 +219,8 @@ public final class ForbiddenArcanusHephaestusForgeAdapter implements MultiblockA
     @Override public List<GenericStack> extractOutputs(ServerLevel level, BlockPos pos,
             AllowedOutputFilter filter, IActionSource source, AdapterPersistentScope scope) {
         if (!recognizesMain(level, pos, level.getBlockEntity(pos))) return List.of();
+        if (FAForgeConversion.hasClaim(level, pos, scope))
+            return FAForgeConversion.collect(level, pos, scope, filter);
         var state = SlotHarvestOwnership.load(level, pos, scope, CLAIM);
         if (state == null) return List.of();
         var entity = level.getBlockEntity(pos);
