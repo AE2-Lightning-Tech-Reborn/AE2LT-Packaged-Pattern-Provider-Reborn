@@ -4,6 +4,7 @@ allprojects {
         configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
         configurations.runtimeOnly.dependencies.removeIf { dep ->
             !(dep.group == 'org.appliedenergistics'
+                || dep.group == 'com.moakiee.thunderbolt'
                 || dep.group == 'top.theillusivec4.curios'
                 || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
                 || (dep.group == 'maven.modrinth' && dep.name in ['extended-crafting', 'cucumber'])

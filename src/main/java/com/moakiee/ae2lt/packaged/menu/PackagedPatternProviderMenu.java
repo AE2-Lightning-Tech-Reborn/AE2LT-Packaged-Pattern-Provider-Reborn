@@ -21,6 +21,7 @@ import com.moakiee.ae2lt.api.frequency.FrequencyBindingMenuHost;
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
+import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ReturnMode;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ProviderMode;
 import static com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.SLOTS_PER_PAGE;
@@ -48,8 +49,15 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
     @GuiSync(22004)
     public String coreOrderStatus = "idle";
 
+    @GuiSync(22005)
+    public int recognizedMachineCount;
+
+    @GuiSync(22006)
+    public Component recognizedMachineNames = Component.empty();
+
     private final PackagedPatternProviderBlockEntity host;
     private final Slot adapterSlot;
+    private int recognitionRefreshTicks;
 
     public PackagedPatternProviderMenu(int id, Inventory playerInventory, PatternProviderLogicHost host) {
         super(TYPE, id, playerInventory, host);
@@ -93,6 +101,12 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
             returnMode = host.getReturnMode().ordinal();
             providerMode = host.getProviderMode().ordinal();
             titleTranslationKey = host.ae2lt$titleTranslationKey();
+            if (recognitionRefreshTicks-- <= 0 && host.getLogic() instanceof PackagedPatternProviderLogic logic) {
+                var recognition = logic.getMachineRecognition();
+                recognizedMachineCount = recognition.count();
+                recognizedMachineNames = recognition.names();
+                recognitionRefreshTicks = 9;
+            }
         }
         showPage(currentPage);
         super.broadcastChanges();

@@ -17,6 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -25,12 +26,21 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 public final class ArsCatalystGameTests {
     @GameTest(template = "chisel_test", timeoutTicks = 200)
     public static void nativeAndThunderboltPlannersNeedOnlyOneCatalystSet(GameTestHelper h) throws Exception {
+        checkPlanners(h, false);
+        checkPlanners(h, true);
+        System.out.println("PP_ARS_PLANNERS_PASS planners=AE2+Thunderbolt requests=1,64,1000 borrowedCatalysts=2 residentNetworkCatalysts=0");
+        h.succeed();
+    }
+
+    private static void checkPlanners(GameTestHelper h, boolean resident) throws Exception {
         var iron = AEItemKey.of(Items.IRON_INGOT);
         var diamond = AEItemKey.of(Items.DIAMOND);
         var gold = AEItemKey.of(Items.GOLD_INGOT);
         var pattern = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
-                List.of(new GenericStack(iron, 1), new GenericStack(diamond, 2)),
-                List.of(new GenericStack(gold, 1), new GenericStack(diamond, 2))), h.getLevel());
+                resident ? List.of(new GenericStack(iron, 1))
+                        : List.of(new GenericStack(iron, 1), new GenericStack(diamond, 2)),
+                resident ? List.of(new GenericStack(gold, 1))
+                        : List.of(new GenericStack(gold, 1), new GenericStack(diamond, 2))), h.getLevel());
         var service = proxy(appeng.api.networking.crafting.ICraftingService.class, (object, method, args) -> switch (method.getName()) {
             case "getCraftingFor" -> gold.equals(args[0]) || diamond.equals(args[0]) ? List.of(pattern) : List.of();
             case "getCraftables" -> java.util.Set.of(gold, diamond);
@@ -41,7 +51,7 @@ public final class ArsCatalystGameTests {
         for (int amount : new int[]{1, 64, 1000}) {
             var stock = new KeyCounter();
             stock.add(iron, amount);
-            stock.add(diamond, 2);
+            if (!resident) stock.add(diamond, 2);
             var storage = proxy(appeng.api.networking.storage.IStorageService.class, (object, method, args) -> {
                 if (method.getName().equals("getCachedInventory")) return stock;
                 throw new UnsupportedOperationException(method.toString());
@@ -79,22 +89,20 @@ public final class ArsCatalystGameTests {
             request.setAccessible(true);
             request.invoke(tree, originalState, (long) amount, null);
             var nativePlan = appeng.crafting.inv.CraftingSimulationState.buildCraftingPlan(originalState, job, amount);
-            assertPlan(h, nativePlan, iron, diamond, amount, "AE2");
+            assertPlan(h, nativePlan, iron, diamond, amount, resident ? 0 : 2, "AE2");
             var fastState = new appeng.crafting.inv.NetworkCraftingSimulationState(storage, requester.getActionSource());
             var attempt = com.moakiee.thunderbolt.core.crafting.planner.FastCraftingPlanner.tryAttempt(
                     service, fastState, h.getLevel(), gold, amount, false);
             h.assertTrue(attempt.handled() && attempt.plan() != null, "Thunderbolt returns a feasible plan");
-            assertPlan(h, attempt.plan(), iron, diamond, amount, "Thunderbolt");
+            assertPlan(h, attempt.plan(), iron, diamond, amount, resident ? 0 : 2, "Thunderbolt");
         }
-        System.out.println("PP_ARS_PLANNERS_PASS planners=AE2+Thunderbolt requests=1,64,1000 catalysts=2");
-        h.succeed();
     }
 
     private static void assertPlan(GameTestHelper h, appeng.api.networking.crafting.ICraftingPlan plan,
-            AEItemKey iron, AEItemKey diamond, long amount, String planner) {
+            AEItemKey iron, AEItemKey diamond, long amount, long catalysts, String planner) {
         h.assertTrue(!plan.simulation() && plan.missingItems().isEmpty(), planner + " has no missing materials");
-        h.assertTrue(plan.usedItems().get(iron) == amount && plan.usedItems().get(diamond) == 2,
-                planner + " consumes " + amount + " iron and reserves only 2 diamonds");
+        h.assertTrue(plan.usedItems().get(iron) == amount && plan.usedItems().get(diamond) == catalysts,
+                planner + " consumes " + amount + " iron and reserves " + catalysts + " network diamonds");
         h.assertTrue(plan.patternTimes().values().stream().mapToLong(Long::longValue).sum() == amount,
                 planner + " schedules exactly the requested number of crafts");
     }
@@ -170,4 +178,69 @@ public final class ArsCatalystGameTests {
     }
 
     private static ResourceLocation id(String name) { return ResourceLocation.parse(name); }
+
+    @GameTest(template = "chisel_test", timeoutTicks = 200)
+    public static void residentPatternLeavesNamedCatalystsInPlaceAcrossMachineReload(GameTestHelper h) throws Exception {
+        var level = h.getLevel();
+        var main = h.absolutePos(new BlockPos(4, 2, 4));
+        var left = main.west();
+        var right = main.east();
+        level.setBlockAndUpdate(main, BuiltInRegistries.BLOCK.get(id("ars_nouveau:imbuement_chamber")).defaultBlockState());
+        level.setBlockAndUpdate(left, BuiltInRegistries.BLOCK.get(id("ars_nouveau:arcane_pedestal")).defaultBlockState());
+        level.setBlockAndUpdate(right, BuiltInRegistries.BLOCK.get(id("ars_nouveau:arcane_platform")).defaultBlockState());
+        var catalyst = new ItemStack(Items.DIAMOND);
+        catalyst.set(DataComponents.CUSTOM_NAME, Component.literal("resident catalyst"));
+        var leftPedestal = (Container) level.getBlockEntity(left);
+        var rightPedestal = (Container) level.getBlockEntity(right);
+        leftPedestal.setItem(0, catalyst.copy());
+        rightPedestal.setItem(0, catalyst.copy());
+        var iron = AEItemKey.of(Items.IRON_INGOT);
+        var gold = AEItemKey.of(Items.GOLD_INGOT);
+        var pattern = PatternDetailsHelper.decodePattern(PatternDetailsHelper.encodeProcessingPattern(
+                List.of(new GenericStack(iron, 1)), List.of(new GenericStack(gold, 1))), level);
+        var adapter = new ArsNouveauImbuementChamberAdapter();
+        var binding = adapter.bind(level, main, pattern);
+        h.assertTrue(binding != null, "a reagent-only pattern binds preplaced catalysts");
+        var filter = new AllowedOutputFilter();
+        filter.allowStrict(gold);
+        // Even if another pattern permits diamonds, resident catalysts are not outputs.
+        filter.allowStrict(AEItemKey.of(catalyst));
+        var chamber = (Container) level.getBlockEntity(main);
+        var tick = chamber.getClass().getMethod("tick");
+        long completed = 0;
+        for (int order = 0; order < 64; order++) {
+            h.assertTrue(adapter.canDispatch(level, main, binding.handle()), "resident catalysts are ready");
+            var provided = new KeyCounter[]{new KeyCounter()};
+            provided[0].add(iron, 1);
+            var plan = adapter.planWithBinding(level, main, pattern, provided, binding.handle(), null);
+            h.assertTrue(plan != null && plan.targets().size() == 1, "only the reagent is dispatched");
+            h.assertTrue(DispatchExecutor.execute(plan, null, retained -> {
+                throw new IllegalStateException("unexpected retained inputs " + retained);
+            }).success(), "the real chamber accepts its reagent");
+            if (order == 32) {
+                var tile = level.getBlockEntity(main);
+                var saved = tile.saveWithFullMetadata(level.registryAccess());
+                var restored = BlockEntity.loadStatic(main, tile.getBlockState(), saved, level.registryAccess());
+                h.assertTrue(restored instanceof Container, "the real chamber can be restored from NBT");
+                level.removeBlockEntity(main);
+                level.setBlockEntity(restored);
+                chamber = (Container) restored;
+                adapter = new ArsNouveauImbuementChamberAdapter();
+                binding = adapter.bind(level, main, pattern);
+                h.assertTrue(binding != null, "binding can be recreated during an in-flight resident craft");
+            }
+            h.assertTrue(adapter.extractOutputs(level, main, filter, null).isEmpty(), "unfinished reagent remains in chamber");
+            for (int step = 0; step < 160 && !chamber.getItem(0).is(Items.GOLD_INGOT); step++) tick.invoke(chamber);
+            h.assertTrue(chamber.getItem(0).is(Items.GOLD_INGOT), "Ars completes the resident craft");
+            var returned = adapter.extractOutputs(level, main, filter, null);
+            h.assertTrue(returned.equals(List.of(new GenericStack(gold, 1))), "only the product is harvested after reload");
+            completed++;
+            h.assertTrue(ItemStack.matches(catalyst, leftPedestal.getItem(0))
+                    && ItemStack.matches(catalyst, rightPedestal.getItem(0)), "both resident catalysts retain their components and counts");
+            h.assertTrue(adapter.extractOutputs(level, main, filter, null).isEmpty(), "harvest cannot duplicate a product");
+        }
+        h.assertTrue(completed == 64 && chamber.isEmpty(), "64 reagents produce exactly 64 products");
+        System.out.println("PP_ARS_RESIDENT_PASS products=64 catalysts=2 pedestalIo=0 reload=in_flight components=preserved");
+        h.succeed();
+    }
 }

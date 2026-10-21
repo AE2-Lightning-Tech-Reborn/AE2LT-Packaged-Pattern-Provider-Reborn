@@ -1,6 +1,6 @@
 ---
 navigation:
-  title: AE2LT Packaged Pattern Provider Reborn
+  title: AE2LT Packaged Pattern Provider
   position: 67
 item_ids:
 - ae2ltpp:packaged_pattern_provider
@@ -8,7 +8,7 @@ item_ids:
 - ae2ltpp:extended_packaged_pattern_provider
 ---
 
-# AE2LT Packaged Pattern Provider Reborn
+# AE2LT Packaged Pattern Provider
 
 `Congratulations on making it this far! This is the pinnacle of the lightning power you have mastered!`
 

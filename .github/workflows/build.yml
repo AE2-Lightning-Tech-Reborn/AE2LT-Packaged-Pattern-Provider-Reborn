@@ -1,0 +1,62 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout addon
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Ensure wrapper script is executable
+        run: chmod +x gradlew
+
+      - name: Download released build dependencies
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_DEPENDENCIES_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN" || { echo "RELEASE_DEPENDENCIES_TOKEN is required to read private dependency releases." >&2; exit 1; }
+          GAME_VERSION="$(sed -n 's/^minecraft_version=//p' gradle.properties | tail -n 1 | tr -d '\r')"
+          if [ "$GAME_VERSION" != 1.21.1 ]; then
+            echo "This addon release workflow currently supports only the verified 1.21.1 dependency configuration." >&2
+            exit 1
+          fi
+          ae2lt_jar="$(sed -n 's/^ae2lt_jar=//p' gradle.properties | tail -n 1 | tr -d '\r')"
+          ae2lt_name="$(basename "$ae2lt_jar")"
+          ae2lt_version="${ae2lt_name#ae2lt-}"
+          ae2lt_version="${ae2lt_version%.jar}"
+          thunderbolt_notation="$(sed -n 's/^thunderbolt_maven_notation=//p' gradle.properties | tail -n 1 | tr -d '\r')"
+          thunderbolt_version="${thunderbolt_notation##*:}"
+          mkdir -p release-dependencies
+          gh release download "$ae2lt_version" --repo AE2-Lightning-Tech-Reborn/AE2-Lightning-Tech-Reborn \
+            --pattern "$ae2lt_name" --dir release-dependencies
+          gh release download "$thunderbolt_version" --repo AE2-Lightning-Tech-Reborn/Thunderbolt-Core-Reborn \
+            --pattern "thunderbolt-$thunderbolt_version.jar" --dir release-dependencies
+          jar tf "release-dependencies/$ae2lt_name" >/dev/null
+          jar tf "release-dependencies/thunderbolt-$thunderbolt_version.jar" >/dev/null
+          echo "AE2LT_RELEASE_JAR=$GITHUB_WORKSPACE/release-dependencies/$ae2lt_name" >> "$GITHUB_ENV"
+          echo "THUNDERBOLT_RELEASE_JAR=$GITHUB_WORKSPACE/release-dependencies/thunderbolt-$thunderbolt_version.jar" >> "$GITHUB_ENV"
+
+      - name: Build addon
+        shell: bash
+        run: |
+          ./gradlew --no-daemon clean build --max-workers 1 \
+            -Pae2lt_maven_notation= -Pae2lt_jar="$AE2LT_RELEASE_JAR" \
+            -Pthunderbolt_maven_notation= -Pthunderbolt_jar="$THUNDERBOLT_RELEASE_JAR"

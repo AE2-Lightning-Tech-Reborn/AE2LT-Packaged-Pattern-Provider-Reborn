@@ -62,6 +62,18 @@
       "left": 5,
       "top": 15
     },
+    "machineRecognition": {
+      "left": 135,
+      "top": 17,
+      "width": 33,
+      "height": 10
+    },
+    "wirelessConnectionHint": {
+      "left": 0,
+      "top": 247,
+      "width": 176,
+      "height": 10
+    },
     "adapterCard": {
       "right": 2,
       "top": 72
