@@ -337,6 +337,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         return Math.max(capacity, ordinary ? 1 : 0);
     }
 
+    PackagedPatternProviderBlockEntity packagedHost() {
+        return (PackagedPatternProviderBlockEntity) getProviderHost();
+    }
+
     @Override
     public long pushBatch(IPatternDetails pattern, KeyCounter[] oneCopyTemplate, long maxCraft) {
         if (maxCraft <= 0) return 0;

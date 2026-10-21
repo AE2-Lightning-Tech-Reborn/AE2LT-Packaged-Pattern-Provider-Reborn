@@ -81,15 +81,6 @@ public class PackagedPatternProviderScreen
     protected void init() {
         super.init();
         hideUnsupportedToolbarButtons();
-        addRenderableWidget(Button.builder(Component.translatable("ae2ltpp.core_order.open"), b -> {
-            if (net.neoforged.fml.ModList.get().isLoaded("jei")
-                    && com.moakiee.ae2lt.packaged.client.jei.PackagedCoreJeiPlugin.open()) return;
-            minecraft.setScreen(new CoreOrderScreen(this, menu));
-        }).bounds(leftPos + 8, topPos + 28, 88, 12)
-                .tooltip(Tooltip.create(Component.translatable("ae2ltpp.core_order.help"))).build());
-        addRenderableWidget(Button.builder(Component.literal("×"), b -> menu.clientCancelCore())
-                .bounds(leftPos + 96, topPos + 28, 10, 12)
-                .tooltip(Tooltip.create(Component.translatable("ae2ltpp.core_order.cancel"))).build());
         var patternSlots = menu.getSlots(SlotSemantics.ENCODED_PATTERN);
         for (int i = SLOTS_PER_PAGE; i < patternSlots.size(); i++) {
             var origin = patternSlots.get(i % SLOTS_PER_PAGE);
@@ -137,8 +128,7 @@ public class PackagedPatternProviderScreen
         modeButton.setState(menu.isWirelessMode());
         menu.showPage(menu.currentPage);
         setTextContent("interface_config", Component.empty());
-        setTextContent("interface_stored_items", Component.translatable(menu.coreOrderStatus.equals("idle")
-                ? "gui.ae2.ReturnInventory" : "ae2ltpp.core_order." + menu.coreOrderStatus));
+        setTextContent("interface_stored_items", Component.translatable("gui.ae2.ReturnInventory"));
         if (previousPage != null) previousPage.active = menu.currentPage > 0;
         if (nextPage != null) nextPage.active = menu.currentPage + 1 < menu.getTotalPages();
     }

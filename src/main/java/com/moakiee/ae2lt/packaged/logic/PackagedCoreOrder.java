@@ -1,6 +1,7 @@
 package com.moakiee.ae2lt.packaged.logic;
 
 import java.util.concurrent.Future;
+import java.util.function.Function;
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -26,7 +27,9 @@ public final class PackagedCoreOrder implements ICraftingRequester {
     private AEItemKey target;
     private boolean received;
     private boolean returnToNetwork;
+    private long remaining;
     private ItemStack delivered = ItemStack.EMPTY;
+    private long deliveredAmount;
     private String status = "idle";
 
     public PackagedCoreOrder(PackagedPatternProviderBlockEntity host) { this.host = host; }
@@ -44,7 +47,39 @@ public final class PackagedCoreOrder implements ICraftingRequester {
         var key = AEItemKey.of(item);
         target = key;
         received = false;
+        remaining = 1;
         startCalculation();
+    }
+
+    public boolean canAcceptTerminalOrder() {
+        return target == null && calculation == null && link == null && delivered.isEmpty()
+                && host.getMainNode().isActive();
+    }
+
+    /** Adopt the terminal's already-confirmed plan, retaining its CPU and player action source. */
+    public ICraftingSubmitResult submitFromTerminal(ICraftingPlan plan,
+            Function<ICraftingRequester, ICraftingSubmitResult> submit) {
+        if (!canAcceptTerminalOrder()) return appeng.crafting.execution.CraftingSubmitResult.CPU_BUSY;
+        target = (AEItemKey) plan.finalOutput().what();
+        remaining = plan.finalOutput().amount();
+        received = false;
+        returnToNetwork = false;
+        try {
+            var result = submit.apply(this);
+            if (result.successful() && result.link() != null) {
+                link = result.link();
+                state("crafting");
+            } else {
+                target = null;
+                remaining = 0;
+                state("failed");
+            }
+            return result;
+        } catch (RuntimeException failure) {
+            target = null;
+            remaining = 0;
+            throw failure;
+        }
     }
 
     private void startCalculation() {
@@ -72,8 +107,12 @@ public final class PackagedCoreOrder implements ICraftingRequester {
         // from inside insertCraftedItems can reenter the CPU's output delivery.
         if (!delivered.isEmpty() && (link == null || link.isDone() || link.isCanceled())) {
             long inserted = grid.getStorageService().getInventory().insert(AEItemKey.of(delivered),
-                    delivered.getCount(), Actionable.MODULATE, source());
-            if (inserted > 0) { delivered.shrink((int) inserted); state(delivered.isEmpty() ? "returned" : "storage_full"); }
+                    deliveredAmount, Actionable.MODULATE, source());
+            if (inserted > 0) {
+                deliveredAmount -= inserted;
+                if (deliveredAmount == 0) delivered = ItemStack.EMPTY;
+                state(delivered.isEmpty() ? "returned" : "storage_full");
+            }
         }
         if (link != null) {
             if (link.isCanceled() || link.isDone()) {
@@ -133,19 +172,25 @@ public final class PackagedCoreOrder implements ICraftingRequester {
     }
     @Override public long insertCraftedItems(ICraftingLink incoming, AEKey what, long amount, Actionable mode) {
         if (link == null || incoming == null || !link.getCraftingID().equals(incoming.getCraftingID())
-                || received || target == null || !target.equals(what) || amount <= 0) return 0;
-        if (returnToNetwork || !host.getInstalledAdapterStack().isEmpty()) {
-            if (!delivered.isEmpty()) return 0;
-            if (mode == Actionable.MODULATE) {
-                delivered = target.toStack(1);
-                received = true;
-                returnToNetwork = true;
-                host.saveChanges();
+                || target == null || !target.equals(what) || amount <= 0 || remaining <= 0) return 0;
+        boolean installOne = !received && !returnToNetwork && host.getInstalledAdapterStack().isEmpty();
+        long accepted = Math.min(amount, remaining);
+        if (mode == Actionable.MODULATE && accepted > 0) {
+            long toBuffer = accepted;
+            if (installOne) {
+                install(target);
+                toBuffer--;
             }
-            return 1;
+            if (toBuffer > 0) {
+                if (delivered.isEmpty()) delivered = target.toStack(1);
+                deliveredAmount += toBuffer;
+                returnToNetwork = true;
+            }
+            received = true;
+            remaining -= accepted;
+            host.saveChanges();
         }
-        if (mode == Actionable.MODULATE) install(target);
-        return 1;
+        return accepted;
     }
     @Override public void jobStateChange(ICraftingLink changed) {
         if (link == null || !link.getCraftingID().equals(changed.getCraftingID())
@@ -165,18 +210,27 @@ public final class PackagedCoreOrder implements ICraftingRequester {
         if (link != null) link.cancel();
         link = null;
         target = null;
+        remaining = 0;
         state("canceled");
     }
     public void addDrops(java.util.List<ItemStack> drops) {
         cancel();
-        if (!delivered.isEmpty()) { drops.add(delivered.copy()); delivered = ItemStack.EMPTY; }
+        if (!delivered.isEmpty()) {
+            AEItemKey.of(delivered).addDrops(deliveredAmount, drops, host.getLevel(), host.getBlockPos());
+            delivered = ItemStack.EMPTY;
+            deliveredAmount = 0;
+        }
     }
     public CompoundTag save(HolderLookup.Provider registries) {
         var data = new CompoundTag();
         if (target != null) data.put("target", target.toTag(registries));
         if (link != null) { var tag = new CompoundTag(); link.writeToNBT(tag); data.put("link", tag); }
-        if (!delivered.isEmpty()) data.put("delivered", delivered.save(registries));
+        if (!delivered.isEmpty()) {
+            data.put("delivered", delivered.save(registries));
+            data.putLong("delivered_amount", deliveredAmount);
+        }
         data.putBoolean("received", received);
+        data.putLong("remaining", remaining);
         data.putBoolean("return_to_network", returnToNetwork);
         data.putString("status", status);
         return data;
@@ -186,7 +240,13 @@ public final class PackagedCoreOrder implements ICraftingRequester {
         target = data.contains("target") ? AEItemKey.fromTag(registries, data.getCompound("target")) : null;
         link = data.contains("link") ? StorageHelper.loadCraftingLink(data.getCompound("link"), this) : null;
         delivered = ItemStack.parseOptional(registries, data.getCompound("delivered"));
+        deliveredAmount = data.contains("delivered_amount") ? Math.max(0, data.getLong("delivered_amount")) : delivered.getCount();
+        if (delivered.isEmpty() || deliveredAmount == 0) {
+            delivered = ItemStack.EMPTY;
+            deliveredAmount = 0;
+        } else delivered.setCount(1);
         received = data.getBoolean("received");
+        remaining = data.contains("remaining") ? Math.max(0, data.getLong("remaining")) : received ? 0 : 1;
         returnToNetwork = data.getBoolean("return_to_network");
         status = data.contains("status") ? data.getString("status") : "idle";
     }
