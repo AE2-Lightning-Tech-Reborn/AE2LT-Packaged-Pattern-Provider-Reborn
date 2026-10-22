@@ -13,8 +13,16 @@ public final class ReflectionSupport {
     private static final ConcurrentMap<String, Optional<Class<?>>> CLASS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentMap<MethodLookupKey, Optional<Method>> METHOD_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentMap<MethodLookupKey, Optional<Method>> DECLARED_METHOD_CACHE = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<FieldLookupKey, Optional<Field>> FIELD_CACHE = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<FieldLookupKey, Optional<Field>> DECLARED_FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final ClassValue<MemberCache> MEMBERS = new ClassValue<>() {
+        @Override protected MemberCache computeValue(Class<?> type) { return new MemberCache(); }
+    };
+
+    private static final class MemberCache {
+        final ConcurrentMap<String, Optional<Method>> methods = new ConcurrentHashMap<>();
+        final ConcurrentMap<String, Optional<Method>> declaredMethods = new ConcurrentHashMap<>();
+        final ConcurrentMap<String, Optional<Field>> fields = new ConcurrentHashMap<>();
+        final ConcurrentMap<String, Optional<Field>> declaredFields = new ConcurrentHashMap<>();
+    }
 
     private ReflectionSupport() {
     }
@@ -40,23 +48,40 @@ public final class ReflectionSupport {
     }
 
     public static Optional<Method> findMethodCached(Class<?> type, String name, Class<?>... parameterTypes) {
+        if (parameterTypes.length == 0) return findMethodCached(type, name);
         return METHOD_CACHE.computeIfAbsent(MethodLookupKey.of(type, name, parameterTypes),
                 key -> accessible(findMethod(key.type(), key.name(), key.parameterTypes().toArray(Class<?>[]::new)).orElse(null)));
     }
 
+    /** Frequent optional-mod getters need no signature object or argument-array copy on a cache hit. */
+    public static Optional<Method> findMethodCached(Class<?> type, String name) {
+        var cache = MEMBERS.get(type).methods;
+        var found = cache.get(name);
+        return found != null ? found : cache.computeIfAbsent(name, key -> accessible(findMethod(type, key).orElse(null)));
+    }
+
     public static Optional<Method> findDeclaredMethodCached(Class<?> type, String name, Class<?>... parameterTypes) {
+        if (parameterTypes.length == 0) {
+            var cache = MEMBERS.get(type).declaredMethods;
+            var found = cache.get(name);
+            return found != null ? found : cache.computeIfAbsent(name,
+                    key -> accessible(findDeclaredMethod(type, key).orElse(null)));
+        }
         return DECLARED_METHOD_CACHE.computeIfAbsent(MethodLookupKey.of(type, name, parameterTypes),
                 key -> accessible(findDeclaredMethod(key.type(), key.name(), key.parameterTypes().toArray(Class<?>[]::new)).orElse(null)));
     }
 
     public static Optional<Field> findFieldCached(Class<?> type, String name) {
-        return FIELD_CACHE.computeIfAbsent(new FieldLookupKey(type, name),
-                key -> accessible(findField(key.type(), key.name()).orElse(null)));
+        var cache = MEMBERS.get(type).fields;
+        var found = cache.get(name);
+        return found != null ? found : cache.computeIfAbsent(name, key -> accessible(findField(type, key).orElse(null)));
     }
 
     public static Optional<Field> findDeclaredFieldCached(Class<?> type, String name) {
-        return DECLARED_FIELD_CACHE.computeIfAbsent(new FieldLookupKey(type, name),
-                key -> accessible(findDeclaredField(key.type(), key.name()).orElse(null)));
+        var cache = MEMBERS.get(type).declaredFields;
+        var found = cache.get(name);
+        return found != null ? found : cache.computeIfAbsent(name,
+                key -> accessible(findDeclaredField(type, key).orElse(null)));
     }
 
     public static Optional<Object> invoke(Method method, Object target, Object... args) {
@@ -128,6 +153,4 @@ public final class ReflectionSupport {
         }
     }
 
-    private record FieldLookupKey(Class<?> type, String name) {
-    }
 }

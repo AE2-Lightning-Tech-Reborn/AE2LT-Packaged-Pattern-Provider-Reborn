@@ -25,6 +25,8 @@ public final class MultiblockAdapterRegistry {
     private static final BooleanSupplier ALWAYS_ENABLED = () -> true;
     private static List<AdapterRegistration> sortedRegistrations = List.of();
     private static List<MultiblockAdapter> activeAdapters = List.of();
+    private static List<MultiblockAdapter> batchIndexSource = List.of();
+    private static Map<ResourceLocation, InputBatchCraftingAdapter> batchAdapters = Map.of();
     private static boolean[] activeEnabledStates = new boolean[0];
     private static boolean hasDynamicEnabledSupplier;
     private static boolean cacheDirty = true;
@@ -61,6 +63,20 @@ public final class MultiblockAdapterRegistry {
 
     public static List<MultiblockAdapter> getAll() {
         return activeAdapters();
+    }
+
+    @Nullable
+    public static InputBatchCraftingAdapter inputBatchAdapter(ResourceLocation id) {
+        var active = activeAdapters();
+        if (active != batchIndexSource) {
+            var index = new LinkedHashMap<ResourceLocation, InputBatchCraftingAdapter>();
+            for (var adapter : active) {
+                if (adapter instanceof InputBatchCraftingAdapter batch) index.putIfAbsent(batch.batchAdapterId(), batch);
+            }
+            batchAdapters = Map.copyOf(index);
+            batchIndexSource = active;
+        }
+        return batchAdapters.get(id);
     }
 
     public static List<MultiblockAdapter> activeAdapters() {
@@ -100,6 +116,8 @@ public final class MultiblockAdapterRegistry {
         REGISTRATIONS.clear();
         sortedRegistrations = List.of();
         activeAdapters = List.of();
+        batchIndexSource = List.of();
+        batchAdapters = Map.of();
         activeEnabledStates = new boolean[0];
         hasDynamicEnabledSupplier = false;
         cacheDirty = true;

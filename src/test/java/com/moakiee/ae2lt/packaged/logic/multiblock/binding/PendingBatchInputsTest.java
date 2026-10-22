@@ -101,4 +101,47 @@ public class PendingBatchInputsTest {
         queue.deliver(d -> 6);
         assertFalse(queue.hasPending());
     }
+
+    @Test
+    void exactReceiptsFindTheTightestPortWithoutExtraProbesWhenCapacityIsInsufficient() {
+        var ports = List.of(delivery(3, 0), delivery(7, 1));
+        for (int left = 0; left <= 64; left++) for (int right = 0; right <= 64; right++) {
+            long[] room = {left * 3L + 2, right * 7L + 6}; // fractional copies must stay in the CPU
+            var probes = new java.util.concurrent.atomic.AtomicInteger();
+            int accepted = PendingBatchInputs.fittingByReceipt(ports, 64, d -> Long.MAX_VALUE, d -> {
+                probes.incrementAndGet();
+                return Math.min(d.stack().amount(), room[d.pos().getX()]);
+            });
+            int expected = 0;
+            for (int n = 1; n <= 64; n++) {
+                if (n * 3L <= room[0] && n * 7L <= room[1]) expected = n;
+            }
+            assertEquals(expected, accepted);
+            assertTrue(probes.get() <= 2, "full, partial and blocked ports all need at most one probe per port");
+            assertEquals(3, ports.get(0).stack().amount());
+            assertEquals(7, ports.get(1).stack().amount());
+        }
+    }
+
+    @Test
+    void exactReceiptBoundsAvoidLongOverflowAndIntTruncation() {
+        var large = List.of(delivery(Long.MAX_VALUE / 3, 0));
+        assertEquals(3, PendingBatchInputs.fittingByReceipt(large, 64, d -> Long.MAX_VALUE, d -> d.stack().amount()));
+        assertEquals(0, PendingBatchInputs.fittingByReceipt(large, 64, d -> Integer.MAX_VALUE,
+                d -> { throw new AssertionError("unrepresentable input must not be probed"); }));
+        var intPort = List.of(delivery(Integer.MAX_VALUE / 4L, 0));
+        assertEquals(4, PendingBatchInputs.fittingByReceipt(intPort, 64, d -> Integer.MAX_VALUE, d -> d.stack().amount()));
+        assertEquals(0, PendingBatchInputs.fittingByReceipt(intPort, 0, d -> { throw new AssertionError(); },
+                d -> { throw new AssertionError(); }));
+    }
+
+    @Test
+    void invalidSimulationReceiptsDoNotAcquireOwnership() {
+        var ports = List.of(delivery(2, 0));
+        for (long receipt : new long[]{-1, 129}) {
+            assertThrows(IllegalStateException.class,
+                    () -> PendingBatchInputs.fittingByReceipt(ports, 64, d -> Long.MAX_VALUE, d -> receipt));
+        }
+        assertEquals(2, ports.getFirst().stack().amount());
+    }
 }

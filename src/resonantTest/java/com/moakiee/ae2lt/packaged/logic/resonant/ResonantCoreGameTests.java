@@ -73,6 +73,30 @@ public final class ResonantCoreGameTests {
     private static final BlockPos SECOND = new BlockPos(0, 0, -2);
 
     @GameTest(template = "resonant_test")
+    public static void indexedLayoutKeepsEverySparseSlotAndImmutableCopies(GameTestHelper h) {
+        var entries = new ArrayList<ResonantLayout.Binding>();
+        for (int slot = ResonantLayout.SLOTS - 1; slot >= 0; slot -= 2) {
+            entries.add(new ResonantLayout.Binding(slot, target(new BlockPos(slot, 0, 0), Direction.UP, "minecraft:chest")));
+        }
+        var base = layout(h);
+        var indexed = new ResonantLayout(base.source(), base.anchorBlock(), base.forward(), base.anchorFace(), 0, entries);
+        entries.clear();
+        for (int slot = 0; slot < ResonantLayout.SLOTS; slot++) {
+            var found = indexed.target(slot);
+            h.assertTrue(found.isPresent() == (slot % 2 == 1), "unbound slots remain unbound");
+            if (found.isPresent()) h.assertTrue(found.get().offset().getX() == slot, "slot identity survives unsorted input");
+        }
+        h.assertTrue(indexed.target(-1).isEmpty() && indexed.target(ResonantLayout.SLOTS).isEmpty(), "out-of-range lookup stays empty");
+        var changed = indexed.withTarget(143, target(SECOND, Direction.DOWN, "minecraft:chest")).select(143);
+        h.assertTrue(indexed.target(143).orElseThrow().offset().getX() == 143
+                && changed.target(143).orElseThrow().offset().equals(SECOND), "copies cannot mutate the original index");
+        var restored = core(changed);
+        var roundTrip = ItemStack.parse(h.getLevel().registryAccess(), restored.save(h.getLevel().registryAccess())).orElseThrow();
+        h.assertTrue(changed.equals(ResonantPackagedCoreItem.layout(roundTrip)), "indexed layouts retain codec equality");
+        h.succeed();
+    }
+
+    @GameTest(template = "resonant_test")
     public static void registrationRecipeAndPortableComponentRoundTrip(GameTestHelper h) {
         boolean loaded = ModList.get().isLoaded("ae2cs");
         h.assertTrue(PackagedCoreDefinition.visibleWhen(id -> loaded && id.equals("ae2cs")).stream()

@@ -57,6 +57,33 @@ public final class PendingBatchInputs {
         return List.copyOf(result);
     }
 
+    /**
+     * Each independent port reports its exact accepted prefix, so even a full port takes one probe.
+     * This is only for adapters explicitly promising quantity-preserving partial SIMULATE receipts.
+     * It neither adopts inputs nor changes the borrowed one-copy deliveries.
+     */
+    public static int fittingByReceipt(List<Delivery> oneCopy, int maximum,
+                                      ToLongFunction<Delivery> amountLimit, ToLongFunction<Delivery> simulate) {
+        int copies = Math.min(BatchCopies.MAX_PER_LANE, Math.max(0, maximum));
+        if (copies == 0 || oneCopy.isEmpty()) return 0;
+        for (var delivery : oneCopy) {
+            long amount = delivery.stack().amount();
+            if (amount <= 0) return 0;
+            long limit = Math.max(0, amountLimit.applyAsLong(delivery));
+            copies = (int) Math.min(copies, limit / amount);
+            if (copies == 0) return 0;
+            // limit / amount above bounds this product without exceptions or truncation.
+            long offered = amount * copies;
+            long accepted = simulate.applyAsLong(delivery.withAmount(offered));
+            if (accepted < 0 || accepted > offered) {
+                throw new IllegalStateException("Invalid simulated batch receipt: " + accepted);
+            }
+            copies = (int) (accepted / amount);
+            if (copies == 0) return 0;
+        }
+        return copies;
+    }
+
     public void adopt(List<Delivery> deliveries) {
         if (hasPending() || deliveries.isEmpty()) throw new IllegalStateException("batch input ownership conflict");
         pending.addAll(deliveries);

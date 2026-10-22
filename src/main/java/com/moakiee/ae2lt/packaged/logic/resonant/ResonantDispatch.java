@@ -43,6 +43,7 @@ public final class ResonantDispatch {
         if (data == null || inputs == null || !validAnchor(layout, anchor)) return null;
         var level = anchor.level();
         var orientation = ResonantLayout.forward(level.getBlockState(anchor.pos()), anchor.face());
+        var defaultTarget = new ResonantLayout.Target(BlockPos.ZERO, layout.anchorFace(), Optional.of(layout.anchorBlock()));
         var amounts = new LinkedHashMap<Port, Long>();
         var blocks = new HashMap<Port, net.minecraft.resources.ResourceLocation>();
         var remaining = new HashMap<AEKey, Long>();
@@ -72,8 +73,7 @@ public final class ResonantDispatch {
                     target = new ResonantLayout.Target(marked.pos().pos().subtract(layout.source().pos()),
                             marked.face(), Optional.empty());
                 } else {
-                    target = layout.target(index).orElse(new ResonantLayout.Target(BlockPos.ZERO,
-                            layout.anchorFace(), Optional.of(layout.anchorBlock())));
+                    target = layout.target(index).orElse(defaultTarget);
                 }
                 target = target.rotated(layout.forward(), orientation);
                 var pos = anchor.pos().offset(target.offset());

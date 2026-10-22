@@ -48,7 +48,7 @@ import com.moakiee.thunderbolt.core.crafting.overload.OverloadedPatternDetails;
  */
 public class StablePatternProviderLogic extends PatternProviderLogic {
     private static final int GRID_TICK_MIN = 1;
-    private static final int GRID_TICK_MAX = 20;
+    protected static final int GRID_TICK_MAX = 20;
     private static final int VALIDATE_INTERVAL = 20;
 
     private static final String TAG_UNLOCK_MATCH_MODE = "Ae2ltUnlockMatchMode";
@@ -264,6 +264,9 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
                 || !returnInventory.isEmpty();
     }
 
+    /** Subclasses may delay only when all their work can wait for the grid's maximum interval. */
+    protected boolean canDelayTick() { return false; }
+
     protected final void alertGridTick() {
         gridNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
     }
@@ -432,7 +435,8 @@ public class StablePatternProviderLogic extends PatternProviderLogic {
             boolean parentDidWork = accessor().ae2ltpp$doWork();
             tickAutoReturn();
             if (hasAnyTickWork()) {
-                return TickRateModulation.URGENT;
+                return !accessor().ae2ltpp$hasWorkToDo() && canDelayTick()
+                        ? TickRateModulation.IDLE : TickRateModulation.URGENT;
             }
             if (accessor().ae2ltpp$hasWorkToDo()) {
                 return parentDidWork

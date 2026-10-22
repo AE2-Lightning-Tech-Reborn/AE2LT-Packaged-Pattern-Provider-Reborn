@@ -1,0 +1,16 @@
+// Apply after batch-test.init.gradle. Measures real Mek tank admission and checks exact quantities.
+allprojects {
+    afterEvaluate {
+        sourceSets.batchTest.java.srcDir 'src/batchPerformanceTest/java'
+        def baseline = providers.gradleProperty('ppBatchCostBaseline').orNull
+        if (baseline != null) {
+            sourceSets.main.output.classesDirs.setFrom(files("${baseline}/classes"))
+            sourceSets.main.output.resourcesDir = file("${baseline}/resources")
+        }
+        neoForge.runs.gameTestServer {
+            systemProperty 'ae2ltpp.batchCostBaseline', Boolean.toString(baseline != null)
+            def directory = providers.gradleProperty('ppBatchCostRunDirectory').orNull
+            if (directory != null) gameDirectory = file(directory)
+        }
+    }
+}

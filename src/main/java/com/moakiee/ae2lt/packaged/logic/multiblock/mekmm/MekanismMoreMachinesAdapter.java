@@ -56,6 +56,15 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
     public ResourceLocation batchAdapterId() { return AdapterIds.MEKMM; }
 
     @Override
+    public boolean hasExactBatchInputReceipts() { return true; }
+
+    @Override
+    public long batchInputAmountLimit(GenericStack oneCopy) {
+        return oneCopy.what() instanceof AEItemKey || oneCopy.what() instanceof AEFluidKey
+                ? Integer.MAX_VALUE : Long.MAX_VALUE;
+    }
+
+    @Override
     public long insertBatchInput(ServerLevel level, BlockPos pos, Direction side,
             GenericStack stack, Actionable mode, IActionSource source) {
         PortType type = stack.what() instanceof AEItemKey ? PortType.ITEM

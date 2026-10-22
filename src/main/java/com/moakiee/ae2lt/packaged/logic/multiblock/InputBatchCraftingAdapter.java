@@ -16,6 +16,12 @@ import net.minecraft.server.level.ServerLevel;
 public interface InputBatchCraftingAdapter extends MultiblockAdapter {
     ResourceLocation batchAdapterId();
 
+    /** Opt in only when SIMULATE returns min(offered, independently available port capacity). */
+    default boolean hasExactBatchInputReceipts() { return false; }
+
+    /** Largest representable single insertion. Used before multiplying the one-copy amount. */
+    default long batchInputAmountLimit(GenericStack oneCopy) { return Long.MAX_VALUE; }
+
     long insertBatchInput(ServerLevel level, BlockPos pos, Direction side,
                           GenericStack stack, Actionable mode, IActionSource source);
 }

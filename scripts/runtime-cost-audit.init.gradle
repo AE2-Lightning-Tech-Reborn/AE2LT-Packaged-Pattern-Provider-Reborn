@@ -1,0 +1,26 @@
+// Warmed local CPU/allocation audits, not server MSPT. Baseline must contain classes/ and resources/.
+// ./gradlew -I scripts/runtime-cost-audit.init.gradle runRuntimeCostAudit [-PppCostBaseline=/absolute/path]
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics' || dep.group == 'top.theillusivec4.curios'
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('runtimeCostAudit') {
+            java.srcDir 'scripts/benchmarks'
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath = output + sourceSets.main.runtimeClasspath
+        }
+        tasks.register('runRuntimeCostAudit', JavaExec) {
+            def baseline = providers.gradleProperty('ppCostBaseline').orNull
+            classpath = baseline == null ? sourceSets.runtimeCostAudit.runtimeClasspath :
+                    sourceSets.runtimeCostAudit.output + files("${baseline}/classes", "${baseline}/resources") +
+                    (sourceSets.main.runtimeClasspath - sourceSets.main.output)
+            mainClass = 'com.moakiee.ae2lt.packaged.benchmarks.RuntimeCostAudit'
+            systemProperty 'ae2ltpp.costBaseline', Boolean.toString(baseline != null)
+            jvmArgs '-Xms512m', '-Xmx1g'
+        }
+    }
+}
