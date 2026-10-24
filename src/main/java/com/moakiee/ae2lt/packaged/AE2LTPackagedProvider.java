@@ -96,6 +96,9 @@ public class AE2LTPackagedProvider {
                 MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FAClibanoAdapter());
                 MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FABlackHoleAdapter());
             }
+            if (ModList.get().isLoaded("farmersdelight")) {
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.delight.CookingPotAdapter());
+            }
             MultiblockAdapterRegistry.register(new ActuallyAdditionsAtomicReconstructorAdapter());
             MultiblockAdapterRegistry.register(new ActuallyAdditionsEmpowererAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauEnchantingApparatusAdapter());

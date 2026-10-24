@@ -1,0 +1,30 @@
+// Native pot integration tests; no optional dependency or fixture enters the release JAR.
+// -I scripts/delight-test.init.gradle -PppDelightModsDir=/path/to/mods test build runGameTestServer
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        // Existing unit tests reflectively exercise EC; keep its test classpath while isolating the game server.
+        configurations.runtimeOnly.dependencies.findAll {
+            it.group == 'maven.modrinth' && it.name in ['extended-crafting', 'cucumber']
+        }.each { dependencies.add('testRuntimeOnly', it.copy()) }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group in ['org.appliedenergistics', 'com.moakiee.thunderbolt', 'top.theillusivec4.curios']
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        def modsDir = providers.gradleProperty('ppDelightModsDir').orNull
+        if (modsDir != null) dependencies.add('runtimeOnly', files(fileTree(modsDir) {
+            include 'FarmersDelight-*.jar', 'avaritia_delight-*.jar', 'Re-Avaritia-neoforge-*.jar', 'architectury-*.jar'
+        }))
+        sourceSets.create('delightTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.delightTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.delightTest
+            gameDirectory = project.layout.buildDirectory.dir('delight-native').get().asFile
+        }
+    }
+}

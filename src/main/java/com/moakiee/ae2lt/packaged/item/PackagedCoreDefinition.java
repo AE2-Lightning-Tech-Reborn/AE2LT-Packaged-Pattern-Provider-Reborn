@@ -72,7 +72,9 @@ public record PackagedCoreDefinition(
             core("fa_hephaestus_forge_packaged_core", "forbidden_arcanus", "hephaestus_forge_tier_1"),
             core("fa_clibano_packaged_core", "forbidden_arcanus", "clibano_core"),
             core("fa_black_hole_packaged_core", "forbidden_arcanus", "dark_matter"),
-            core("resonant_packaged_core", "ae2cs", "resonating_pattern_provider"));
+            core("resonant_packaged_core", "ae2cs", "resonating_pattern_provider"),
+            core("fd_cooking_pot_packaged_core", "farmersdelight", "cooking_pot"),
+            core("ad_extreme_cooking_pot_packaged_core", "avaritia_delight", "extreme_cooking_pot"));
 
     public static List<PackagedCoreDefinition> all() {
         return ALL;
@@ -132,6 +134,8 @@ public record PackagedCoreDefinition(
             case "fa_clibano_packaged_core" -> PPItems.FA_CLIBANO_ADAPTER;
             case "fa_black_hole_packaged_core" -> PPItems.FA_BLACK_HOLE_ADAPTER;
             case "resonant_packaged_core" -> PPItems.RESONANT_ADAPTER;
+            case "fd_cooking_pot_packaged_core" -> PPItems.FD_COOKING_POT_ADAPTER;
+            case "ad_extreme_cooking_pot_packaged_core" -> PPItems.AD_COOKING_POT_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };
     }

@@ -62,7 +62,9 @@ class PackagedCoreNamingTest {
             "fa_hephaestus_forge_packaged_core",
             "fa_clibano_packaged_core",
             "fa_black_hole_packaged_core",
-            "resonant_packaged_core");
+            "resonant_packaged_core",
+            "fd_cooking_pot_packaged_core",
+            "ad_extreme_cooking_pot_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
             "basic_packaged_core");

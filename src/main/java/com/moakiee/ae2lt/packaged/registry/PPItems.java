@@ -223,6 +223,12 @@ public final class PPItems {
     public static final DeferredItem<MultiblockAdapterItem> RESONANT_ADAPTER =
             registerPackagedCore("resonant_packaged_core", AdapterIds.RESONANT, Set.of(AdapterIds.RESONANT));
 
+    public static final DeferredItem<MultiblockAdapterItem> FD_COOKING_POT_ADAPTER =
+            registerPackagedCore("fd_cooking_pot_packaged_core", AdapterIds.FD_COOKING_POT, Set.of(AdapterIds.FD_COOKING_POT));
+    public static final DeferredItem<MultiblockAdapterItem> AD_COOKING_POT_ADAPTER =
+            registerPackagedCore("ad_extreme_cooking_pot_packaged_core", AdapterIds.AD_COOKING_POT,
+                    Set.of(AdapterIds.FD_COOKING_POT, AdapterIds.AD_COOKING_POT));
+
     // ===== Crafting intermediates =====
 
     /** Generic crafting base for the per-machine packaged cores. */

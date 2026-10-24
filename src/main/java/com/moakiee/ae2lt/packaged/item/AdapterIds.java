@@ -126,6 +126,9 @@ public final class AdapterIds {
     public static final ResourceLocation FA_CLIBANO = id("forbidden_arcanus/clibano_packaged_core");
     public static final ResourceLocation FA_BLACK_HOLE = id("forbidden_arcanus/black_hole_packaged_core");
 
+    public static final ResourceLocation FD_COOKING_POT = id("farmersdelight/cooking_packaged_core");
+    public static final ResourceLocation AD_COOKING_POT = id("avaritia_delight/extreme_cooking_packaged_core");
+
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(AE2LTPackagedProvider.MODID, path);
     }
