@@ -1,0 +1,34 @@
+// Regression checks run with native NeoForge/AE2/Mekanism APIs. Test sources never enter the mod JAR.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.findAll { it.name in ['extended-crafting', 'cucumber'] }.each {
+            dependencies.add('testRuntimeOnly', it.copy())
+        }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics' || dep.group == 'com.moakiee.thunderbolt'
+                || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('securityTest') {
+            java.srcDirs('src/securityTest/java', 'src/resonantTest/java', 'src/mekRoutingTest/java')
+            resources.srcDirs('src/securityTest/resources', 'src/resonantTest/resources', 'src/mekRoutingTest/resources')
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        dependencies.add('securityTestImplementation', 'mekanism:Mekanism:1.21.1-10.7.19.85')
+        dependencies.add('securityTestImplementation', 'curse.maven:applied-mekanistics-574300:7096962')
+        def mekmmJar = providers.gradleProperty('mekmm_test_jar').orNull
+        if (mekmmJar == null || !file(mekmmJar).isFile()) throw new GradleException('Set mekmm_test_jar to a native MekMM jar')
+        dependencies.add('securityTestRuntimeOnly', files(mekmmJar))
+        def crystalJar = providers.gradleProperty('ppCrystalScienceJar').orNull
+        if (crystalJar != null) dependencies.add('securityTestRuntimeOnly', files(crystalJar))
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.securityTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.securityTest
+            gameDirectory = project.layout.buildDirectory.dir('security-native').get().asFile
+        }
+    }
+}

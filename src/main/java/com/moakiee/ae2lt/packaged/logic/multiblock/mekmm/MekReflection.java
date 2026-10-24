@@ -135,12 +135,12 @@ final class MekReflection {
     }
 
     @Nullable
-    static Object extractChemical(Object handler, long amount, boolean simulate) {
+    static Object extractChemical(Object handler, int tank, long amount, boolean simulate) {
         ensureLookup();
         if (extractChemicalMethod == null || actionSimulate == null || actionExecute == null) return null;
         try {
             Object action = simulate ? actionSimulate : actionExecute;
-            return extractChemicalMethod.invoke(handler, amount, action);
+            return extractChemicalMethod.invoke(handler, tank, amount, action);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
             CompatibilityDiagnostics.failure(MekReflection.class, "extractChemical", ignored);
             return null;
@@ -269,7 +269,7 @@ final class MekReflection {
             }
 
             insertChemicalMethod = chemicalHandlerClass.getMethod("insertChemical", chemicalStackClass, actionClass);
-            extractChemicalMethod = chemicalHandlerClass.getMethod("extractChemical", long.class, actionClass);
+            extractChemicalMethod = chemicalHandlerClass.getMethod("extractChemical", int.class, long.class, actionClass);
             getChemicalInTankMethod = chemicalHandlerClass.getMethod("getChemicalInTank", int.class);
             getChemicalTanksMethod = chemicalHandlerClass.getMethod("getChemicalTanks");
 

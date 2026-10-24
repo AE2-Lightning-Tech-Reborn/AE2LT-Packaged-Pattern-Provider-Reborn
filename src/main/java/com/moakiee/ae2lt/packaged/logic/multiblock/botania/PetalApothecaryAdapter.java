@@ -10,7 +10,6 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
@@ -234,8 +233,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
         // Materialize the KeyCounter into two mutable maps (items +
         // fluids). Every consumed key is debited from these maps; at
         // the end both maps must be exactly zero (no swallowing).
-        var itemAvailable = new LinkedHashMap<Item, Long>();
-        var itemKeys = new HashMap<Item, AEItemKey>();
+        var itemAvailable = new LinkedHashMap<AEItemKey, Long>();
         var fluidAvailable = new LinkedHashMap<Fluid, Long>();
         var fluidKeys = new HashMap<Fluid, AEFluidKey>();
         for (var counter : inputs) {
@@ -245,9 +243,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
                     continue;
                 }
                 if (entry.getKey() instanceof AEItemKey itemKey) {
-                    var item = itemKey.getItem();
-                    itemAvailable.merge(item, amt, Long::sum);
-                    itemKeys.putIfAbsent(item, itemKey);
+                    itemAvailable.merge(itemKey, amt, Math::addExact);
                 } else if (entry.getKey() instanceof AEFluidKey fluidKey) {
                     var fluid = fluidKey.getFluid();
                     fluidAvailable.merge(fluid, amt, Long::sum);
@@ -276,7 +272,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
         if (reagent != null && !reagent.isEmpty()) {
             ingredients.add(reagent);
         }
-        if (!consumeIngredientsStrict(ingredients, craftRatio, itemAvailable, itemKeys)) {
+        if (!consumeIngredientsStrict(ingredients, craftRatio, itemAvailable)) {
             return null;
         }
 
@@ -331,17 +327,24 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
      * the batch (caller should fail the plan).
      */
     @Nullable
-    private static WaterSource chooseWaterSource(LinkedHashMap<Item, Long> itemAvailable,
+    private static WaterSource chooseWaterSource(LinkedHashMap<AEItemKey, Long> itemAvailable,
                                                  LinkedHashMap<Fluid, Long> fluidAvailable,
                                                  long craftRatio,
                                                  BlockEntity be) {
-        long bucketsAvail = itemAvailable.getOrDefault(Items.WATER_BUCKET, 0L);
-        if (bucketsAvail >= craftRatio) {
-            long remaining = bucketsAvail - craftRatio;
-            if (remaining == 0) {
-                itemAvailable.remove(Items.WATER_BUCKET);
-            } else {
-                itemAvailable.put(Items.WATER_BUCKET, remaining);
+        long bucketsNeeded = craftRatio;
+        for (var entry : itemAvailable.entrySet()) {
+            if (entry.getKey().getItem() == Items.WATER_BUCKET)
+                bucketsNeeded -= Math.min(bucketsNeeded, entry.getValue());
+        }
+        if (bucketsNeeded == 0) {
+            long remaining = craftRatio;
+            for (var it = itemAvailable.entrySet().iterator(); it.hasNext() && remaining > 0;) {
+                var entry = it.next();
+                if (entry.getKey().getItem() != Items.WATER_BUCKET) continue;
+                long consumed = Math.min(remaining, entry.getValue());
+                remaining -= consumed;
+                if (consumed == entry.getValue()) it.remove();
+                else entry.setValue(entry.getValue() - consumed);
             }
             return WaterSource.BUCKET;
         }
@@ -406,37 +409,19 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
      * the caller's responsibility.
      */
     private static boolean consumeIngredientsStrict(List<Ingredient> ingredients, long k,
-                                                    LinkedHashMap<Item, Long> available,
-                                                    HashMap<Item, AEItemKey> keysByItem) {
+                                                    LinkedHashMap<AEItemKey, Long> available) {
         for (var ing : ingredients) {
-            if (ing.isEmpty()) {
-                continue;
-            }
-            boolean matched = false;
-            for (var it = available.entrySet().iterator(); it.hasNext(); ) {
+            if (ing.isEmpty()) continue;
+            long needed = k;
+            for (var it = available.entrySet().iterator(); it.hasNext() && needed > 0;) {
                 var entry = it.next();
-                if (entry.getValue() < k) {
-                    continue;
-                }
-                var key = keysByItem.get(entry.getKey());
-                if (key == null) {
-                    continue;
-                }
-                if (!ing.test(key.toStack(1))) {
-                    continue;
-                }
-                long remaining = entry.getValue() - k;
-                if (remaining == 0) {
-                    it.remove();
-                } else {
-                    entry.setValue(remaining);
-                }
-                matched = true;
-                break;
+                if (!ing.test(entry.getKey().toStack(1))) continue;
+                long consumed = Math.min(needed, entry.getValue());
+                needed -= consumed;
+                if (consumed == entry.getValue()) it.remove();
+                else entry.setValue(entry.getValue() - consumed);
             }
-            if (!matched) {
-                return false;
-            }
+            if (needed > 0) return false;
         }
         return true;
     }

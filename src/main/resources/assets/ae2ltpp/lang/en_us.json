@@ -61,7 +61,7 @@
   "ae2ltpp.connector.core_mismatch": "The installed Packaged Core cannot link to this target.",
   "item.ae2ltpp.resonant_packaged_core": "Resonant Packaged Core",
   "ae2ltpp.resonant.bind_hint": "Use on a machine to set the anchor; use on ports to bind. Sneak-use resets the anchor and layout.",
-  "ae2ltpp.resonant.select_hint": "Sneak-scroll selects a slot; use in air switches between inputs and outputs. Use a bound port again to clear it.",
+  "ae2ltpp.resonant.select_hint": "Sneak-scroll: select input slot; use in air: show selection",
   "ae2ltpp.resonant.copy_hint": "Use on a provider with a configured resonant core to copy its layout.",
   "ae2ltpp.resonant.unbound": "No layout: use on the machine anchor first.",
   "ae2ltpp.resonant.anchor": "Anchor set to (%s, %s, %s). Input 1 selected.",
@@ -126,5 +126,6 @@
   "ae2ltpp.jei.raven.title": "Packaged Raven Infusion",
   "ae2ltpp.jei.raven.help": "Raven table only. %s mB XP + 3 lapis. Pattern, table, then ME supply the cost.",
   "ae2ltpp.jei.maid.crafting_help": "Consumes the pattern items and P. A fully formed altar is required.",
-  "ae2ltpp.jei.raven.core_help": "1 Basic Core + 3 Lapis Lazuli\n619400 mB experience (levels 0 to 100)"
+  "ae2ltpp.jei.raven.core_help": "1 Basic Core + 3 Lapis Lazuli\n619400 mB experience (levels 0 to 100)",
+  "ae2ltpp.resonant.out_of_range": "Input port must be within %s blocks of the main machine."
 }

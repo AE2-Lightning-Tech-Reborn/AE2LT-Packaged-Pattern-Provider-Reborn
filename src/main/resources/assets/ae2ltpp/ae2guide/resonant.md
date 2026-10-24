@@ -11,7 +11,7 @@ item_ids:
 # Resonant Layouts
 
 Combine a Basic Packaged Core with a Crystal Science Resonating Pattern Provider to make a
-<ItemLink id="ae2ltpp:resonant_packaged_core" />. It records the input and output ports of a machine
+<ItemLink id="ae2ltpp:resonant_packaged_core" />. It records the input ports of a machine
 layout and sends materials through the machines' normal inventories. The machines still perform
 their own recipes and consume their own power.
 
@@ -19,9 +19,11 @@ their own recipes and consume their own power.
 2. Sneak-scroll to choose an input slot, then use the core on that slot's destination face.
    Slot numbers refer to the original processing-pattern grid, including empty slots and duplicate ingredients.
    There are 144 input slots. Using the same face again clears its binding.
-3. Use the core in air to switch to the output-port group. Bind up to 36 output ports in the same way.
-   Switch back by using it in air again. Output ports are only read when the provider's auto-return is enabled;
-   only outputs declared by its patterns are collected. Use the machine's dedicated output face where possible.
+3. Child inputs must be within 32 blocks of the main machine by straight-line distance. Servers can
+   adjust `resonantInputRange`. Use in air to show the selected input slot.
+   New layouts return products only from the current main machine's connected face.
+   Existing child output bindings keep working, but can no longer be created or edited.
+   Only products declared by the provider's patterns are collected when AUTO return is enabled.
 4. Install the core. An ordinary Packaged Pattern Provider uses an adjacent matching anchor on its output side.
    A Wireless Packaged Pattern Provider uses the anchors bound with the wireless connector. Each anchor must
    be the same block type as the source; every ingredient of a craft is delivered to one complete layout.

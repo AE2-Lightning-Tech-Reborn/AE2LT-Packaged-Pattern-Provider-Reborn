@@ -363,6 +363,10 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
                                          AllowedOutputFilter filter, List<GenericStack> out) {
         Object handler = MekReflection.getChemicalHandler(level, pos, side);
         if (handler == null) return;
+        extractChemicals(handler, filter, out);
+    }
+
+    static void extractChemicals(Object handler, AllowedOutputFilter filter, List<GenericStack> out) {
         int tanks = MekReflection.getChemicalTanks(handler);
         for (int i = 0; i < tanks; i++) {
             Object stack = MekReflection.getChemicalInTank(handler, i);
@@ -370,9 +374,10 @@ public final class MekanismMoreMachinesAdapter implements InputBatchCraftingAdap
             AEKey key = AppmekReflection.fromChemicalStack(stack);
             if (key == null || !filter.matches(key)) continue;
             long stored = MekReflection.getChemicalAmount(stack);
-            Object extracted = MekReflection.extractChemical(handler, stored, false);
+            Object extracted = MekReflection.extractChemical(handler, i, stored, false);
             if (extracted == null || MekReflection.isChemicalEmpty(extracted)) continue;
-            out.add(new GenericStack(key, MekReflection.getChemicalAmount(extracted)));
+            AEKey extractedKey = AppmekReflection.fromChemicalStack(extracted);
+            if (extractedKey != null) out.add(new GenericStack(extractedKey, MekReflection.getChemicalAmount(extracted)));
         }
     }
 

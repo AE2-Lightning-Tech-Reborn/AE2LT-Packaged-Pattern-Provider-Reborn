@@ -64,6 +64,7 @@ public class AE2LTPackagedProvider {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public AE2LTPackagedProvider(IEventBus modEventBus, ModContainer modContainer) {
+        modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.SERVER, PPConfig.SPEC);
         PPItems.ITEMS.register(modEventBus);
         com.moakiee.ae2lt.packaged.recipe.CoreUpgradeRecipes.register(modEventBus);
         com.moakiee.ae2lt.packaged.recipe.RavenRecipes.register(modEventBus);

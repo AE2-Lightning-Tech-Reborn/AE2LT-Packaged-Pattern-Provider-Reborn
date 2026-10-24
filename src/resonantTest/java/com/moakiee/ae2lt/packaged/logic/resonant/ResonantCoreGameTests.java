@@ -120,7 +120,7 @@ public final class ResonantCoreGameTests {
         h.assertTrue(ResonantPackagedCoreItem.layout(held).target(1).isPresent(), "server scroll selects original input slot");
         held.getItem().use(h.getLevel(), player, InteractionHand.MAIN_HAND);
         click(player, port.getBlockPos(), Direction.UP);
-        h.assertTrue(ResonantPackagedCoreItem.layout(held).target(ResonantLayout.INPUTS).isPresent(), "air use changes to output bindings");
+        h.assertTrue(ResonantPackagedCoreItem.layout(held).target(ResonantLayout.INPUTS).isEmpty(), "air use cannot create output bindings");
         var provider = provider(h, true);
         provider.getAdapterInv().setItemDirect(0, held.copy());
         var copy = PPItems.RESONANT_ADAPTER.toStack();
@@ -567,6 +567,164 @@ public final class ResonantCoreGameTests {
     private static ItemStack core(ResonantLayout layout) {
         var core = PPItems.RESONANT_ADAPTER.toStack(); core.set(PPDataComponents.RESONANT_LAYOUT.get(), layout); return core;
     }
+    @GameTest(template = "resonant_test", timeoutTicks = 100)
+    public static void newLayoutReturnsOnlyFromMainMachine(GameTestHelper h) {
+        var be = provider(h, true);
+        var anchor = h.absolutePos(new BlockPos(5, 2, 5));
+        var main = chest(h, anchor);
+        var child = chest(h, anchor.east(2));
+        var layout = new ResonantLayout(GlobalPos.of(h.getLevel().dimension(), SOURCE), id("minecraft:chest"),
+                Direction.NORTH, Direction.UP, 0, List.of())
+                .withTarget(0, target(new BlockPos(2, 0, 0), Direction.UP, "minecraft:chest"));
+        be.getAdapterInv().setItemDirect(0, core(layout));
+        be.addOrUpdateConnection(h.getLevel().dimension(), anchor, Direction.UP);
+        arm(h, be, ordinary(List.of(stack(Items.IRON_INGOT, 1))), () -> {
+            main.setItem(0, new ItemStack(Items.DIAMOND, 3));
+            child.setItem(0, new ItemStack(Items.DIAMOND, 7));
+            be.setReturnMode(ReturnMode.AUTO);
+            logic(be).tickAutoReturn();
+            h.assertTrue(main.getItem(0).isEmpty(), "new layout collects the main machine product");
+            h.assertTrue(child.getItem(0).getCount() == 7, "child input is never treated as an output");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "resonant_test")
+    public static void legacyOutputSelectionCannotBeEditedAndRangeIsEnforced(GameTestHelper h) {
+        var player = FakePlayerFactory.get(h.getLevel(), new GameProfile(UUID.randomUUID(), "ResonantLegacy"));
+        var anchor = h.absolutePos(new BlockPos(5, 2, 5));
+        var oldOutput = target(new BlockPos(0, 2, 0), Direction.DOWN, "minecraft:chest");
+        var old = new ResonantLayout(GlobalPos.of(h.getLevel().dimension(), anchor), id("minecraft:furnace"),
+                Direction.NORTH, Direction.NORTH, ResonantLayout.INPUTS, List.of())
+                .withTarget(ResonantLayout.INPUTS, oldOutput);
+        var held = core(old); player.setItemInHand(InteractionHand.MAIN_HAND, held);
+        click(player, anchor.east(), Direction.UP);
+        var changed = ResonantPackagedCoreItem.layout(held);
+        h.assertTrue(changed.target(ResonantLayout.INPUTS).orElseThrow().equals(oldOutput), "legacy output remains intact");
+        h.assertTrue(changed.target(0).isPresent(), "legacy selection routes edits to an input");
+        click(player, anchor.east(33), Direction.UP);
+        h.assertTrue(ResonantPackagedCoreItem.layout(held).equals(changed), "out-of-range binding has no side effects");
+        h.assertTrue(ResonantRange.contains(anchor, anchor.east(32), 32), "radius boundary included");
+        h.assertTrue(!ResonantRange.contains(anchor, anchor.offset(32, 1, 0), 32), "straight-line sphere, not a cube");
+        h.assertTrue(!ResonantRange.contains(new BlockPos(Integer.MIN_VALUE, 0, 0),
+                new BlockPos(Integer.MAX_VALUE, 0, 0), 32), "subtraction cannot wrap into range");
+        h.succeed();
+    }
+
+    @GameTest(template = "resonant_test", timeoutTicks = 100)
+    public static void removalFlushPartialReceiptLeavesOnlyTheUnacceptedItemDrop(GameTestHelper h) {
+        var be = provider(h, false);
+        h.runAfterDelay(40, () -> {
+            long[] accepted = {0};
+            appeng.api.storage.MEStorage storage = new appeng.api.storage.MEStorage() {
+                public Component getDescription() { return Component.literal("limited test storage"); }
+                public long insert(appeng.api.stacks.AEKey key, long amount, appeng.api.config.Actionable mode,
+                                   appeng.api.networking.security.IActionSource source) {
+                    long receipt = Math.min(amount, 4 - accepted[0]);
+                    if (mode == appeng.api.config.Actionable.MODULATE) accepted[0] += receipt;
+                    return receipt;
+                }
+            };
+            be.getMainNode().getGrid().getStorageService().addGlobalStorageProvider(mounts -> mounts.mount(storage, 0));
+            var logic = logic(be);
+            var tag = new CompoundTag(); logic.writeToNBT(tag, h.getLevel().registryAccess());
+            var pending = new com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingOutputBuffer();
+            pending.enqueue(List.of(stack(Items.IRON_INGOT, 10)));
+            tag.put("ae2ltpp_pending_outputs", pending.writeToNBT(h.getLevel().registryAccess()));
+            logic.readFromNBT(tag, h.getLevel().registryAccess());
+            var drops = new ArrayList<ItemStack>(); logic.addDrops(drops);
+            h.assertTrue(accepted[0] == 4 && count(drops, Items.IRON_INGOT) == 6,
+                    "partial network receipt is deducted before generating item drops");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "resonant_test", timeoutTicks = 100)
+    public static void failingRemovalFlushDoesNotSuppressItemDrops(GameTestHelper h) {
+        var be = provider(h, false);
+        h.runAfterDelay(40, () -> {
+            boolean[] fail = {true};
+            appeng.api.storage.MEStorage storage = new appeng.api.storage.MEStorage() {
+                public Component getDescription() { return Component.literal("failing test storage"); }
+                public long insert(appeng.api.stacks.AEKey key, long amount, appeng.api.config.Actionable mode,
+                                   appeng.api.networking.security.IActionSource source) {
+                    if (fail[0]) throw new IllegalStateException("injected removal storage failure before accepting");
+                    return 0;
+                }
+            };
+            be.getMainNode().getGrid().getStorageService().addGlobalStorageProvider(mounts -> mounts.mount(storage, 0));
+            var logic = logic(be);
+            logic.getInternalReturnInv().setStack(0, stack(Items.IRON_INGOT, 10));
+            var drops = new ArrayList<ItemStack>();
+            try { logic.addDrops(drops); }
+            finally { fail[0] = false; }
+            h.assertTrue(count(drops, Items.IRON_INGOT) == 10, "a failed optional flush retains ordinary item drops");
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = "resonant_test")
+    public static void dispatchRangeUsesChildToMainForBothLayoutAndAbsolutePattern(GameTestHelper h) {
+        var anchorPos = h.absolutePos(new BlockPos(5, 2, 5));
+        furnace(h, anchorPos, Direction.NORTH);
+        var anchor = new ResonantDispatch.Anchor(h.getLevel(), anchorPos, Direction.NORTH);
+        var distantProvider = anchorPos.west(1000);
+        var inputs = List.of(stack(Items.IRON_INGOT, 1));
+        var unmarked = new ResonantPatternAccess.Data(inputs, List.of(Optional.empty()));
+        for (int distance : new int[] {32, 33}) {
+            h.getLevel().setBlockAndUpdate(anchorPos.above(distance), Blocks.STONE.defaultBlockState());
+            var config = layout(h).withTarget(0, new ResonantLayout.Target(new BlockPos(0, distance, 0),
+                    Direction.UP, Optional.empty()));
+            h.assertTrue((ResonantDispatch.plan(config, unmarked, counters(inputs), anchor, distantProvider) != null)
+                    == (distance == 32), "relative input distance is checked independently of provider distance");
+            var marked = new ResonantPatternAccess.Data(inputs, List.of(Optional.of(
+                    new ResonantPatternAccess.AbsoluteTarget(GlobalPos.of(h.getLevel().dimension(), SOURCE.above(distance)), Direction.UP))));
+            h.assertTrue((ResonantDispatch.plan(layout(h), marked, counters(inputs), anchor, distantProvider) != null)
+                    == (distance == 32), "native resonant absolute marks use the same source-anchor radius");
+            h.getLevel().setBlockAndUpdate(anchorPos.above(distance), Blocks.AIR.defaultBlockState());
+        }
+        h.succeed();
+    }
+
+    @GameTest(template = "resonant_test", timeoutTicks = 100)
+    public static void dismantleFlushesOwnedNonItemResourcesBeforeDropHooks(GameTestHelper h) {
+        var be = provider(h, false);
+        h.runAfterDelay(40, () -> {
+            var grid = be.getMainNode().getGrid();
+            h.assertTrue(grid != null, "provider has live AE grid");
+            var totals = new java.util.HashMap<appeng.api.stacks.AEKey, Long>();
+            appeng.api.storage.MEStorage storage = new appeng.api.storage.MEStorage() {
+                public Component getDescription() { return Component.literal("test resource storage"); }
+                public long insert(appeng.api.stacks.AEKey key, long amount, appeng.api.config.Actionable mode,
+                                   appeng.api.networking.security.IActionSource source) {
+                    if (mode == appeng.api.config.Actionable.MODULATE) totals.merge(key, amount, Math::addExact);
+                    return amount;
+                }
+            };
+            grid.getStorageService().addGlobalStorageProvider(mounts -> mounts.mount(storage, 0));
+            var power = com.moakiee.ae2lt.packaged.resource.MaidPowerKey.INSTANCE;
+            var resource = com.moakiee.ae2lt.packaged.resource.PackagedResourceKey.of(id("ae2ltpp:test_resource"));
+            var logic = logic(be);
+            var tag = new CompoundTag(); logic.writeToNBT(tag, h.getLevel().registryAccess());
+            var pending = new com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingOutputBuffer();
+            pending.enqueue(List.of(new GenericStack(power, 123), new GenericStack(resource, 456)));
+            tag.put("ae2ltpp_pending_outputs", pending.writeToNBT(h.getLevel().registryAccess()));
+            var inputs = new com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingBatchInputs();
+            inputs.adopt(List.of(new com.moakiee.ae2lt.packaged.logic.multiblock.binding.PendingBatchInputs.Delivery(
+                    id("ae2ltpp:resonant"), h.getLevel().dimension().location(), be.getBlockPos().east(),
+                    Direction.UP, id("minecraft:chest"), new GenericStack(resource, 7))));
+            tag.put("ae2ltpp_batch_inputs", inputs.writeToNBT(h.getLevel().registryAccess()));
+            logic.readFromNBT(tag, h.getLevel().registryAccess());
+            logic.getInternalReturnInv().setStack(0, new GenericStack(power, 11));
+            h.getLevel().destroyBlock(be.getBlockPos(), true);
+            h.assertTrue(totals.getOrDefault(power, 0L) == 134, "pending and return inventory power flushed");
+            h.assertTrue(totals.getOrDefault(resource, 0L) == 463, "products and uninserted inputs flushed");
+            logic.addDrops(new ArrayList<>());
+            h.assertTrue(totals.get(resource) == 463, "second drop query cannot duplicate a successful flush");
+            h.succeed();
+        });
+    }
+
     private static PackagedPatternProviderBlockEntity provider(GameTestHelper h, boolean wireless) {
         var pos = h.absolutePos(new BlockPos(2, 2, 8));
         net.minecraft.world.level.block.Block block = wireless ? PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get() : PPBlocks.PACKAGED_PATTERN_PROVIDER.get();

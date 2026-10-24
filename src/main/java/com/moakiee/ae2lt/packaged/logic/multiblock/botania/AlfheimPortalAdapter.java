@@ -1,7 +1,6 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.botania;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -10,7 +9,6 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -159,8 +157,7 @@ public final class AlfheimPortalAdapter implements VirtualCraftingAdapter {
     }
 
     private static boolean consumeIngredientsStrict(List<Ingredient> ingredients, KeyCounter[] inputs) {
-        var available = new LinkedHashMap<Item, Long>();
-        var keysByItem = new HashMap<Item, AEItemKey>();
+        var available = new LinkedHashMap<AEItemKey, Long>();
         for (var counter : inputs) {
             for (var entry : counter) {
                 if (!(entry.getKey() instanceof AEItemKey itemKey)) {
@@ -170,9 +167,7 @@ public final class AlfheimPortalAdapter implements VirtualCraftingAdapter {
                 if (amt <= 0) {
                     continue;
                 }
-                var item = itemKey.getItem();
-                available.merge(item, amt, Long::sum);
-                keysByItem.putIfAbsent(item, itemKey);
+                available.merge(itemKey, amt, Math::addExact);
             }
         }
         if (available.isEmpty()) {
@@ -188,7 +183,7 @@ public final class AlfheimPortalAdapter implements VirtualCraftingAdapter {
                 if (entry.getValue() < 1L) {
                     continue;
                 }
-                var key = keysByItem.get(entry.getKey());
+                var key = entry.getKey();
                 if (key == null) {
                     continue;
                 }

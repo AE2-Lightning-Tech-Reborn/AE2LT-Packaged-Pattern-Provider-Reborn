@@ -487,6 +487,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
 
     @Override
     public void addDrops(List<ItemStack> drops) {
+        flushBeforeDrops();
         super.addDrops(drops);
         var host = getProviderHost();
         for (var stack : pendingOutputs.snapshot()) {
@@ -494,6 +495,24 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         }
         for (var delivery : pendingBatchInputs.snapshot()) {
             delivery.stack().what().addDrops(delivery.stack().amount(), drops, host.getLevel(), host.getBlockPos());
+        }
+    }
+
+    /** Return owned resources while the provider still has its grid, before non-item drop hooks run. */
+    private void flushBeforeDrops() {
+        var grid = getGridNode().getGrid();
+        if (grid == null) return;
+        var storage = grid.getStorageService().getInventory();
+        var source = getActionSource();
+        try {
+            getInternalReturnInv().injectIntoNetwork(storage, source, stack -> {});
+            pendingOutputs.deliver(stack -> storage.insert(stack.what(), stack.amount(), Actionable.MODULATE, source));
+            pendingBatchInputs.deliver(delivery -> storage.insert(delivery.stack().what(),
+                    delivery.stack().amount(), Actionable.MODULATE, source));
+        } catch (RuntimeException | LinkageError failure) {
+            appeng.core.AELog.warn("[ae2ltpp] Removal flush stopped; dropping known remainders where supported: %s", failure);
+        } finally {
+            getProviderHost().saveChanges();
         }
     }
 

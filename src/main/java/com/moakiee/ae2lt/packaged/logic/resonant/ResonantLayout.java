@@ -88,9 +88,8 @@ public record ResonantLayout(GlobalPos source, ResourceLocation anchorBlock, Dir
     }
 
     public ResonantLayout cycle(boolean next) {
-        int start = selected < INPUTS ? 0 : INPUTS;
-        int size = selected < INPUTS ? INPUTS : OUTPUTS;
-        return select(start + Math.floorMod(selected - start + (next ? 1 : -1), size));
+        int input = selected < INPUTS ? selected : 0;
+        return select(Math.floorMod(input + (next ? 1 : -1), INPUTS));
     }
 
     public boolean matchesAnchor(BlockState state) {

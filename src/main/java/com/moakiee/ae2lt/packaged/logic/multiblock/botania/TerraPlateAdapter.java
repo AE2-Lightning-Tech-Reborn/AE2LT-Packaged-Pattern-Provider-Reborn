@@ -1,7 +1,6 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.botania;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -11,7 +10,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -257,8 +255,7 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
      */
     @Nullable
     private static List<ItemStack> pickKeyCounterStacks(List<Ingredient> ingredients, KeyCounter[] inputs) {
-        var available = new LinkedHashMap<Item, Long>();
-        var keysByItem = new HashMap<Item, AEItemKey>();
+        var available = new LinkedHashMap<AEItemKey, Long>();
         for (var counter : inputs) {
             for (var entry : counter) {
                 if (!(entry.getKey() instanceof AEItemKey itemKey)) {
@@ -268,9 +265,7 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
                 if (amt <= 0) {
                     continue;
                 }
-                var item = itemKey.getItem();
-                available.merge(item, amt, Long::sum);
-                keysByItem.putIfAbsent(item, itemKey);
+                available.merge(itemKey, amt, Math::addExact);
             }
         }
         if (available.isEmpty()) {
@@ -282,12 +277,12 @@ public final class TerraPlateAdapter implements MultiblockAdapter {
                 continue;
             }
             ItemStack picked = null;
-            Item chosenItem = null;
+            AEItemKey chosenItem = null;
             for (var entry : available.entrySet()) {
                 if (entry.getValue() < 1L) {
                     continue;
                 }
-                var key = keysByItem.get(entry.getKey());
+                var key = entry.getKey();
                 if (key == null) {
                     continue;
                 }
