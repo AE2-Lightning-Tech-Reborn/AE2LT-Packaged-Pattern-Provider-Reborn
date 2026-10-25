@@ -85,6 +85,7 @@ Mekanism 化学品继续使用 Applied Mekanistics 的 Chemical Key。FA 点数�
 ### Ars Nouveau（新生魔艺）
 * [附魔装置](enchanting-apparatus.md)
 * [灌注室](imbuement-chamber.md) ⚠
+* [抄写台](scribes-table.md)
 * [仪式火盆](ritual-brazier.md)
 
 ### Draconic Evolution（龙之进化）

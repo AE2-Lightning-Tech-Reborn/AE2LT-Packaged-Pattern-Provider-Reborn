@@ -55,6 +55,9 @@ public final class PPItems {
                     AdapterIds.ARS_IMBUEMENT,
                     Set.of(AdapterIds.ARS_IMBUEMENT));
 
+    public static final DeferredItem<MultiblockAdapterItem> ARS_SCRIBES_ADAPTER =
+            registerPackagedCore("ars_scribes_packaged_core", AdapterIds.ARS_SCRIBES, Set.of(AdapterIds.ARS_SCRIBES));
+
     public static final DeferredItem<MultiblockAdapterItem> ARS_RITUAL_ADAPTER =
             registerPackagedCore("ars_ritual_brazier_packaged_core",
                     AdapterIds.ARS_RITUAL, Set.of(AdapterIds.ARS_RITUAL));
