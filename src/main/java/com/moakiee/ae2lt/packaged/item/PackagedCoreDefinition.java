@@ -36,6 +36,7 @@ public record PackagedCoreDefinition(
             core("aa_empowerer_packaged_core", ACTUALLY_ADDITIONS, "empowerer"),
             core("ars_apparatus_packaged_core", ARS_NOUVEAU, "enchanting_apparatus"),
             core("ars_imbuement_packaged_core", ARS_NOUVEAU, "imbuement_chamber"),
+            core("ars_ritual_brazier_packaged_core", ARS_NOUVEAU, "ritual_brazier"),
             core("de_fusion_packaged_core", DRACONIC_EVOLUTION, "crafting_core"),
             core("ec_basic_table_packaged_core", EXTENDED_CRAFTING, "basic_table"),
             core("ec_advanced_table_packaged_core", EXTENDED_CRAFTING, "advanced_table"),
@@ -97,6 +98,7 @@ public record PackagedCoreDefinition(
             case "aa_empowerer_packaged_core" -> PPItems.AA_EMPOWERER_ADAPTER;
             case "ars_apparatus_packaged_core" -> PPItems.ARS_APPARATUS_ADAPTER;
             case "ars_imbuement_packaged_core" -> PPItems.ARS_IMBUEMENT_ADAPTER;
+            case "ars_ritual_brazier_packaged_core" -> PPItems.ARS_RITUAL_ADAPTER;
             case "de_fusion_packaged_core" -> PPItems.DE_FUSION_ADAPTER;
             case "ec_basic_table_packaged_core" -> PPItems.EC_BASIC_ADAPTER;
             case "ec_advanced_table_packaged_core" -> PPItems.EC_ADVANCED_ADAPTER;

@@ -26,6 +26,7 @@ class PackagedCoreNamingTest {
             "naturesaura_tree_ritual_packaged_core",
             "naturesaura_offering_packaged_core",
             "ars_imbuement_packaged_core",
+            "ars_ritual_brazier_packaged_core",
             "de_fusion_packaged_core",
             "ec_basic_table_packaged_core",
             "ec_advanced_table_packaged_core",

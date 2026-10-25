@@ -44,6 +44,7 @@ public final class AdapterIds {
             id("ars_nouveau/enchanting_apparatus_packaged_core");
     public static final ResourceLocation ARS_IMBUEMENT =
             id("ars_nouveau/imbuement_packaged_core");
+    public static final ResourceLocation ARS_RITUAL = id("ars_nouveau/ritual_brazier_packaged_core");
     public static final ResourceLocation DE_FUSION =
             id("draconicevolution/fusion_crafting_packaged_core");
     public static final ResourceLocation EC_BASIC =

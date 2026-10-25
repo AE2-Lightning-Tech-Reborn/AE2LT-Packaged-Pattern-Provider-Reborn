@@ -87,6 +87,7 @@ Mekanism chemicals continue to use Applied Mekanistics Chemical Keys. FA essence
 ### Ars Nouveau
 * [Enchanting Apparatus](enchanting-apparatus.md)
 * [Imbuement Chamber](imbuement-chamber.md) ⚠
+* [Ritual Brazier](ritual-brazier.md)
 
 ### Draconic Evolution
 * [Fusion Crafting](fusion-crafting.md)

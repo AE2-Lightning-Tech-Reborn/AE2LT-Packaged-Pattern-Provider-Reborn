@@ -151,7 +151,7 @@ interactive `/test` usage. Test-only resources are excluded from release builds.
 Integration code currently exists for:
 
 - Actually Additions
-- Ars Nouveau
+- Ars Nouveau (Enchanting Apparatus, Imbuement Chamber, and Ritual Brazier)
 - Draconic Evolution
 - Extended Crafting
 - Mystical Agriculture

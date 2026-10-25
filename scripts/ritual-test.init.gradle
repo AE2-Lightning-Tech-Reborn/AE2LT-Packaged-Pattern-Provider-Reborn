@@ -1,0 +1,31 @@
+// Opt-in native ritual tests. -Pritual_absent=true checks optional-mod absence.
+// -Pars_jar=/absolute/path.jar selects another local Ars Nouveau version.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.findAll {
+            it.group == 'maven.modrinth' && it.name in ['extended-crafting', 'cucumber']
+        }.each { dependencies.add('testRuntimeOnly', it.copy()) }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group in ['org.appliedenergistics', 'top.theillusivec4.curios', 'com.moakiee.thunderbolt']
+                || (dep.group == 'maven.modrinth' && dep.name in ['ars-nouveau', 'geckolib'])
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        if (project.hasProperty('ars_jar') || project.hasProperty('ritual_absent')) {
+            configurations.runtimeOnly.dependencies.removeIf { it.group == 'maven.modrinth' && it.name == 'ars-nouveau' }
+            if (!project.hasProperty('ritual_absent')) dependencies.add('runtimeOnly', files(project.property('ars_jar')))
+        }
+        sourceSets.create('ritualTest') {
+            if (project.hasProperty('ritual_absent')) java.setSrcDirs(['src/ritualAbsentTest/java'])
+            resources.srcDir 'src/chiselTest/resources'
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.ritualTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.ritualTest
+            gameDirectory = project.layout.buildDirectory.dir(project.hasProperty('ritual_absent') ? 'ritual-absent' : 'ritual-native').get().asFile
+        }
+    }
+}

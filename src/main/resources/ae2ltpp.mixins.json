@@ -11,7 +11,8 @@
     "AstralInventoryViewMixin",
     "NaturesAuraAltarMixin",
     "NaturesAuraOfferingMixin",
-    "NaturesAuraTreeRitualMixin"
+    "NaturesAuraTreeRitualMixin",
+    "ArsRitualBrazierMixin"
   ],
   "client": ["client.CraftConfirmScreenAccessor", "client.CoreConfirmationRenderMixin"],
   "injectors": {
