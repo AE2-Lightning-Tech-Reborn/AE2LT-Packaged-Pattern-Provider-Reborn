@@ -29,6 +29,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 public final class PackagedCoreJeiPlugin implements IModPlugin {
     public static final RecipeType<CoreRecipe> TYPE = RecipeType.create("ae2ltpp", "packaged_cores", CoreRecipe.class);
     private static IJeiRuntime runtime;
+    private static long runtimeGeneration;
     private static mezz.jei.api.helpers.IJeiHelpers helpers;
     private static int ingredientRows = 1;
     public record Slot(RecipeIngredientRole role, List<ITypedIngredient<?>> ingredients) {}
@@ -50,9 +51,23 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
     @Override public void registerIngredients(IModIngredientRegistration registration) {
         PackagedResourceIngredients.register(registration);
     }
-    @Override public void onRuntimeUnavailable() { runtime = null; }
+    @Override public void onRuntimeUnavailable() {
+        runtime = null;
+        runtimeGeneration++;
+    }
     @Override public void onRuntimeAvailable(IJeiRuntime available) {
         runtime = available;
+        long generation = ++runtimeGeneration;
+        // JEI publishes its internal runtime after calling onRuntimeAvailable. Native
+        // recipe layouts may already need it for slot backgrounds, so queue this work.
+        // tell() always queues; execute() may run inline on the client thread.
+        Minecraft.getInstance().tell(() -> {
+            if (runtime == available && runtimeGeneration == generation) {
+                registerRuntimeRecipes(available);
+            }
+        });
+    }
+    private static void registerRuntimeRecipes(IJeiRuntime available) {
         FAJeiRecipes.recipes(available);
         MaidAltarJeiRecipes.recipes(available);
         RavenInfusionJeiRecipes.recipes(available);
