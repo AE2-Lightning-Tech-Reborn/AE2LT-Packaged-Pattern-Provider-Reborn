@@ -19,7 +19,7 @@ public final class FARecipeViews {
         for(var recipe:FAAccess.registry(level,"hephaestus_forge/ritual")){
             var main=(Ingredient)FAAccess.call(recipe,"mainIngredient");
             for(var item:main.getItems()){
-                var result=(ItemStack)FAAccess.call(FAAccess.call(recipe,"result"),"getResultItem",item.copy());
+                var result=FAAccess.ritualResult(recipe,item);
                 if(result.isEmpty())continue;
                 var inputs=new ArrayList<List<GenericStack>>();inputs.add(List.of(stack(item,1)));
                 for(var input:(List<?>)FAAccess.call(recipe,"inputs")){

@@ -19,7 +19,10 @@ allprojects {
         }
         for (property in ['ppForbiddenJar', 'ppValhelsiaJar']) {
             def path = providers.gradleProperty(property).orNull
-            if (path != null) dependencies.add('coreTestRuntimeOnly', files(path))
+            if (path != null) {
+                if (!project.file(path).isFile()) throw new GradleException('Invalid native jar: ' + path)
+                dependencies.add('runtimeOnly', project.files(path))
+            }
         }
         neoForge.mods.ae2ltpp.sourceSet(sourceSets.coreTest)
         neoForge.runs.gameTestServer {

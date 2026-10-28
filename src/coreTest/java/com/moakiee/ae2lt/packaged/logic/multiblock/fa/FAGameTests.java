@@ -55,6 +55,9 @@ public final class FAGameTests {
         var list=ritualItems();list.add(new GenericStack(ForbiddenEssenceResources.AUREAL,20));list.add(new GenericStack(ForbiddenEssenceResources.BLOOD,30));
         var pattern=pattern(h,list,List.of(new GenericStack(AEItemKey.of(PPItems.FA_FORGE_ADAPTER.get()),1)));
         h.runAfterDelay(100,()->{
+            var views=FARecipeViews.recipes(h.getLevel(),List.of(item("forbidden_arcanus:aureal_bottle")));
+            h.assertTrue(views.stream().anyMatch(view->view.kind().equals("ritual")&&view.outputs().stream().anyMatch(output->output.what().equals(AEItemKey.of(PPItems.FA_FORGE_ADAPTER.get())))),"JEI data exposes native core ritual on installed FA version");
+            h.assertTrue(views.stream().anyMatch(view->view.kind().equals("conversion")),"JEI data exposes native essence conversion");
             h.assertTrue(FAAccess.structure(h.getLevel(),forge.getBlockPos()),"native forge base pattern");
             int[] before={5,2,40,0};for(int i=0;i<4;i++)FAAccess.amount(forge,FAForgeConversion.name(i),before[i]);
             var reserve=new appeng.api.storage.MEStorage(){
