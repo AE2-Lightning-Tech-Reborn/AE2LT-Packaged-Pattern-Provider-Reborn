@@ -44,6 +44,8 @@ public final class AdapterIds {
             id("ars_nouveau/enchanting_apparatus_packaged_core");
     public static final ResourceLocation ARS_IMBUEMENT =
             id("ars_nouveau/imbuement_packaged_core");
+    public static final ResourceLocation ARS_SCRIBES = id("ars_nouveau/glyph_packaged_core");
+    public static final ResourceLocation ARS_RITUAL = id("ars_nouveau/ritual_brazier_packaged_core");
     public static final ResourceLocation DE_FUSION =
             id("draconicevolution/fusion_crafting_packaged_core");
     public static final ResourceLocation EC_BASIC =
@@ -125,6 +127,9 @@ public final class AdapterIds {
     public static final ResourceLocation FA_FORGE = id("forbidden_arcanus/hephaestus_forge_packaged_core");
     public static final ResourceLocation FA_CLIBANO = id("forbidden_arcanus/clibano_packaged_core");
     public static final ResourceLocation FA_BLACK_HOLE = id("forbidden_arcanus/black_hole_packaged_core");
+
+    public static final ResourceLocation FD_COOKING_POT = id("farmersdelight/cooking_packaged_core");
+    public static final ResourceLocation AD_COOKING_POT = id("avaritia_delight/extreme_cooking_packaged_core");
 
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(AE2LTPackagedProvider.MODID, path);

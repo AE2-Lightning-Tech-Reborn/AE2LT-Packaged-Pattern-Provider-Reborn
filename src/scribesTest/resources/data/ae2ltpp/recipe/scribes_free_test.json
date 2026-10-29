@@ -1,0 +1,7 @@
+{
+  "neoforge:conditions": [{"type": "neoforge:mod_loaded", "modid": "ars_nouveau"}],
+  "type": "ars_nouveau:glyph",
+  "inputs": [{"item": "minecraft:diamond"}],
+  "exp": 0,
+  "output": {"id": "ars_nouveau:glyph_touch", "count": 1}
+}

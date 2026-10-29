@@ -99,6 +99,26 @@ public final class PatternProviderPowerCost {
         return available + 1.0e-6 >= total;
     }
 
+    /** Same affordability predicate as canAfford, with one energy simulation for the whole search. */
+    public static int affordableCopies(@Nullable IGrid grid, double oneCopyCost, int maximum) {
+        if (maximum <= 0 || !Double.isFinite(oneCopyCost) || oneCopyCost < 0) return 0;
+        if (oneCopyCost == 0) return maximum;
+        if (grid == null) return 0;
+        var energy = grid.getEnergyService();
+        double reserve = idleReserveForIdlePowerUsage(energy.getIdlePowerUsage());
+        double available = energy.extractAEPower(oneCopyCost * maximum + reserve,
+                Actionable.SIMULATE, PowerMultiplier.CONFIG);
+        // Keep multiplication, reserve and epsilon in the same order as canAfford at boundaries.
+        int low = 0, high = maximum;
+        while (low < high) {
+            int difference = high - low;
+            int middle = low + difference / 2 + difference % 2;
+            if (available + 1.0e-6 >= oneCopyCost * middle + reserve) low = middle;
+            else high = middle - 1;
+        }
+        return low;
+    }
+
     public static void consumeRaw(@Nullable IGrid grid, double need) {
         if (grid != null && need > 0.0) {
             grid.getEnergyService().extractAEPower(

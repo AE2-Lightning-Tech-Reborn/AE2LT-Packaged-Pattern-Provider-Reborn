@@ -36,15 +36,17 @@ Craft a **Basic Packaged Core**, then process it in the target mod's correspondi
 
 ## Core orders and upgrades
 
-Click **Core crafting** in a provider to view initial core recipes and upgrades in one JEI category. Encode the processing pattern and make it available on the network, then use `+` in JEI opened from that provider to order one core. Without JEI, use the core selection list. Each provider handles one order at a time and requires an available AE2 crafting CPU. The Basic Packaged Core remains an ordinary crafting ingredient.
+Use the JEI **Packaged Core Crafting and Upgrades** category to view initial core recipes and upgrades. Encode the processing pattern, make it available on the network, and order directly from an **ME terminal** with an available AE2 crafting CPU. The Basic Packaged Core remains an ordinary crafting ingredient. Cancel orders through the terminal crafting status screen.
 
 A provider without a core can manufacture its first specialized core. Build, connect and power the machine required by the native recipe. For wireless providers, insert the core-making pattern before binding the machine. This exception only admits core outputs that match a real machine recipe.
 
-* **Initial manufacture:** install the delivered core if the slot is empty; otherwise keep the installed core and return the new one to ME.
-* **Upgrade pattern includes the old core:** consume the core supplied by the CPU, leave the installed core alone, and return the result to ME.
-* **Upgrade pattern omits the old core:** require the matching core already installed in the ordering provider. JEI shows it as a requirement without transferring it into the pattern. Consume it only when the supplied materials complete the upgrade, then install the result. Ordering, planning and missing materials never remove it.
+* **Initial manufacture:** the terminal order selects a provider holding the matching pattern with an empty core slot. After the CPU delivers the result, one core installs automatically and extras return to ME. Occupied core slots are left alone.
+* **Make spare cores:** choose this JEI recipe; it includes the old core as a pattern input. Consume the core supplied by the CPU, leave the installed core alone, and return the result to ME.
+* **In-place upgrade:** choose this JEI recipe; it transfers only the upgrade materials. Order one core at a time from the terminal. The order selects a provider holding the matching pattern and installed old core. JEI shows that core as a requirement without transferring it into the pattern. Consume it only when the supplied materials complete the upgrade, then install the result automatically. Ordering, planning and missing materials never remove it. For bulk upgrades, include the old core as a normal pattern input.
 
-Upgrades that omit the old core must be ordered from that provider. Ordinary terminal orders use AE2's normal item delivery to ME; use a provider order for automatic installation. Upgrade recipes currently cover adjacent EC table, Avaritia table and Astral altar tiers. The provider completes these upgrades directly from their listed materials; native machine recipes remain separately available. Results destined for a full ME inventory stay buffered in the provider until space becomes available.
+The terminal confirmation button reads **Make & install**, **Upgrade**, or **Make to ME**. Hover for the target provider and output destination. A busy provider, missing installed core, or in-place upgrade quantity other than one blocks submission before consuming materials, with instructions to proceed. Prefer keeping only the intended recipe for each output: if both variants are available, AE2 may select either, so check the operation shown at confirmation.
+
+Automatic installation receives only the final core output of its order. Intermediate cores used by other crafting jobs remain ordinary ingredients. Each provider accepts one automatic installation order at a time. Upgrade recipes currently cover adjacent EC table, Avaritia table and Astral altar tiers. The provider completes these upgrades directly from their listed materials; native machine recipes remain separately available. Surplus results destined for a full ME inventory stay buffered in the provider until space becomes available.
 
 ## Special resource keys
 
@@ -56,7 +58,7 @@ Mekanism chemicals continue to use Applied Mekanistics Chemical Keys. FA essence
 
 ## General usage
 
-1. Put the matching Packaged Core into the provider's **Packaged Core slot** first.
+1. Install the matching core manually, or order it from a terminal for automatic installation as described above.
 2. Place a regular provider against the target machine's **main block / core**, or use the wireless connector
    to link a wireless provider to it. The installed core must support the target, except for first-core manufacture with its pattern already inserted as described above. Other missing or mismatched cores are rejected. Portable chiseling conversions do not need a target.
 3. As with a normal Pattern Provider, encode the recipe as a **processing pattern** and insert it.
@@ -85,6 +87,8 @@ Mekanism chemicals continue to use Applied Mekanistics Chemical Keys. FA essence
 ### Ars Nouveau
 * [Enchanting Apparatus](enchanting-apparatus.md)
 * [Imbuement Chamber](imbuement-chamber.md) ⚠
+* [Scribe's Table](scribes-table.md)
+* [Ritual Brazier](ritual-brazier.md)
 
 ### Draconic Evolution
 * [Fusion Crafting](fusion-crafting.md)

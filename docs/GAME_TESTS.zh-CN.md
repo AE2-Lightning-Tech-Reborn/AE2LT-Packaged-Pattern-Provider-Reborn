@@ -133,3 +133,39 @@ bash ./gradlew --no-configuration-cache -I scripts/maid-test.init.gradle \
 省略四个可选 JAR 参数并传入 `-PppNoExperienceFixture=true` 可验证可选模组和经验流体均缺席：不注册对应加工逻辑、不加载核心配方，经验球保留。可选模组场景的跳过不能当作正向功能验证。
 
 额外使用 `-I scripts/maid-client-test.init.gradle runClient` 启动自动退出的隔离客户端。客户端检查 JEI 核心页中的基础核心与 619400 mB 实际原料、P 点样板转换器、两种核心模型，并保存截图至 `build/maid-client`；`client-result.txt` 必须明确为 `PASS`。截图中的水是上述测试流体替身。
+
+
+## 新生魔艺仪式火盆（2026-10-24）
+
+`src/ritualTest` / `scripts/ritual-test.init.gradle` 覆盖石板和逐件增强材料校验、缺失／无效传送卷轴、重复增强拒绝、组件与数量一致性、原生启动、运行中防覆盖、红石暂停、魔源等待与实际扣费。返回不受样板输出白名单限制，同时不收走附近手动掉落物或被玩家替换后的仪式产物。
+
+Ars Nouveau 5.11.5 与 5.13.2 各 13 项原生测试通过，包含新核心的真实附魔装置制作配方、中继产物归属及禁止向中继投料。两版本均覆盖仪式及产物缓存重载、拆除产物保全，并使用真实 AE2 CPU 分别在普通／无线供应器上连续完成 3 次启蒙仪式，精确消耗 3 张石板与 6 本书与笔、返回 6 个书龙护符。
+
+运行原生测试：
+
+```sh
+bash ./gradlew runGameTestServer -I scripts/ritual-test.init.gradle
+# 可选：使用另一版本地 Ars Nouveau JAR
+bash ./gradlew runGameTestServer -I scripts/ritual-test.init.gradle -Pars_jar=/absolute/path/to/ars.jar
+# 未安装 Ars 时的独立启动、核心隐藏及条件配方检查
+bash ./gradlew runGameTestServer -I scripts/ritual-test.init.gradle -Pritual_absent=true
+```
+
+测试源集与测试模板不进入正式 JAR。本组不声称覆盖所有附属仪式，也不拦截由独立投射物／实体稍后生成的产物；这些仍按原模组方式收集。
+
+
+## 新生魔艺抄写台（2026-10-24）
+
+`src/scribesTest` / `scripts/scribes-test.init.gradle` 使用原生 `ars_nouveau:glyph` 序列化器与真实抄写台 ticker，验证完整材料、产物、数量及经验流体匹配。37 点经验精确换算为 740 mB；测试数据包临时把水加入经验标签，正式资源不包含这个替代标签或测试配方。
+
+14 项原生测试覆盖两半抄写台识别、120 tick 计时、组件保留、零经验配方、经验不足与占用拦截、样板和网络共同付费、扣费拒绝／部分扣费后的回退、首次 tick 前连续保存重载、成品缓存重载、拆除任意一半的成品保全，以及未完成拆台与原生对照的物品和经验一致性。没有为拆台增加经验退款。
+
+普通供应器通过样板显式发配经验流体，无线供应器直接从网络补足；两者均由真实 AE2 CPU 连续制作 3 个符文，精确消耗 6 个铁锭、3 张纸和 2,220 mB 经验流体。另验证新增核心在真实附魔装置上消耗基础封包核心、抄写台、3 个魔源宝石与 1,000 魔源制成。
+
+```sh
+bash ./gradlew runGameTestServer -I scripts/scribes-test.init.gradle
+bash ./gradlew runGameTestServer -I scripts/scribes-test.init.gradle -Pars_jar=/absolute/path/to/ars.jar
+bash ./gradlew runGameTestServer -I scripts/scribes-test.init.gradle -Pscribes_absent=true
+```
+
+目标版本为 Ars Nouveau 5.11.5 和 5.13.2。无 Ars 环境单独检查启动、核心隐藏和条件配方。测试源集不进入正式 JAR。

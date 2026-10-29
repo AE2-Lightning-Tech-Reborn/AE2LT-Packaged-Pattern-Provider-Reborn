@@ -28,6 +28,8 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsAtomicRec
 import com.moakiee.ae2lt.packaged.logic.multiblock.aa.ActuallyAdditionsEmpowererAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsNouveauEnchantingApparatusAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsNouveauImbuementChamberAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsRitualBrazierAdapter;
+import com.moakiee.ae2lt.packaged.logic.multiblock.ars.ArsScribesAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.naturesaura.NaturesAuraAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.avaritia.AvaritiaExtremeSmithingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.avaritia.AvaritiaTableAdapter;
@@ -97,10 +99,15 @@ public class AE2LTPackagedProvider {
                 MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FAClibanoAdapter());
                 MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.fa.FABlackHoleAdapter());
             }
+            if (ModList.get().isLoaded("farmersdelight")) {
+                MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.delight.CookingPotAdapter());
+            }
             MultiblockAdapterRegistry.register(new ActuallyAdditionsAtomicReconstructorAdapter());
             MultiblockAdapterRegistry.register(new ActuallyAdditionsEmpowererAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauEnchantingApparatusAdapter());
             MultiblockAdapterRegistry.register(new ArsNouveauImbuementChamberAdapter());
+            MultiblockAdapterRegistry.register(new ArsRitualBrazierAdapter());
+            MultiblockAdapterRegistry.register(new ArsScribesAdapter());
             if (ModList.get().isLoaded("naturesaura")) {
                 for (var kind : NaturesAuraAdapter.Kind.values()) {
                     var adapter = new NaturesAuraAdapter(kind);

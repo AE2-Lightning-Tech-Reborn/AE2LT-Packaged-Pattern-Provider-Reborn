@@ -107,6 +107,17 @@ final class FAAccess {
         call(call(forge, "getEssenceManager"), "setEssence", essence(name), value); forge.setChanged();
     }
     static boolean active(BlockEntity forge) { return (boolean) call(call(forge, "getRitualManager"), "isRitualActive"); }
+    static ItemStack ritualResult(Object ritual, ItemStack main) {
+        var result = call(ritual, "result");
+        // FA 2.6 added input-dependent results. Older create-item results only expose the stack.
+        try {
+            result.getClass().getMethod("getResultItem", ItemStack.class);
+        } catch (NoSuchMethodException ignored) {
+            return is(result, BASE + "common.block.entity.forge.ritual.result.CreateItemResult")
+                    ? ((ItemStack) call(result, "result")).copy() : ItemStack.EMPTY;
+        }
+        return (ItemStack) call(result, "getResultItem", main.copy());
+    }
     static boolean structure(ServerLevel level, BlockPos pos) {
         var pattern = field(type(BASE + "common.block.ModBlockPatterns"), "BASE_HEPHAESTUS_PATTERN");
         return call(pattern, "find", level, pos.below()) != null;

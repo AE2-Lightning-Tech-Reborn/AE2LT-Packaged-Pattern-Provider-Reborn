@@ -151,7 +151,7 @@ interactive `/test` usage. Test-only resources are excluded from release builds.
 Integration code currently exists for:
 
 - Actually Additions
-- Ars Nouveau
+- Ars Nouveau (Enchanting Apparatus, Imbuement Chamber, Scribe’s Table, and Ritual Brazier)
 - Draconic Evolution
 - Extended Crafting
 - Mystical Agriculture
@@ -159,6 +159,7 @@ Integration code currently exists for:
 - Mekanism More Machines
 - Malum
 - Botania
+- Farmer's Delight Cooking Pot and Avaritia's Delight Extreme Cooking Pot: native slot routing, serving vessels and output return; see [cooking pot compatibility](docs/DELIGHT_COMPATIBILITY.zh-CN.md).
 - Nature's Aura 41.10: Natural Altar, Ritual of the Forest and Offering Table
 - Astral Sorcery 1.21.1 development branch: four crafting altar tiers and Starlight Infuser
 

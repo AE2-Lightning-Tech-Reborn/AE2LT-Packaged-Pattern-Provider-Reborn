@@ -1,0 +1,35 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:mod_loaded",
+      "modid": "avaritia_delight"
+    }
+  ],
+  "type": "ae2ltpp:core_upgrade",
+  "required_core": {
+    "id": "ae2ltpp:fd_cooking_pot_packaged_core"
+  },
+  "ingredients": [
+    {
+      "item": "ae2:engineering_processor"
+    },
+    {
+      "item": "ae2:fluix_crystal"
+    },
+    {
+      "item": "minecraft:diamond"
+    },
+    {
+      "item": "minecraft:gold_ingot"
+    },
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    }
+  ],
+  "result": {
+    "id": "ae2ltpp:ad_extreme_cooking_pot_packaged_core"
+  }
+}

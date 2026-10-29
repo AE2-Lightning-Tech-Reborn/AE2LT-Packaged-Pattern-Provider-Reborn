@@ -1,0 +1,7 @@
+{
+  "neoforge:conditions": [{"type": "neoforge:mod_loaded", "modid": "ars_nouveau"}],
+  "type": "ars_nouveau:glyph",
+  "inputs": [{"item": "minecraft:iron_ingot"}, {"item": "minecraft:iron_ingot"}, {"item": "minecraft:paper"}],
+  "exp": 37,
+  "output": {"id": "ars_nouveau:glyph_break", "count": 1}
+}

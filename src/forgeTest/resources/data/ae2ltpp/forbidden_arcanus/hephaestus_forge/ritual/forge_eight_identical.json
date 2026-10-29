@@ -1,0 +1,8 @@
+{
+  "duration": 40,
+  "essences": {},
+  "main_ingredient": { "item": "minecraft:apple" },
+  "inputs": [{ "amount": 8, "ingredient": { "item": "minecraft:apple" } }],
+  "magic_circle": "forbidden_arcanus:create_item",
+  "result": { "type": "forbidden_arcanus:create_item", "result_item": { "id": "minecraft:golden_apple", "count": 3 } }
+}

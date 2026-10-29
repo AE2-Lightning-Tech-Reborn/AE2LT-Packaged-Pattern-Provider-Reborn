@@ -26,6 +26,25 @@ import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 
 class MultiblockAdapterRegistryTest {
 
+    @Test
+    void batchIndexTracksPriorityDynamicEnablementAndLaterRegistrations() throws Exception {
+        var id = net.minecraft.resources.ResourceLocation.parse("test:batch");
+        var first = org.mockito.Mockito.mock(InputBatchCraftingAdapter.class);
+        var fallback = org.mockito.Mockito.mock(InputBatchCraftingAdapter.class);
+        var later = org.mockito.Mockito.mock(InputBatchCraftingAdapter.class);
+        for (var adapter : List.of(first, fallback, later)) org.mockito.Mockito.when(adapter.batchAdapterId()).thenReturn(id);
+        var enabled = new java.util.concurrent.atomic.AtomicBoolean(true);
+        MultiblockAdapterRegistry.register(registration("first-batch", 1, enabled::get, first));
+        MultiblockAdapterRegistry.register(registration("fallback-batch", 2, () -> true, fallback));
+        assertEquals(first, MultiblockAdapterRegistry.inputBatchAdapter(id));
+        enabled.set(false);
+        assertEquals(fallback, MultiblockAdapterRegistry.inputBatchAdapter(id));
+        MultiblockAdapterRegistry.register(registration("later-batch", 0, () -> true, later));
+        assertEquals(later, MultiblockAdapterRegistry.inputBatchAdapter(id));
+        MultiblockAdapterRegistry.clearForTests();
+        assertNull(MultiblockAdapterRegistry.inputBatchAdapter(id));
+    }
+
     @AfterEach
     void tearDown() {
         MultiblockAdapterRegistry.clearForTests();

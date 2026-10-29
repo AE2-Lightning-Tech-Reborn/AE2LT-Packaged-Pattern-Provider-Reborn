@@ -1,0 +1,8 @@
+{
+  "duration": 40,
+  "essences": {},
+  "main_ingredient": { "item": "minecraft:stick" },
+  "inputs": [{ "ingredient": { "item": "minecraft:stone" } }],
+  "magic_circle": "forbidden_arcanus:create_item",
+  "result": { "type": "forbidden_arcanus:create_item", "result_item": { "id": "minecraft:diamond", "count": 3, "components": { "minecraft:custom_name": "\"Fixture component output\"" } } }
+}

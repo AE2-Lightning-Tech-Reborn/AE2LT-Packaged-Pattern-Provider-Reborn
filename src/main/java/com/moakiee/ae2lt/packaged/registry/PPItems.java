@@ -55,6 +55,13 @@ public final class PPItems {
                     AdapterIds.ARS_IMBUEMENT,
                     Set.of(AdapterIds.ARS_IMBUEMENT));
 
+    public static final DeferredItem<MultiblockAdapterItem> ARS_SCRIBES_ADAPTER =
+            registerPackagedCore("ars_scribes_packaged_core", AdapterIds.ARS_SCRIBES, Set.of(AdapterIds.ARS_SCRIBES));
+
+    public static final DeferredItem<MultiblockAdapterItem> ARS_RITUAL_ADAPTER =
+            registerPackagedCore("ars_ritual_brazier_packaged_core",
+                    AdapterIds.ARS_RITUAL, Set.of(AdapterIds.ARS_RITUAL));
+
     public static final DeferredItem<MultiblockAdapterItem> DE_FUSION_ADAPTER =
             registerPackagedCore("de_fusion_packaged_core",
                     AdapterIds.DE_FUSION,
@@ -222,6 +229,12 @@ public final class PPItems {
             registerPackagedCore("fa_black_hole_packaged_core", AdapterIds.FA_BLACK_HOLE, Set.of(AdapterIds.FA_BLACK_HOLE));
     public static final DeferredItem<MultiblockAdapterItem> RESONANT_ADAPTER =
             registerPackagedCore("resonant_packaged_core", AdapterIds.RESONANT, Set.of(AdapterIds.RESONANT));
+
+    public static final DeferredItem<MultiblockAdapterItem> FD_COOKING_POT_ADAPTER =
+            registerPackagedCore("fd_cooking_pot_packaged_core", AdapterIds.FD_COOKING_POT, Set.of(AdapterIds.FD_COOKING_POT));
+    public static final DeferredItem<MultiblockAdapterItem> AD_COOKING_POT_ADAPTER =
+            registerPackagedCore("ad_extreme_cooking_pot_packaged_core", AdapterIds.AD_COOKING_POT,
+                    Set.of(AdapterIds.FD_COOKING_POT, AdapterIds.AD_COOKING_POT));
 
     // ===== Crafting intermediates =====
 

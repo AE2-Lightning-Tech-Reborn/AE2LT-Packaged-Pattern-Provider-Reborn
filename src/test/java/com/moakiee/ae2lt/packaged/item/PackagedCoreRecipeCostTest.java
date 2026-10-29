@@ -23,7 +23,8 @@ class PackagedCoreRecipeCostTest {
             "avaritia_extreme_table", "avaritia_end_table",
             "astral_resonance", "astral_illumination",
             "astral_luminance", "astral_resonance",
-            "astral_radiance", "astral_luminance");
+            "astral_radiance", "astral_luminance",
+            "ad_extreme_cooking_pot", "fd_cooking_pot");
 
     @Test
     void nativeAndProviderUpgradeRecipesBothRequireImmediatePreviousCore() throws IOException {

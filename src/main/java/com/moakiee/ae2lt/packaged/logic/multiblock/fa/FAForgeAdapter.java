@@ -34,8 +34,8 @@ public final class FAForgeAdapter implements MultiblockAdapter {
             if(conversion!=null)return new BindingResult(conversion,BindingMode.REAL);
             var registry=FAAccess.registry(level,"hephaestus_forge/ritual");
             for(var recipe:registry){
-                var keys=FAPatterns.assign(ingredients(recipe),amounts,1,true);
-                if(keys!=null && matchesOutput(pattern,recipe,keys.getFirst().toStack()))
+                var keys=assignRitual(recipe,amounts,pattern);
+                if(keys!=null)
                     return new BindingResult(new Ritual(registry.getKey(recipe),recipe),BindingMode.REAL);
             }
         }catch(RuntimeException|LinkageError e){failure("bind",e);}
@@ -49,9 +49,22 @@ public final class FAForgeAdapter implements MultiblockAdapter {
         }
         return out.size()<=9?out:List.of();
     }
-    private static ItemStack result(Object recipe,ItemStack main){return (ItemStack)FAAccess.call(FAAccess.call(recipe,"result"),"getResultItem",main.copy());}
+    private static ItemStack result(Object recipe,ItemStack main){return FAAccess.ritualResult(recipe,main);}
     private static boolean matchesOutput(IPatternDetails pattern,Object recipe,ItemStack main){
         var result=result(recipe,main);return !result.isEmpty()&&FAPatterns.output(pattern,AEItemKey.of(result),result.getCount());
+    }
+    private static List<AEItemKey> assignRitual(Object recipe,KeyCounter amounts,IPatternDetails pattern){
+        var required=ingredients(recipe);if(amounts==null||required.isEmpty())return null;
+        // Transmutation keeps the main item's components. A matching pedestal item may have
+        // different components, so select the main by both ingredient and promised output.
+        for(var input:FAPatterns.stacks(amounts)){
+            if(!(input.what() instanceof AEItemKey main)||!required.getFirst().test(main.toStack())
+                    ||!matchesOutput(pattern,recipe,main.toStack()))continue;
+            var remaining=new KeyCounter();remaining.addAll(amounts);remaining.add(main,-1);
+            var side=FAPatterns.assign(required.subList(1,required.size()),remaining,1,true);
+            if(side!=null){var keys=new ArrayList<AEItemKey>();keys.add(main);keys.addAll(side);return keys;}
+        }
+        return null;
     }
     static boolean idle(BlockEntity forge){
         if(!FAAccess.live(forge)||FAAccess.active(forge)||forge.getPersistentData().contains(JOB))return false;
@@ -71,8 +84,8 @@ public final class FAForgeAdapter implements MultiblockAdapter {
             }
             if(!(handle instanceof Ritual ritual)||FAAccess.registry(level,"hephaestus_forge/ritual").get(ritual.id())!=ritual.recipe()
                     ||!FAAccess.structure(level,pos))return null;
-            var keys=FAPatterns.assign(ingredients(ritual.recipe()),actual,1,true);
-            if(keys==null||keys.isEmpty()||!matchesOutput(pattern,ritual.recipe(),keys.getFirst().toStack()))return null;
+            var keys=assignRitual(ritual.recipe(),actual,pattern);
+            if(keys==null)return null;
             var pedestals=pedestals(level,pos,keys.size()-1);if(pedestals==null)return null;
             var entries=new ArrayList<Object>();
             for(int i=0;i<pedestals.size();i++)entries.add(FAAccess.construct(FAAccess.BASE+"common.block.entity.forge.ForgeDataCache$IngredientEntry",pedestals.get(i).getBlockPos(),keys.get(i+1).toStack()));

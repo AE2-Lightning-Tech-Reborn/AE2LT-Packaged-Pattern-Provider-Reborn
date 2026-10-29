@@ -20,7 +20,7 @@ item_ids:
 * <ItemLink id="ae2ltpp:astral_radiance_packaged_core" />
 * <ItemLink id="ae2ltpp:astral_infuser_packaged_core" />
 
-For Astral Sorcery 1.21.1 / 2.0.0 development builds. Higher altar cores cover lower altar tiers; the infuser has a separate core. Craft each core in its corresponding altar tier, and the infuser core in a Resonance Altar.
+For Astral Sorcery 1.21.1 / 2.0.2. Higher altar cores cover lower altar tiers; the infuser has a separate core. Craft each core in its corresponding altar tier, and the infuser core in a Resonance Altar.
 
 ## Setup
 

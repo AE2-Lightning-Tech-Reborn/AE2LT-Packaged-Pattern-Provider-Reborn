@@ -1,0 +1,14 @@
+// Combine with -I scripts/core-test.init.gradle and both native FA jar properties.
+allprojects {
+    afterEvaluate {
+        for (def name : ['ppForbiddenJar', 'ppValhelsiaJar']) {
+            def path = providers.gradleProperty(name).orNull
+            if (path == null || !project.file(path).isFile()) throw new GradleException('Set -P' + name + ' to the native jar')
+        }
+        sourceSets.coreTest.java.srcDir 'src/forgeTest/java'
+        sourceSets.coreTest.resources.srcDir 'src/forgeTest/resources'
+        neoForge.runs.gameTestServer {
+            gameDirectory = project.layout.buildDirectory.dir('forge-native').get().asFile
+        }
+    }
+}

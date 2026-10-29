@@ -1,0 +1,30 @@
+// Native grid scheduling regression and callback-cost comparison; never packaged in the release jar.
+// Use -PppPerformanceBaseline=/path/to/baseline (classes/ and resources/) for the same fixture on old code.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics' || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('performanceTest') {
+            resources.srcDir 'src/coreTest/resources'
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        def baseline = providers.gradleProperty('ppPerformanceBaseline').orNull
+        if (baseline != null) {
+            sourceSets.main.output.classesDirs.setFrom(files("${baseline}/classes"))
+            sourceSets.main.output.resourcesDir = file("${baseline}/resources")
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.performanceTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.performanceTest
+            systemProperty 'ae2ltpp.performanceBaseline', Boolean.toString(baseline != null)
+            def runDirectory = providers.gradleProperty('ppPerformanceRunDirectory').orNull
+            gameDirectory = runDirectory == null ? project.layout.buildDirectory.dir('performance-native').get().asFile : file(runDirectory)
+        }
+    }
+}

@@ -4,14 +4,18 @@
   "package": "com.moakiee.ae2lt.packaged.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "CraftConfirmMenuMixin",
     "ExperienceOrbMixin",
     "PatternProviderLogicAccessor",
     "PatternProviderLogicMixin",
     "AstralInventoryViewMixin",
     "NaturesAuraAltarMixin",
     "NaturesAuraOfferingMixin",
-    "NaturesAuraTreeRitualMixin"
+    "NaturesAuraTreeRitualMixin",
+    "ArsRitualBrazierMixin",
+    "ArsScribesMixin"
   ],
+  "client": ["client.CraftConfirmScreenAccessor", "client.CoreConfirmationRenderMixin"],
   "injectors": {
     "defaultRequire": 1
   }

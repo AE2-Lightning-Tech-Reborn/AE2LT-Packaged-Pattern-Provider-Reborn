@@ -36,6 +36,8 @@ public record PackagedCoreDefinition(
             core("aa_empowerer_packaged_core", ACTUALLY_ADDITIONS, "empowerer"),
             core("ars_apparatus_packaged_core", ARS_NOUVEAU, "enchanting_apparatus"),
             core("ars_imbuement_packaged_core", ARS_NOUVEAU, "imbuement_chamber"),
+            core("ars_scribes_packaged_core", ARS_NOUVEAU, "scribes_table"),
+            core("ars_ritual_brazier_packaged_core", ARS_NOUVEAU, "ritual_brazier"),
             core("de_fusion_packaged_core", DRACONIC_EVOLUTION, "crafting_core"),
             core("ec_basic_table_packaged_core", EXTENDED_CRAFTING, "basic_table"),
             core("ec_advanced_table_packaged_core", EXTENDED_CRAFTING, "advanced_table"),
@@ -72,7 +74,9 @@ public record PackagedCoreDefinition(
             core("fa_hephaestus_forge_packaged_core", "forbidden_arcanus", "hephaestus_forge_tier_1"),
             core("fa_clibano_packaged_core", "forbidden_arcanus", "clibano_core"),
             core("fa_black_hole_packaged_core", "forbidden_arcanus", "dark_matter"),
-            core("resonant_packaged_core", "ae2cs", "resonating_pattern_provider"));
+            core("resonant_packaged_core", "ae2cs", "resonating_pattern_provider"),
+            core("fd_cooking_pot_packaged_core", "farmersdelight", "cooking_pot"),
+            core("ad_extreme_cooking_pot_packaged_core", "avaritia_delight", "extreme_cooking_pot"));
 
     public static List<PackagedCoreDefinition> all() {
         return ALL;
@@ -95,6 +99,8 @@ public record PackagedCoreDefinition(
             case "aa_empowerer_packaged_core" -> PPItems.AA_EMPOWERER_ADAPTER;
             case "ars_apparatus_packaged_core" -> PPItems.ARS_APPARATUS_ADAPTER;
             case "ars_imbuement_packaged_core" -> PPItems.ARS_IMBUEMENT_ADAPTER;
+            case "ars_scribes_packaged_core" -> PPItems.ARS_SCRIBES_ADAPTER;
+            case "ars_ritual_brazier_packaged_core" -> PPItems.ARS_RITUAL_ADAPTER;
             case "de_fusion_packaged_core" -> PPItems.DE_FUSION_ADAPTER;
             case "ec_basic_table_packaged_core" -> PPItems.EC_BASIC_ADAPTER;
             case "ec_advanced_table_packaged_core" -> PPItems.EC_ADVANCED_ADAPTER;
@@ -132,6 +138,8 @@ public record PackagedCoreDefinition(
             case "fa_clibano_packaged_core" -> PPItems.FA_CLIBANO_ADAPTER;
             case "fa_black_hole_packaged_core" -> PPItems.FA_BLACK_HOLE_ADAPTER;
             case "resonant_packaged_core" -> PPItems.RESONANT_ADAPTER;
+            case "fd_cooking_pot_packaged_core" -> PPItems.FD_COOKING_POT_ADAPTER;
+            case "ad_extreme_cooking_pot_packaged_core" -> PPItems.AD_COOKING_POT_ADAPTER;
             default -> throw new IllegalStateException("Unknown packaged core item id: " + itemId);
         };
     }

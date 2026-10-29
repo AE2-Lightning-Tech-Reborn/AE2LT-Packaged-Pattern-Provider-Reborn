@@ -26,6 +26,8 @@ class PackagedCoreNamingTest {
             "naturesaura_tree_ritual_packaged_core",
             "naturesaura_offering_packaged_core",
             "ars_imbuement_packaged_core",
+            "ars_scribes_packaged_core",
+            "ars_ritual_brazier_packaged_core",
             "de_fusion_packaged_core",
             "ec_basic_table_packaged_core",
             "ec_advanced_table_packaged_core",
@@ -62,7 +64,9 @@ class PackagedCoreNamingTest {
             "fa_hephaestus_forge_packaged_core",
             "fa_clibano_packaged_core",
             "fa_black_hole_packaged_core",
-            "resonant_packaged_core");
+            "resonant_packaged_core",
+            "fd_cooking_pot_packaged_core",
+            "ad_extreme_cooking_pot_packaged_core");
 
     private static final List<String> MATERIAL_CORE_ITEM_IDS = List.of(
             "basic_packaged_core");

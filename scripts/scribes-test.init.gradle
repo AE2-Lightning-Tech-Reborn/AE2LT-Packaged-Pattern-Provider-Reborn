@@ -1,0 +1,31 @@
+// Opt-in native scribes tests. -Pscribes_absent=true checks optional-mod absence.
+// -Pars_jar=/absolute/path.jar selects another local Ars Nouveau version.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.findAll {
+            it.group == 'maven.modrinth' && it.name in ['extended-crafting', 'cucumber']
+        }.each { dependencies.add('testRuntimeOnly', it.copy()) }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group in ['org.appliedenergistics', 'top.theillusivec4.curios', 'com.moakiee.thunderbolt']
+                || (dep.group == 'maven.modrinth' && dep.name in ['ars-nouveau', 'geckolib'])
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        if (project.hasProperty('ars_jar') || project.hasProperty('scribes_absent')) {
+            configurations.runtimeOnly.dependencies.removeIf { it.group == 'maven.modrinth' && it.name == 'ars-nouveau' }
+            if (!project.hasProperty('scribes_absent')) dependencies.add('runtimeOnly', files(project.property('ars_jar')))
+        }
+        sourceSets.create('scribesTest') {
+            if (project.hasProperty('scribes_absent')) java.setSrcDirs(['src/scribesAbsentTest/java'])
+            resources.srcDir 'src/chiselTest/resources'
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.scribesTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.scribesTest
+            gameDirectory = project.layout.buildDirectory.dir(project.hasProperty('scribes_absent') ? 'scribes-absent' : 'scribes-native').get().asFile
+        }
+    }
+}

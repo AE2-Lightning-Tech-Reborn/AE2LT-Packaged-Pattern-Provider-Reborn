@@ -11,6 +11,7 @@ import appeng.api.storage.MEStorage;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -28,13 +29,14 @@ public final class PackagedResourceStorage {
     public static void registerKeyType(RegisterEvent event) {
         if (event.getRegistryKey().equals(AEKeyType.REGISTRY_KEY)) {
             AEKeyTypes.register(PackagedResourceKeyType.INSTANCE);
-            AEKeyTypes.register(MaidPowerKeyType.INSTANCE);
+            if (ModList.get().isLoaded("touhou_little_maid")) {
+                AEKeyTypes.register(MaidPowerKeyType.INSTANCE);
+            }
         }
     }
 
     public static void registerBehaviors() {
         registerBehaviors(PackagedResourceKeyType.INSTANCE);
-        registerBehaviors(MaidPowerKeyType.INSTANCE);
         // A separate registration adds entity handling without replacing the
         // built-in item/fluid strategies (AE2 permits one factory per key type).
         appeng.api.behaviors.PickupStrategy.register(PackagedResourceKeyType.INSTANCE,
@@ -43,7 +45,8 @@ public final class PackagedResourceStorage {
                     var node = gridHost == null ? null : gridHost.getGridNode(side.getOpposite());
                     return node == null ? new KeyCounter() : node.getGrid().getStorageService().getCachedInventory();
                 }));
-        if (net.neoforged.fml.ModList.get().isLoaded("touhou_little_maid")) {
+        if (ModList.get().isLoaded("touhou_little_maid")) {
+            registerBehaviors(MaidPowerKeyType.INSTANCE);
             appeng.api.behaviors.PickupStrategy.register(MaidPowerKeyType.INSTANCE,
                     (level, pos, side, host, enchantments, owner) -> new MaidPowerPickupStrategy());
         }

@@ -17,8 +17,12 @@ public final class AdaptiveReturnSchedule<K> {
     private boolean dirty;
 
     public boolean hasDue(long tick) {
+        return tick >= nextPollTick();
+    }
+
+    public long nextPollTick() {
         if (dirty) recomputeDeadline();
-        return tick >= nextPoll;
+        return nextPoll;
     }
 
     public boolean isDue(K key, long tick) {

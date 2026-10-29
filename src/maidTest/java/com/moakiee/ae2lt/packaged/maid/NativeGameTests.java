@@ -57,6 +57,17 @@ public final class NativeGameTests {
         h.getLevel().setBlockAndUpdate(pos.north(),AEBlocks.CRAFTING_STORAGE_64K.block().defaultBlockState());return p;
     }
     @GameTest(template="maid_test") public static void powerKeyRoundTripAndOptionalRegistration(GameTestHelper h) {
+        boolean maid=ModList.get().isLoaded("touhou_little_maid"),apothic=ModList.get().isLoaded("apothic_enchanting");
+        h.assertTrue(AEKeyTypes.getAll().contains(MaidPowerKeyType.INSTANCE)==maid,"P channel only with maid");
+        var imports=appeng.parts.automation.StackWorldBehaviors.withImportStrategy();
+        var exports=appeng.parts.automation.StackWorldBehaviors.withExportStrategy();
+        h.assertTrue(imports.contains(MaidPowerKeyType.INSTANCE)==maid
+                &&exports.contains(MaidPowerKeyType.INSTANCE)==maid,"P bus strategies conditional");
+        h.assertTrue(MultiblockAdapterRegistry.getAll().stream().anyMatch(a->a instanceof MaidAltarAdapter)==maid,"maid adapter only with native mod");
+        h.assertTrue(MultiblockAdapterRegistry.getAll().stream().anyMatch(a->a instanceof RavenInfusionAdapter)==apothic,"raven adapter only with native mod");
+        h.assertTrue(h.getLevel().getRecipeManager().byKey(id("ae2ltpp:packaged_core/maid_altar_packaged_core")).isPresent()==maid,"maid recipe conditional");
+        h.assertTrue(!h.getLevel().getRecipeManager().getAllRecipesFor(RavenRecipes.TYPE.get()).isEmpty()==apothic,"raven recipe conditional");
+        if (!maid) { h.succeed(); return; }
         var key=MaidPowerKey.INSTANCE;var registries=h.getLevel().registryAccess();
         h.assertTrue(AEKey.fromTagGeneric(registries,key.toTagGeneric(registries))==key,"P NBT round trip preserves singleton key");
         var buffer=new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),registries);
@@ -65,11 +76,6 @@ public final class NativeGameTests {
         var pattern=pattern(h,List.of(new GenericStack(key,60)),List.of(item(Items.DIAMOND,1)));
         h.assertTrue(pattern.getInputs()[0].getPossibleInputs()[0].what()==key
                 &&pattern.getInputs()[0].getPossibleInputs()[0].amount()*pattern.getInputs()[0].getMultiplier()==60,"P pattern retains fractional displayed amount");
-        boolean maid=ModList.get().isLoaded("touhou_little_maid"),apothic=ModList.get().isLoaded("apothic_enchanting");
-        h.assertTrue(MultiblockAdapterRegistry.getAll().stream().anyMatch(a->a instanceof MaidAltarAdapter)==maid,"maid adapter only with native mod");
-        h.assertTrue(MultiblockAdapterRegistry.getAll().stream().anyMatch(a->a instanceof RavenInfusionAdapter)==apothic,"raven adapter only with native mod");
-        h.assertTrue(h.getLevel().getRecipeManager().byKey(id("ae2ltpp:packaged_core/maid_altar_packaged_core")).isPresent()==maid,"maid recipe conditional");
-        h.assertTrue(!h.getLevel().getRecipeManager().getAllRecipesFor(RavenRecipes.TYPE.get()).isEmpty()==apothic,"raven recipe conditional");
         h.succeed();
     }
     @GameTest(template="maid_test") public static void experienceSelectionMergedRemainderAndReload(GameTestHelper h) {

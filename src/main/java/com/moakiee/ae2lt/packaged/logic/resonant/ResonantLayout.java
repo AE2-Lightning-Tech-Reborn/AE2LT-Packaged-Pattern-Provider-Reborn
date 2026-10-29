@@ -1,9 +1,10 @@
 package com.moakiee.ae2lt.packaged.logic.resonant;
 
+import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.RandomAccess;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -32,6 +33,7 @@ public record ResonantLayout(GlobalPos source, ResourceLocation anchorBlock, Dir
         public Target { offset = offset.immutable(); }
 
         public Target rotated(Direction from, Direction to) {
+            if (from == to) return this;
             var pos = offset;
             var side = face;
             for (int turns = turns(from, to); turns > 0; turns--) {
@@ -62,17 +64,36 @@ public record ResonantLayout(GlobalPos source, ResourceLocation anchorBlock, Dir
         if (!forward.getAxis().isHorizontal() || selected < 0 || selected >= SLOTS) {
             throw new IllegalArgumentException("Invalid resonant layout orientation or selection");
         }
-        var seen = new HashSet<Integer>();
-        for (var binding : bindings) {
-            if (binding.slot() < 0 || binding.slot() >= SLOTS || !seen.add(binding.slot())) {
-                throw new IllegalArgumentException("Invalid or duplicate resonant layout slot");
-            }
-        }
-        bindings = List.copyOf(bindings);
+        // Retain the record/codec's list representation and equality while indexing immutable slots once.
+        // Selection-only copies can share the same immutable index.
+        if (!(bindings instanceof IndexedBindings)) bindings = new IndexedBindings(bindings);
     }
 
     public Optional<Target> target(int slot) {
-        return bindings.stream().filter(b -> b.slot() == slot).map(Binding::target).findFirst();
+        return ((IndexedBindings) bindings).target(slot);
+    }
+
+    private static final class IndexedBindings extends AbstractList<Binding> implements RandomAccess {
+        private final List<Binding> entries;
+        @SuppressWarnings("unchecked")
+        private final Optional<Target>[] targets = (Optional<Target>[]) new Optional<?>[SLOTS];
+
+        private IndexedBindings(List<Binding> entries) {
+            this.entries = List.copyOf(entries);
+            for (var binding : this.entries) {
+                int slot = binding.slot();
+                if (slot < 0 || slot >= SLOTS || targets[slot] != null) {
+                    throw new IllegalArgumentException("Invalid or duplicate resonant layout slot");
+                }
+                targets[slot] = Optional.of(binding.target());
+            }
+        }
+
+        private Optional<Target> target(int slot) {
+            return slot >= 0 && slot < SLOTS && targets[slot] != null ? targets[slot] : Optional.empty();
+        }
+        @Override public Binding get(int index) { return entries.get(index); }
+        @Override public int size() { return entries.size(); }
     }
 
     public ResonantLayout withTarget(int slot, Target target) {

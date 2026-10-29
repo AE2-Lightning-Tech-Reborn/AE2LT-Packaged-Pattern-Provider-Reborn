@@ -337,6 +337,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
         return Math.max(capacity, ordinary ? 1 : 0);
     }
 
+    PackagedPatternProviderBlockEntity packagedHost() {
+        return (PackagedPatternProviderBlockEntity) getProviderHost();
+    }
+
     @Override
     public long pushBatch(IPatternDetails pattern, KeyCounter[] oneCopyTemplate, long maxCraft) {
         if (maxCraft <= 0) return 0;
@@ -404,15 +408,25 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                         continue;
                     }
                     int maximum = (int) Math.min(remaining, inputBatchLimiter.remaining(candidate.lane(), tick));
-                    int copies = BatchCopies.fitting(maximum, n -> {
-                        if (!PatternProviderPowerCost.canAfford(grid, oneCopyCost * n)) return false;
-                        try {
-                            for (var delivery : PendingBatchInputs.scale(ports, n)) {
-                                if (insertBatchDelivery(level, delivery, Actionable.SIMULATE) < delivery.stack().amount()) return false;
-                            }
-                            return true;
-                        } catch (ArithmeticException overflow) { return false; }
-                    });
+                    int copies;
+                    if (adapter.hasExactBatchInputReceipts()) {
+                        int affordable = PatternProviderPowerCost.affordableCopies(grid, oneCopyCost, maximum);
+                        copies = PendingBatchInputs.fittingByReceipt(ports, affordable,
+                                delivery -> adapter.batchInputAmountLimit(delivery.stack()),
+                                delivery -> insertBatchDelivery(level, delivery, Actionable.SIMULATE));
+                    } else {
+                        // Preserve probe order for integrations without exact partial-receipt semantics.
+                        copies = BatchCopies.fitting(maximum, n -> {
+                            if (!PatternProviderPowerCost.canAfford(grid, oneCopyCost * n)) return false;
+                            try {
+                                for (var port : ports) {
+                                    var delivery = port.withAmount(Math.multiplyExact(port.stack().amount(), n));
+                                    if (insertBatchDelivery(level, delivery, Actionable.SIMULATE) < delivery.stack().amount()) return false;
+                                }
+                                return true;
+                            } catch (ArithmeticException overflow) { return false; }
+                        });
+                    }
                     if (copies <= 0) {
                         dispatchFailed(candidate, pattern, env, tick);
                         continue;
@@ -454,12 +468,9 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
             // Routed inputs are already accepted and paid for. Keep their original destination after core changes.
             return mode == Actionable.MODULATE ? ResonantDispatch.insert(targetLevel, delivery, getActionSource()) : 0;
         }
-        for (var candidate : MultiblockAdapterRegistry.getAll()) {
-            if (candidate instanceof InputBatchCraftingAdapter adapter && adapter.batchAdapterId().equals(delivery.adapter())) {
-                return adapter.insertBatchInput(targetLevel, delivery.pos(), delivery.face(), delivery.stack(), mode, getActionSource());
-            }
-        }
-        return 0;
+        var adapter = MultiblockAdapterRegistry.inputBatchAdapter(delivery.adapter());
+        return adapter == null ? 0 : adapter.insertBatchInput(targetLevel, delivery.pos(), delivery.face(),
+                delivery.stack(), mode, getActionSource());
     }
 
     @Override
@@ -819,6 +830,20 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     }
 
     @Override
+    protected boolean canDelayTick() {
+        if (pendingOutputs.hasPending() || pendingBatchInputs.hasPending() || !getInternalReturnInv().isEmpty()
+                || getProviderHost().getReturnMode() != ReturnMode.AUTO
+                || !(getProviderHost().getLevel() instanceof ServerLevel level)
+                || lastAutoReturnTick == Long.MIN_VALUE) return false;
+        long tick = level.getGameTime();
+        long elapsed = tick - lastAutoReturnTick;
+        // IDLE is exactly GRID_TICK_MAX in AE2. If interrupted early, stay urgent until the next
+        // regular poll instead of overshooting a deadline. Pushes and state changes already alert the grid.
+        return elapsed >= 0 && elapsed <= AUTO_RETURN_INTERVAL_TICKS - GRID_TICK_MAX
+                && mekReturns.nextPollTick() - tick >= GRID_TICK_MAX;
+    }
+
+    @Override
     public void tickAutoReturn() {
         if (!hasAnyTickWork()) {
             return;
@@ -856,13 +881,15 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
                 || gameTick - lastAutoReturnTick >= AUTO_RETURN_INTERVAL_TICKS;
         if (installedAdapterStack().getItem() instanceof ResonantPackagedCoreItem) {
             var layout = ResonantPackagedCoreItem.layout(installedAdapterStack());
-            if (regularDue && layout != null && !pendingBatchInputs.hasPending()) {
-                for (var anchor : resonantAnchors(sl, layout, gameTick)) {
-                    try {
-                        ResonantDispatch.extractOutputs(layout, anchor, getProviderHost().getBlockPos(),
-                                getOrBuildOutputFilter(), getActionSource(), stack -> enqueuePendingOutputs(List.of(stack)));
-                    } catch (RuntimeException | LinkageError failure) {
-                        appeng.core.AELog.warn("[ae2ltpp] Resonant output collection stopped: %s", failure);
+            if (regularDue && !pendingBatchInputs.hasPending()) {
+                if (layout != null) {
+                    for (var anchor : resonantAnchors(sl, layout, gameTick)) {
+                        try {
+                            ResonantDispatch.extractOutputs(layout, anchor, getProviderHost().getBlockPos(),
+                                    getOrBuildOutputFilter(), getActionSource(), stack -> enqueuePendingOutputs(List.of(stack)));
+                        } catch (RuntimeException | LinkageError failure) {
+                            appeng.core.AELog.warn("[ae2ltpp] Resonant output collection stopped: %s", failure);
+                        }
                     }
                 }
                 lastAutoReturnTick = gameTick;
