@@ -2,21 +2,16 @@
 
 ## 1.2.2-beta2 — Forge 1.20.1
 
-beta2 整理了谐振布局、扩展封包供应器、核心订单、女仆祭坛、P 点资源、Forbidden Arcanus 自动化，以及批量派发和资源回存更新。依赖 AE2 Lightning Tech `2.1.2` 和 Thunderbolt Core `2.0.3` 的 Forge 1.20.1 构建。
+对比版本：1.20.1-1.2.2-beta（2026-10-08 发布）
 
-- Backported live-server MekMM recipe validation, machine recognition status and persistent wireless connection instructions, with compact-screen layout support.
-
-- Backported the Touhou Little Maid altar, P-point ME resource and experience-orb fluid collection. Six native EC/Avaritia higher-tier core recipes now require the preceding core.
-- Backported EC combination live-recipe checks and physical-batch ownership renewal with persisted ambiguous receipts.
-- Added provider-owned core orders, first-core bootstrap and EC/Avaritia tier upgrades through actual ME crafting CPU receipts.
-- Added optional JEI core recipes and ordering, preserving native ingredient counts and installed-core upgrade requirements. Core manufacturing also works with a resonant core installed and collects only the matching core outputs.
-- Backported native Forbidden Arcanus essence conversions, ME essence storage and JEI encoding, plus datapack-driven black-hole XP-fluid conversion. Adapted to FA 2.2.6; the newer essence jar is unavailable on this version.
-
-- Backported resonant cores with portable input/output layouts and Crystal Science pattern support, plus a 144-slot provider with four pages and switchable adjacent/wireless dispatch. See [Forge verification](RESONANT_BACKPORT.zh-CN.md).
-- Fixed hidden-page slot editing and ensured undelivered resonant inputs drop exactly once when the provider breaks.
-- Backported cheaper recipes for 20 specialized cores while preserving Forge serializers and native machine tiers.
-- Added bounded linear batches for Chipped, internal chiseling and Spirit Fire; MekMM failed requests can retry on the next tick.
-- Preserve quantities beyond one long across output buffering, refunds and NBT reloads; return inventories report exact accepted quantities at capacity.
+- 新增谐振封包核心及可复制、旋转的输入输出布局，支持水晶科技样板；新增拥有 144 个样板槽、四页界面的扩展供应器。
+- 新增供应器核心订单、首个核心制作、EC／Avaritia 核心升级和 JEI 配方入口，通过实际 ME 合成任务确认产物。
+- 新增自然灵气自然祭坛、森林仪式和供奉台自动化，完善拆除、保存与重载恢复。
+- 新增女仆祭坛、P 点 ME 存取和经验球流体回收；补齐 FA 原生精华转换、ME 精华存储及黑洞经验流体转换。
+- 新生魔艺注魔室支持使用预先放置的常驻催化剂；改善机器识别、无线连接提示及小尺寸界面适配。
+- 调整 20 种专用核心制作成本，完善高级核心对前一级核心的升级要求；改善 DE 注入器刷新、雕刻、灵火及 Mekanism More Machines 批量加工。
+- 修复 EC 实时配方判断、隐藏分页槽位编辑、供应器拆除掉落、批量回执持久化及超大数量产物和退款的回存问题。
+- 配套依赖更新为 AE2 Lightning Tech 2.1.2、Thunderbolt Core 2.0.3，均使用 Forge 1.20.1 版本。
 
 ## 1.2.2-beta — Forge 1.20.1 backports
 
