@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — Forge 1.20.1
+## 1.2.2 — Forge 1.20.1
+
+正式版整理了谐振布局、扩展封包供应器、核心订单、女仆祭坛、P 点资源、Forbidden Arcanus 自动化，以及批量派发和资源回存更新。依赖 AE2 Lightning Tech `2.1.2` 和 Thunderbolt Core `2.0.3` 的 Forge 1.20.1 构建。
 
 - Backported live-server MekMM recipe validation, machine recognition status and persistent wireless connection instructions, with compact-screen layout support.
 
