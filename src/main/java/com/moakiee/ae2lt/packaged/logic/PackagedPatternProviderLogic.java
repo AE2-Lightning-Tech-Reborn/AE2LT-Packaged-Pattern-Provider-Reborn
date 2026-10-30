@@ -246,11 +246,31 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
 
     @Override
     public void addDrops(List<ItemStack> drops) {
+        flushBeforeDrops();
         super.addDrops(drops);
         var host = getProviderHost();
         for (var delivery : pendingBatchInputs.snapshot()) {
             var stack = delivery.stack();
             stack.what().addDrops(stack.amount(), drops, host.getLevel(), host.getBlockPos());
+        }
+    }
+
+    /** Return known owned resources while the provider still has its grid. */
+    private void flushBeforeDrops() {
+        var grid = getGridNode().getGrid();
+        if (grid == null) return;
+        var storage = grid.getStorageService().getInventory();
+        var source = getActionSource();
+        try {
+            getInternalReturnInv().injectIntoNetwork(storage, source, stack -> {});
+            virtualBatch.deliver(stack -> storage.insert(stack.what(), stack.amount(), Actionable.MODULATE, source));
+            // Uncertain receipts are deliberately excluded by PendingBatchInputs.deliver.
+            pendingBatchInputs.deliver(delivery -> storage.insert(delivery.stack().what(),
+                    delivery.stack().amount(), Actionable.MODULATE, source));
+        } catch (RuntimeException | LinkageError failure) {
+            LOG.warn("Removal flush stopped; dropping known remainders where supported", failure);
+        } finally {
+            getProviderHost().saveChanges();
         }
     }
 
@@ -410,6 +430,10 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
             }
         }
         return Math.max(capacity, ordinary ? 1 : 0);
+    }
+
+    PackagedPatternProviderBlockEntity packagedHost() {
+        return (PackagedPatternProviderBlockEntity) getProviderHost();
     }
 
     @Override

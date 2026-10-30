@@ -183,8 +183,6 @@ class CompatibilityReflectionContractTest {
                 "src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/botania/TerraPlateAdapter.java");
         var alfheim = read(
                 "src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/botania/AlfheimPortalAdapter.java");
-        var petal = read(
-                "src/main/java/com/moakiee/ae2lt/packaged/logic/multiblock/botania/PetalApothecaryAdapter.java");
         // Since the bounded-matcher refactor the anti-folding invariant is
         // expressed as per-unit AEItemKey lists fed through
         // BoundedConstraintMatcher instead of an aggregate
@@ -194,8 +192,8 @@ class CompatibilityReflectionContractTest {
         assertTrue(runic.contains("BoundedConstraintMatcher.matchExactly(units, constraints)"));
         assertTrue(terra.contains("BoundedConstraintMatcher.matchExactly"));
         assertTrue(alfheim.contains("BoundedConstraintMatcher.matchWithin"));
-        assertTrue(petal.contains("BoundedConstraintMatcher.matchWithin(tokens, constraints)"));
-        assertTrue(petal.contains("putIfAbsent(key.getItem(), key)"));
+        // Petal capacities and NBT variants are verified by PetalVariantCapacityTest
+        // and PetalApothecaryRecipeSelectionTest rather than source fragments.
         assertTrue(alfheim.contains("tokens.size() < required.size()"));
     }
 
