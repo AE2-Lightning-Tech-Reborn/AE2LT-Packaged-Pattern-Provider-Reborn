@@ -18,13 +18,13 @@ import appeng.menu.implementations.MenuTypeBuilder;
 import appeng.menu.slot.AppEngSlot;
 
 import com.moakiee.ae2lt.api.frequency.FrequencyBindingMenuHost;
+import com.moakiee.ae2lt.api.patternprovider.PatternSlotPages;
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.logic.PackagedPatternProviderLogic;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ReturnMode;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.ProviderMode;
-import static com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.SLOTS_PER_PAGE;
 
 public class PackagedPatternProviderMenu extends PatternProviderMenu
         implements FrequencyBindingMenuHost {
@@ -54,6 +54,7 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
 
     private final PackagedPatternProviderBlockEntity host;
     private final Slot adapterSlot;
+    private final PatternSlotPages patternPages;
     private int recognitionRefreshTicks;
 
     public PackagedPatternProviderMenu(int id, Inventory playerInventory, PatternProviderLogicHost host) {
@@ -74,6 +75,7 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
         registerClientAction("toggleMode", this::toggleMode);
         registerClientAction("nextPage", () -> changePage(1));
         registerClientAction("prevPage", () -> changePage(-1));
+        patternPages = new PatternSlotPages(getSlots(SlotSemantics.ENCODED_PATTERN));
         showPage(0);
     }
 
@@ -99,18 +101,11 @@ public class PackagedPatternProviderMenu extends PatternProviderMenu
     }
 
     public int getTotalPages() {
-        return Math.max(1, (host.getPatternSlotCount() + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE);
+        return patternPages.totalPages();
     }
 
     public void showPage(int page) {
-        currentPage = Math.clamp(page, 0, getTotalPages() - 1);
-        var patternSlots = getSlots(SlotSemantics.ENCODED_PATTERN);
-        int start = currentPage * SLOTS_PER_PAGE;
-        for (int i = 0; i < patternSlots.size(); i++) {
-            if (patternSlots.get(i) instanceof AppEngSlot slot) {
-                slot.setActive(i >= start && i < start + SLOTS_PER_PAGE);
-            }
-        }
+        currentPage = patternPages.showPage(page);
     }
 
     private void changePage(int delta) {

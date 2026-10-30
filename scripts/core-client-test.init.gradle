@@ -8,7 +8,7 @@ allprojects {
             compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
             runtimeClasspath += output + sourceSets.main.runtimeClasspath
         }
-        dependencies.add('coreClientProbeRuntimeOnly', 'curse.maven:jei-238222:7391682')
+        dependencies.add('coreClientProbeRuntimeOnly', "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}")
         dependencies.add('coreClientProbeRuntimeOnly', 'curse.maven:ae2-jei-integration-1074338:7727898')
         configurations.coreClientProbeRuntimeOnly.extendsFrom(configurations.coreTestRuntimeOnly)
         neoForge.mods.ae2ltpp.sourceSet(sourceSets.coreClientProbe)

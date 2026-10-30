@@ -43,7 +43,6 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.AdapterPersistentScope;
 import com.moakiee.ae2lt.packaged.logic.multiblock.MultiblockAdapterRegistry;
 import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
 import com.moakiee.ae2lt.packaged.registry.PPBlockEntities;
-import com.moakiee.ae2lt.packaged.registry.PPBlocks;
 import com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity;
 
 public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlockEntity
@@ -474,12 +473,12 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     @Override
     public ItemStack getMainMenuIcon() {
-        return new ItemStack(PPBlocks.PACKAGED_PATTERN_PROVIDER.get());
+        return new ItemStack(getItemFromBlockEntity());
     }
 
     @Override
     public AEItemKey getTerminalIcon() {
-        return AEItemKey.of(PPBlocks.PACKAGED_PATTERN_PROVIDER.get());
+        return AEItemKey.of(getItemFromBlockEntity());
     }
 
     @Override
@@ -497,7 +496,7 @@ public class PackagedPatternProviderBlockEntity extends StablePatternProviderBlo
 
     @Override
     protected Item getItemFromBlockEntity() {
-        return PPBlocks.PACKAGED_PATTERN_PROVIDER.get().asItem();
+        return getBlockState().getBlock().asItem();
     }
 
     protected ProviderMode fixedProviderMode() {

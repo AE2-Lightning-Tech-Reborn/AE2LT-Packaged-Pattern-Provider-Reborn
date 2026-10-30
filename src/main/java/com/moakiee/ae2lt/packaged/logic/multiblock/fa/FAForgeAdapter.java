@@ -23,7 +23,6 @@ import net.neoforged.neoforge.common.util.FakePlayerFactory;
 /** Native rituals and native four-slot essence conversion share one forge core. */
 public final class FAForgeAdapter implements MultiblockAdapter {
     static final String JOB="ae2ltpp_forge_job";
-    private record Ritual(ResourceLocation id,Object recipe){}
     @Override public int priority(){return 129;}
     @Override public ResourceLocation requiredAdapterId(ServerLevel level,BlockPos pos){return AdapterIds.FA_FORGE;}
     @Override public boolean recognizesMain(ServerLevel level,BlockPos pos,BlockEntity be){return FAAccess.is(be,FAAccess.FORGE);}
@@ -32,11 +31,10 @@ public final class FAForgeAdapter implements MultiblockAdapter {
             var amounts=FAPatterns.declared(pattern);
             var conversion=FAForgeConversion.match(level,pattern,amounts);
             if(conversion!=null)return new BindingResult(conversion,BindingMode.REAL);
-            var registry=FAAccess.registry(level,"hephaestus_forge/ritual");
-            for(var recipe:registry){
-                var keys=assignRitual(recipe,amounts,pattern);
+            for(var ritual:FARituals.all(level)){
+                var keys=assignRitual(ritual.recipe(),amounts,pattern);
                 if(keys!=null)
-                    return new BindingResult(new Ritual(registry.getKey(recipe),recipe),BindingMode.REAL);
+                    return new BindingResult(ritual,BindingMode.REAL);
             }
         }catch(RuntimeException|LinkageError e){failure("bind",e);}
         return null;
@@ -82,7 +80,7 @@ public final class FAForgeAdapter implements MultiblockAdapter {
                 var conversion=FAForgeConversion.match(level,pattern,actual);
                 return conversion==null?null:FAForgeConversion.plan(level,forge,conversion);
             }
-            if(!(handle instanceof Ritual ritual)||FAAccess.registry(level,"hephaestus_forge/ritual").get(ritual.id())!=ritual.recipe()
+            if(!(handle instanceof FARituals.Entry ritual)||!FARituals.isCurrent(level,ritual)
                     ||!FAAccess.structure(level,pos))return null;
             var keys=assignRitual(ritual.recipe(),actual,pattern);
             if(keys==null)return null;
@@ -150,7 +148,7 @@ public final class FAForgeAdapter implements MultiblockAdapter {
         var adjusted=FAAccess.call(FAAccess.call(FAAccess.call(ritual,"requirements"),"essences"),"applyModifiers",modifiers);
         int[] need=cost.clone();for(int i=0;i<4;i++)need[i]=Math.max(cost[i],(int)FAAccess.call(adjusted,"get",FAAccess.essence(FAForgeConversion.name(i))));return need;
     }
-    private static void start(ServerLevel level,BlockEntity forge,Ritual ritual,int[] cost,int[] need,int[] supplied,MEStorage storage,IActionSource source,ItemStack output){
+    private static void start(ServerLevel level,BlockEntity forge,FARituals.Entry ritual,int[] cost,int[] need,int[] supplied,MEStorage storage,IActionSource source,ItemStack output){
         int[] before=new int[4],taken=new int[4];boolean started=false;
         for(int i=0;i<4;i++)before[i]=FAAccess.amount(forge,FAForgeConversion.name(i));
         var state=new CompoundTag();state.putString("mode","ritual");state.put("output",output.save(level.registryAccess()));

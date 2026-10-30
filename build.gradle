@@ -42,6 +42,8 @@ repositories {
         url = "https://maven.blamejared.com/"
         content {
             includeGroup "team.lodestar.lodestone"
+            includeGroup "mezz.jei"
+            includeGroup "net.mezzdev.config"
         }
     }
     maven {
@@ -201,8 +203,13 @@ dependencies {
         transitive = false
     }
     runtimeOnly "org.appliedenergistics:guideme:${guideme_version}"
-    compileOnly "curse.maven:jei-238222:7391682"
-    runtimeOnly "curse.maven:jei-238222:7391682"
+    compileOnly("mezz.jei:jei-${minecraft_version}-common-api") {
+        version { strictly jei_api_version }
+    }
+    compileOnly("mezz.jei:jei-${minecraft_version}-neoforge-api") {
+        version { strictly jei_api_version }
+    }
+    runtimeOnly "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
     runtimeOnly "curse.maven:jade-324717:5427817"
 
     // ============================================================
@@ -280,6 +287,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
                              mod_license            : mod_license,
                              mod_version            : mod_version,
                              ae2lt_version_range    : ae2lt_version_range,
+                             jei_version_range      : jei_version_range,
                              thunderbolt_version_range: thunderbolt_version_range,
                              mod_authors            : mod_authors,
                              mod_description        : mod_description]

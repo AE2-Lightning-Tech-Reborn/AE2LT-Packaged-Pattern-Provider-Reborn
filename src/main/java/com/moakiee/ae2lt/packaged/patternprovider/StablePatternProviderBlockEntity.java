@@ -43,7 +43,8 @@ import com.moakiee.ae2lt.logic.wireless.support.WirelessConnectionRange;
 public abstract class StablePatternProviderBlockEntity
         extends PatternProviderBlockEntity
         implements WirelessPatternProviderHost {
-    public static final int SLOTS_PER_PAGE = 36;
+    public static final int SLOTS_PER_PAGE =
+            com.moakiee.ae2lt.api.patternprovider.PatternSlotPages.SLOTS_PER_PAGE;
     public static final int MAX_WIRELESS_CONNECTIONS = 1024;
 
     private static final int PERIODIC_PRUNE_INTERVAL_TICKS = 100;

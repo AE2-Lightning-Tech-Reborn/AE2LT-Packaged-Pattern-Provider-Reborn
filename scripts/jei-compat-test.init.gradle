@@ -1,0 +1,41 @@
+// ./gradlew -I scripts/core-test.init.gradle -I scripts/jei-compat-test.init.gradle runClient -Pjei_version=19.70.0.467 -Pneo_version=21.1.238 --no-configuration-cache
+// Requires the disposable world produced by core-test.init.gradle runGameTestServer.
+allprojects {
+    afterEvaluate {
+        sourceSets.create('jeiCompatProbe') {
+            java.srcDir 'src/jeiCompatTest/java'
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        dependencies.add('jeiCompatProbeRuntimeOnly', "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}")
+        dependencies.add('jeiCompatProbeRuntimeOnly', 'curse.maven:ae2-jei-integration-1074338:7727898')
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.jeiCompatProbe)
+        def probeDir = project.layout.buildDirectory.dir("jei-compat/${jei_version}").get().asFile
+        neoForge.runs.client {
+            sourceSet = sourceSets.jeiCompatProbe
+            gameDirectory = probeDir
+            programArguments.addAll '--quickPlaySingleplayer', 'JeiQA', '--width', '1200', '--height', '900'
+        }
+        tasks.named('runClient') {
+            doFirst {
+                new File(probeDir, 'client-result.txt').delete()
+                def options = new File(probeDir, 'options.txt')
+                if (!options.exists()) {
+                    options.parentFile.mkdirs()
+                    options.text = 'onboardAccessibility:false\nlang:en_us\npauseOnLostFocus:false\nrenderDistance:2\nsimulationDistance:5\nmaxFps:60\n'
+                }
+                def save = new File(probeDir, 'saves/JeiQA/level.dat')
+                if (!save.exists()) {
+                    save.parentFile.mkdirs()
+                    save.bytes = project.file('build/core-native/world/level.dat').bytes
+                }
+            }
+            doLast {
+                def result = new File(probeDir, 'client-result.txt')
+                if (!result.exists() || !result.text.startsWith('PASS')) {
+                    throw new GradleException('JEI compatibility probe failed: ' + (result.exists() ? result.text : 'no result'))
+                }
+            }
+        }
+    }
+}

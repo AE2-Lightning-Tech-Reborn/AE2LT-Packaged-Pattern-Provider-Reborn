@@ -29,8 +29,10 @@ Current local verification observed a NeoForge patch-version difference: this ad
 The current `build.gradle` also uses:
 
 - GuideME
-- JEI runtime dependency for local development
+- JEI 19.19.6+ (19.x, optional client integration; development runtime 19.27.0.336)
 - Jade runtime dependency for local development
+
+JEI API/runtime version settings and compatibility verification are described in [JEI compatibility](docs/JEI_COMPATIBILITY.zh-CN.md).
 
 ## Development Setup
 
