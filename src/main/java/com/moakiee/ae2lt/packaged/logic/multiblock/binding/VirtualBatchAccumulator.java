@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.ToLongFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +113,12 @@ public final class VirtualBatchAccumulator {
         return true;
     }
 
-    /** Force flush regardless of interval; used on host removal / clearContent. */
+    /** Deliver owned outputs by exact receipt without changing the regular flush schedule. */
+    public void deliver(ToLongFunction<GenericStack> sink) {
+        pending.deliver(entry -> sink.applyAsLong(new GenericStack(entry.key(), entry.amount())));
+    }
+
+    /** Drain remaining outputs after removal-time delivery. */
     public List<GenericStack> drainAll() {
         if (pending.isEmpty()) {
             return List.of();

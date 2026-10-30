@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Forge 1.20.1
+
+- Route core orders through the native terminal confirmation and status screens, with first-core installation, spare-core batches and single-core in-place upgrades. Reject invalid or busy-provider submissions on the server and preserve intermediate crafting outputs.
+- Add a configurable 32-block resonant input range, validate dimensions and coordinates before routing, and preserve legacy output layouts. Return buffered resources to ME storage before removal and retain virtual-batch remainders after partial insertion.
+- Match Botania petal recipes using the actual component variants and available inventory capacity, preserving quantities during partial insertion and recovery.
+- Fix a Forge/Netty protocol-switch race that could leave automatic reads enabled without a read subscription and stall multiplayer login until the default 30-second timeout. Restore the subscription after protocol changes while respecting deliberate read pauses.
+- Keep long provider and core-order confirmation titles inside their panels, clear of title-bar buttons; hover over a shortened title to read it in full. Handle the confirmation menu's initial empty destination state safely.
+
 ## 1.2.2-beta2 — Forge 1.20.1
 
 对比版本：1.20.1-1.2.2-beta（2026-10-08 发布）

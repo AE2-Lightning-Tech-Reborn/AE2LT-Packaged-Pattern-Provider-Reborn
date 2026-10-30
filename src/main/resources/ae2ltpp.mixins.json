@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "ae2ltpp.refmap.json",
   "mixins": [
+    "ConnectionProtocolReadMixin",
     "ExperienceOrbMixin",
     "MenuTypeBuilderAccessor",
     "PatternProviderLogicAccessor",
@@ -18,10 +19,13 @@
     "NaturesAuraBlockRemovalMixin",
     "NaturesAuraInventoryDropMixin",
     "NaturesAuraOfferingMixin",
-    "NaturesAuraTreeRitualMixin"
+    "NaturesAuraTreeRitualMixin",
+    "CraftConfirmMenuMixin"
   ],
   "client": [
-    "WirelessConnectorItemMixin"
+    "WirelessConnectorItemMixin",
+    "client.CraftConfirmScreenAccessor",
+    "client.CoreConfirmationRenderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

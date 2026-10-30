@@ -25,7 +25,7 @@ gradle.projectsEvaluated {
         if (runDir != null) {
             def directory = p.file(runDir)
             p.minecraft.runs.gameTestServer { workingDirectory directory }
-            p.tasks.named('syncGameTestStructures').configure {
+            p.tasks.named('syncGameTestServerStructures').configure {
                 into new File(directory, 'gameteststructures')
             }
         }

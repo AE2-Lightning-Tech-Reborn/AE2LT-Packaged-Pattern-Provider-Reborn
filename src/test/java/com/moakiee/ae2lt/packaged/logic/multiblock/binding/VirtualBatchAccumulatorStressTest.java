@@ -33,6 +33,35 @@ class VirtualBatchAccumulatorStressTest {
     }
 
     @Test
+    void removalDeliveryPersistsExactPartialReceiptsWithoutAdvancingFlushClock() {
+        var accumulator = new VirtualBatchAccumulator();
+        var key = AEItemKey.of(Items.IRON_INGOT);
+        accumulator.enqueue(List.of(new GenericStack(key, 10)));
+        accumulator.tickFlush(100, stacks -> stacks);
+        accumulator.deliver(stack -> 4);
+        assertEquals(100, accumulator.getLastFlushTick());
+        var tag = new CompoundTag();
+        accumulator.writeToNBT(tag);
+        var restored = new VirtualBatchAccumulator();
+        restored.readFromNBT(tag);
+        assertEquals(List.of(new GenericStack(key, 6)), restored.drainAll());
+        assertFalse(restored.hasPending());
+    }
+
+    @Test
+    void laterRemovalFailureDoesNotRestoreEarlierSuccessfulDeliveries() {
+        var accumulator = new VirtualBatchAccumulator();
+        var item = AEItemKey.of(Items.IRON_INGOT);
+        var fluid = AEFluidKey.of(Fluids.WATER);
+        accumulator.enqueue(List.of(new GenericStack(item, 7), new GenericStack(fluid, 1000)));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> accumulator.deliver(stack -> {
+            if (stack.what().equals(fluid)) throw new IllegalStateException("injected before acceptance");
+            return stack.amount();
+        }));
+        assertEquals(List.of(new GenericStack(fluid, 1000)), accumulator.drainAll());
+    }
+
+    @Test
     void flushClockTracksOnlyInitializationFlushAndClockRecovery() {
         var accumulator = new VirtualBatchAccumulator();
         accumulator.enqueue(List.of(new GenericStack(AEItemKey.of(Items.IRON_INGOT), 64)));

@@ -77,6 +77,7 @@ minecraft {
         }
 
         gameTestServer {
+            workingDirectory project.file(findProperty('ppTestRunDir') ?: 'run/gametest-server')
             args '--world', 'gametest-world'
             property 'forge.enabledGameTestNamespaces', mod_id
             property stressOptions.stress_soak_rounds.systemName, stressOptions.stress_soak_rounds.value.toString()
@@ -260,6 +261,8 @@ dependencies {
     implementation(jarJar("io.github.llamalad7:mixinextras-forge:0.4.1")) {
         jarJar.ranged(it, "[0.4.1,)")
     }
+    compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
+    annotationProcessor 'io.github.llamalad7:mixinextras-common:0.4.1'
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
@@ -369,7 +372,42 @@ tasks.register('syncGameTestStructures', Copy) {
     into 'run/gameteststructures'
 }
 
-['runClient', 'runServer', 'runGameTestServer'].each { runTask ->
+tasks.register('syncGameTestServerStructures', Copy) {
+    from 'src/gameteststructures'
+    include '*.snbt'
+    into { new File(file(minecraft.runs.gameTestServer.workingDirectory), 'gameteststructures') }
+}
+
+// Native fixtures run near Y=-60. Random terrain can flood them from aquifers
+// outside StructureUtils' clearing volume, even when no other test is nearby.
+tasks.register('prepareGameTestServer') {
+    doLast {
+        def directory = file(minecraft.runs.gameTestServer.workingDirectory)
+        if (new File(directory, 'gametest-world/level.dat').isFile()
+                && !(findProperty('ppReuseTestWorld') ?: 'false').toBoolean()) {
+            throw new GradleException('GameTest world already exists. Use a fresh -PppTestRunDir; '
+                    + '-PppReuseTestWorld=true is only for deliberate saved-world checks. '
+                    + 'Generator settings do not change an existing world.')
+        }
+        def settings = new Properties()
+        def target = new File(directory, 'server.properties')
+        if (target.isFile()) target.withInputStream { settings.load(it) }
+        settings.setProperty('level-type', 'minecraft:flat')
+        settings.setProperty('level-seed', Long.parseLong((findProperty('ppTestSeed') ?: '0').toString()).toString())
+        settings.setProperty('generate-structures', 'false')
+        settings.setProperty('generator-settings', '{"biome":"minecraft:plains","layers":'
+                + '[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:dirt","height":2},'
+                + '{"block":"minecraft:grass_block","height":1}],"lakes":false,"features":false}')
+        directory.mkdirs()
+        target.withOutputStream { settings.store(it, 'Deterministic GameTest environment') }
+    }
+}
+
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    dependsOn 'prepareGameTestServer', 'syncGameTestServerStructures'
+}
+
+['runClient', 'runServer'].each { runTask ->
     tasks.matching { it.name == runTask }.configureEach {
         dependsOn 'syncGameTestStructures'
     }

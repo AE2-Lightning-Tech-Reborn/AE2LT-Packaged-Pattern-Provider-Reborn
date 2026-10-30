@@ -101,13 +101,13 @@ EC and Re-Avaritia table cores support tier upgrades. Encode the upgrade materia
 
 ## Core ordering and upgrades
 
-Open **Core Crafting** on the provider and choose a core. The network needs materials, a processing pattern, power and a crafting CPU. A corresponding real machine can manufacture its first core with an empty core slot, including wireless connections. The requester installs the finished core if its slot is empty; otherwise it returns the result to ME.
+Choose a manufacturing or in-place upgrade recipe in JEI, encode a processing pattern, put it in a packaged provider, then order from an ME terminal. The network needs materials, power and a crafting CPU; patterns can also be encoded manually without JEI. The confirmation button shows **Make & install**, **Upgrade** or **Make to ME**; hover for the target provider location. A corresponding real machine can manufacture its first core with an empty core slot, including wireless connections. An empty slot receives one core, with extras stored in ME. If the slot is occupied, all results go to ME. Cancel orders in terminal crafting status.
 
-EC and Avaritia tier-upgrade patterns may omit the old core: an order placed on this provider consumes its installed old core at completion and installs the upgrade. Explicitly including the old core consumes network materials and returns the result to ME. Missing materials or a changed installed core prevent the upgrade.
+EC and Avaritia in-place upgrades require one core per order. Omit the old core from the pattern to consume the target provider's installed core when the upgrade step executes. To manufacture spare cores in bulk, include the old core as a pattern input: materials come from ME and all results return to ME. Missing materials or a changed installed core prevent the upgrade. Intermediate cores needed by another crafting job stay in its CPU instead of being installed.
 
 * [Black Hole](black-hole.md)
 
-For an installed-core upgrade, encode the target core recipe materials without its Basic Packaged Core. For example, EC Advanced requires four Luminessence, two Advanced Components and two Black Iron Ingots → one Advanced Table Packaged Core. The provider consumes its installed Basic Table core on completion. To consume an old core from ME instead, explicitly add that specialized core to the pattern.
+For an installed-core upgrade, encode the target core recipe materials without its predecessor core. For example, EC Advanced requires four Luminessence, two Advanced Components and two Black Iron Ingots → one Advanced Table Packaged Core. The provider consumes its installed Basic Table core on completion. To consume an old core from ME instead, explicitly add that specialized core to the pattern.
 
 ### Touhou Little Maid
 
