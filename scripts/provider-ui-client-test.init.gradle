@@ -1,0 +1,35 @@
+// Run resonant-test.init.gradle + runGameTestServer first to seed the disposable world.
+// ./gradlew -I scripts/resonant-test.init.gradle -I scripts/provider-ui-client-test.init.gradle runClient
+allprojects {
+    afterEvaluate {
+        sourceSets.create('providerUiTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.providerUiTest)
+        neoForge.runs.client {
+            sourceSet = sourceSets.providerUiTest
+            gameDirectory = project.layout.buildDirectory.dir('provider-ui-client').get().asFile
+            programArguments.addAll '--quickPlaySingleplayer', 'ProviderUI', '--width', '1200', '--height', '900'
+        }
+        def root = project.file('build/provider-ui-client')
+        def seed = project.file('build/resonant-absent-native/world/level.dat')
+        def result = new File(root, 'provider-ui-result.txt')
+        tasks.named('runClient') {
+            doFirst {
+                root.mkdirs()
+                result.delete()
+                new File(root, 'options.txt').text = 'onboardAccessibility:false\nlang:zh_cn\npauseOnLostFocus:false\nrenderDistance:3\nsimulationDistance:3\nmaxFps:60\n'
+                def save = new File(root, 'saves/ProviderUI/level.dat')
+                if (!save.exists()) {
+                    save.parentFile.mkdirs()
+                    save.bytes = seed.bytes
+                }
+            }
+            doLast {
+                if (!result.exists() || !result.text.startsWith('PASS'))
+                    throw new GradleException('Provider UI probe failed: ' + (result.exists() ? result.text : 'no result'))
+            }
+        }
+    }
+}

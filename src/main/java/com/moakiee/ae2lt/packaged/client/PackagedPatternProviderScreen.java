@@ -4,8 +4,6 @@ import java.util.List;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -13,14 +11,16 @@ import net.minecraft.world.inventory.Slot;
 
 import appeng.api.config.Settings;
 import appeng.menu.SlotSemantics;
-import static com.moakiee.ae2lt.packaged.patternprovider.StablePatternProviderBlockEntity.SLOTS_PER_PAGE;
 import appeng.client.gui.implementations.PatternProviderScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.SettingToggleButton;
 import appeng.client.gui.widgets.UpgradesPanel;
 
+import com.moakiee.ae2lt.api.client.PageInput;
+import com.moakiee.ae2lt.api.client.PageNavigationButton;
 import com.moakiee.ae2lt.api.client.PatternProviderToolbarButtonHider;
 import com.moakiee.ae2lt.api.frequency.FrequencyApi;
+import com.moakiee.ae2lt.api.patternprovider.PatternSlotPages;
 import com.moakiee.ae2lt.packaged.AE2LTPackagedProvider;
 import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
 
@@ -31,8 +31,7 @@ public class PackagedPatternProviderScreen
 
     private final PackagedProviderTextureButton autoReturnButton;
     private final PackagedProviderTextureButton modeButton;
-    private Button previousPage;
-    private Button nextPage;
+    private final PageNavigationButton pageButton;
 
     public PackagedPatternProviderScreen(PackagedPatternProviderMenu menu, Inventory playerInventory,
                                          Component title, ScreenStyle style) {
@@ -45,6 +44,11 @@ public class PackagedPatternProviderScreen
         frequencyButton.setTooltipOn(List.of(
                 Component.translatable("ae2lt.gui.frequency.bind")));
         addToLeftToolbar(frequencyButton);
+
+        pageButton = new PageNavigationButton(
+                this::isHandlingRightClick, menu::clientPrevPage, menu::clientNextPage);
+        pageButton.setPage(menu.currentPage, menu.getTotalPages());
+        addToLeftToolbar(pageButton);
 
         autoReturnButton = PackagedProviderTextureButton.autoReturn(
                 menu::clientToggleAutoReturn);
@@ -81,20 +85,7 @@ public class PackagedPatternProviderScreen
     protected void init() {
         super.init();
         hideUnsupportedToolbarButtons();
-        var patternSlots = menu.getSlots(SlotSemantics.ENCODED_PATTERN);
-        for (int i = SLOTS_PER_PAGE; i < patternSlots.size(); i++) {
-            var origin = patternSlots.get(i % SLOTS_PER_PAGE);
-            patternSlots.get(i).x = origin.x;
-            patternSlots.get(i).y = origin.y;
-        }
-        if (menu.getTotalPages() > 1) {
-            previousPage = addRenderableWidget(Button.builder(Component.literal("<"), b -> menu.clientPrevPage())
-                    .bounds(leftPos + 106, topPos + 28, 14, 12)
-                    .tooltip(Tooltip.create(Component.translatable("ae2ltpp.gui.previous_page"))).build());
-            nextPage = addRenderableWidget(Button.builder(Component.literal(">"), b -> menu.clientNextPage())
-                    .bounds(leftPos + 148, topPos + 28, 14, 12)
-                    .tooltip(Tooltip.create(Component.translatable("ae2ltpp.gui.next_page"))).build());
-        }
+        PatternSlotPages.alignSlots(menu.getSlots(SlotSemantics.ENCODED_PATTERN));
     }
 
     private void hideUnsupportedToolbarButtons() {
@@ -103,13 +94,10 @@ public class PackagedPatternProviderScreen
                 continue;
             }
             boolean hide = PatternProviderToolbarButtonHider
-                    .shouldHideToolbarButtonClassName(widget.getClass().getName());
+                    .shouldHideToolbarButton(widget);
             if (widget instanceof SettingToggleButton<?> settingButton) {
                 var setting = settingButton.getSetting();
-                hide |= setting == Settings.BLOCKING_MODE
-                        || (setting != null
-                        && PatternProviderToolbarButtonHider
-                                .shouldHideToolbarButtonSettingName(setting.getName()));
+                hide |= setting == Settings.BLOCKING_MODE;
             }
             if (hide) {
                 widget.visible = false;
@@ -129,8 +117,7 @@ public class PackagedPatternProviderScreen
         menu.showPage(menu.currentPage);
         setTextContent("interface_config", Component.empty());
         setTextContent("interface_stored_items", Component.translatable("gui.ae2.ReturnInventory"));
-        if (previousPage != null) previousPage.active = menu.currentPage > 0;
-        if (nextPage != null) nextPage.active = menu.currentPage + 1 < menu.getTotalPages();
+        pageButton.setPage(menu.currentPage, menu.getTotalPages());
     }
 
     @Override
@@ -138,16 +125,15 @@ public class PackagedPatternProviderScreen
         super.drawFG(graphics, offsetX, offsetY, mouseX, mouseY);
         if (menu.getTotalPages() > 1) {
             String pageText = (menu.currentPage + 1) + "/" + menu.getTotalPages();
-            graphics.drawString(font, pageText, 134 - font.width(pageText) / 2, 30, 0x404040, false);
+            graphics.drawString(font, pageText, (imageWidth - font.width(pageText)) / 2, 30, 0x404040, false);
         }
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (menu.getTotalPages() > 1 && mouseX >= leftPos + 8 && mouseX < leftPos + 170
-                && mouseY >= topPos + 28 && mouseY < topPos + 114 && scrollY != 0) {
-            if (scrollY > 0) menu.clientPrevPage();
-            else menu.clientNextPage();
+                && mouseY >= topPos + 28 && mouseY < topPos + 114
+                && PageInput.handleScroll(scrollY, menu::clientPrevPage, menu::clientNextPage)) {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);

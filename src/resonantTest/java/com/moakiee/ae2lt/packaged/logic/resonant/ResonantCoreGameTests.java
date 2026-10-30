@@ -445,6 +445,7 @@ public final class ResonantCoreGameTests {
     @GameTest(template = "resonant_test", timeoutTicks = 100)
     public static void extendedCapacityPagesPersistenceAndRecipe(GameTestHelper h) {
         var be = extendedProvider(h);
+        assertProviderIcons(h, be, PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get().asItem());
         var inv = logic(be).getPatternInv();
         h.assertTrue(inv.size() == 144, "extended inventory has 144 physical slots");
         for (int i = 0; i < 144; i++) inv.setItemDirect(i, ordinary(List.of(stack(Items.IRON_INGOT, i + 1))));
@@ -562,6 +563,8 @@ public final class ResonantCoreGameTests {
         var player = FakePlayerFactory.get(h.getLevel(), new GameProfile(UUID.randomUUID(), "FixedModes"));
         for (boolean wireless : new boolean[] {false, true}) {
             var be = provider(h, wireless);
+            assertProviderIcons(h, be, wireless ? PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get().asItem()
+                    : PPBlocks.PACKAGED_PATTERN_PROVIDER.get().asItem());
             var mode = wireless ? ProviderMode.WIRELESS : ProviderMode.NORMAL;
             be.setProviderMode(wireless ? ProviderMode.NORMAL : ProviderMode.WIRELESS);
             var menu = new PackagedPatternProviderMenu(1, player.getInventory(), be);
@@ -572,6 +575,11 @@ public final class ResonantCoreGameTests {
                     "original models remain 36 slots and one page");
         }
         h.succeed();
+    }
+
+    private static void assertProviderIcons(GameTestHelper h, PackagedPatternProviderBlockEntity be, Item item) {
+        h.assertTrue(be.getMainMenuIcon().is(item), "main menu icon follows registered provider variant");
+        h.assertTrue(be.getTerminalIcon().equals(AEItemKey.of(item)), "terminal icon follows registered provider variant");
     }
 
     private static ExtendedPackagedPatternProviderBlockEntity extendedProvider(GameTestHelper h) {

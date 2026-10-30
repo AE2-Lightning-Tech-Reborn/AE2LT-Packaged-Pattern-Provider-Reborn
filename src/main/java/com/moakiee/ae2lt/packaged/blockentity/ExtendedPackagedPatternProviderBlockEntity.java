@@ -1,14 +1,9 @@
 package com.moakiee.ae2lt.packaged.blockentity;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.stacks.AEItemKey;
-
 import com.moakiee.ae2lt.packaged.registry.PPBlockEntities;
-import com.moakiee.ae2lt.packaged.registry.PPBlocks;
 
 public class ExtendedPackagedPatternProviderBlockEntity extends PackagedPatternProviderBlockEntity {
     public static final int PATTERN_SLOTS = 144;
@@ -25,21 +20,6 @@ public class ExtendedPackagedPatternProviderBlockEntity extends PackagedPatternP
     @Override
     public boolean isProviderModeSwitchable() {
         return true;
-    }
-
-    @Override
-    public ItemStack getMainMenuIcon() {
-        return new ItemStack(PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get());
-    }
-
-    @Override
-    public AEItemKey getTerminalIcon() {
-        return AEItemKey.of(PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get());
-    }
-
-    @Override
-    protected Item getItemFromBlockEntity() {
-        return PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get().asItem();
     }
 
     @Override
