@@ -1,0 +1,22 @@
+// Combine with core-test.init.gradle. ppFaJsModsDir contains native FA, Valhelsia,
+// Forbidden Arcanus JS, KubeJS, Rhino and Productive Bees (+ its bundled library).
+allprojects {
+    afterEvaluate {
+        def modsDir = providers.gradleProperty('ppFaJsModsDir').orNull
+        if (modsDir == null || !project.file(modsDir).isDirectory()) {
+            throw new GradleException('Set -PppFaJsModsDir to the native FA JS test mods directory')
+        }
+        dependencies.add('runtimeOnly', project.files(project.fileTree(modsDir) { include '*.jar' }))
+        dependencies.add('runtimeOnly', 'curse.maven:jei-238222:7391682')
+        sourceSets.coreTest.java.setSrcDirs(['src/faJsTest/java'])
+        sourceSets.coreTest.resources.srcDir 'src/faJsTest/resources'
+        def prepareScripts = tasks.register('prepareFaJsTestScripts', Copy) {
+            from 'src/faJsTest/kubejs'
+            into layout.buildDirectory.dir('fa-js-native/kubejs')
+        }
+        tasks.named('runGameTestServer') { dependsOn prepareScripts }
+        neoForge.runs.gameTestServer {
+            gameDirectory = project.layout.buildDirectory.dir('fa-js-native').get().asFile
+        }
+    }
+}

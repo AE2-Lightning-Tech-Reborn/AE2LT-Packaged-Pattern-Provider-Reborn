@@ -16,3 +16,4 @@
 - [凿子转换与无线连接](CHISELING_COMPATIBILITY.zh-CN.md)
 - [游戏环境兼容测试](GAME_TESTS.zh-CN.md)
 - [赫菲托斯锻炉封包验证](FA_FORGE_COMPATIBILITY.zh-CN.md)
+- [Forbidden Arcanus JS 锻炉配方兼容](FA_FORGE_JS_COMPATIBILITY.zh-CN.md)

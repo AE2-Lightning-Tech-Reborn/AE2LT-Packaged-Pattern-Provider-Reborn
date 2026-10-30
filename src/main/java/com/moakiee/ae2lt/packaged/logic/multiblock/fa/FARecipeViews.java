@@ -9,14 +9,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 
-/** Read-only JEI data derived from FA's live synced registries and native item components. */
+/** Read-only JEI data derived from the forge's live ritual source and native item components. */
 public final class FARecipeViews {
     public record View(String kind,List<List<GenericStack>> inputs,List<GenericStack> outputs,ItemStack core,
                        net.minecraft.network.chat.Component requirement,List<ItemStack> enhancers){}
     private FARecipeViews(){}
     public static List<View> recipes(Level level,Collection<ItemStack> items){
         var out=new ArrayList<View>();
-        for(var recipe:FAAccess.registry(level,"hephaestus_forge/ritual")){
+        for(var ritual:FARituals.all(level)){
+            var recipe=ritual.recipe();
             var main=(Ingredient)FAAccess.call(recipe,"mainIngredient");
             for(var item:main.getItems()){
                 var result=FAAccess.ritualResult(recipe,item);
