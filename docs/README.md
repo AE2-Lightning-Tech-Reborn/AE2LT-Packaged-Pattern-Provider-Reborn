@@ -10,6 +10,7 @@
 
 ## 模组兼容
 
+- [JEI 19.x 版本兼容与验证](JEI_COMPATIBILITY.zh-CN.md)
 - [农夫乐事与无尽乐事烹饪锅](DELIGHT_COMPATIBILITY.zh-CN.md)
 
 - [星辉魔法](ASTRAL_SORCERY_COMPATIBILITY.zh-CN.md)
