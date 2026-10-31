@@ -17,6 +17,8 @@
 
 根因：旧 `CraftConfirmMenuMixin` 的隐式构造器行号表使 Mixin 0.8.7 的 `Constructor.getRange` / `InsnRange.apply` 将前面的 `coreMode = ""` 排除在待注入初始化指令之外，只提取了 `coreDescription = Component.empty()`。实际客户端导出的目标构造器也缺少模式赋值，新建菜单可直接读到 `null`，服务端同步到达之前调用 `mode.isEmpty()` 即崩溃。修复使用构造器 `RETURN` 注入显式初始化，并让 UI 接受空值。回归必须检查新建菜单，不能只检查同步完成后的界面。
 
+2026-10-31 的 1.2.4 发布回归沿用 alpha `b41135f` 的原始实现与客户端探针，不增加 getter 默认值处理。Minecraft 1.21.1、AE2 19.2.17、NeoForge 21.1.264、AE2LT 2.1.3、Thunderbolt 2.0.3 环境下，138 项 JUnit 和完整构建通过，真实客户端探针写入 PASS。客户端日志为 `build/release-confirm-original-1.2.4-client-neoforge264-online.log`，完整构建日志为 `build/release-original-full-build-neoforge264.log`；首次同步前渲染、空模式与空说明、全量/增量同步及按钮恢复均通过。未验证完整整合包的多人网络环境。
+
 ## 2026-10-07 本地验证结果
 
 环境：Java 21、NeoForge 21.1.230、AE2 19.2.17、AE2LT 2.1.1、Thunderbolt 2.0.0。
