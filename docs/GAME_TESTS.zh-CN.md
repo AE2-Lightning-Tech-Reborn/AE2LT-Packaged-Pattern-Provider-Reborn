@@ -2,6 +2,21 @@
 
 测试在真实 Minecraft 1.21.1 / NeoForge 服务端运行，加载目标模组的方块、配方序列化器、库存、能量 capability 和原生 ticker。可以自动运行 GameTestServer，也可以启动测试客户端后用 `/test` 查看结构和执行测试。
 
+## 合成确认界面初始化回归
+
+`scripts/core-confirm-client-test.init.gradle` 在独立客户端目录运行 `CoreConfirmationClientProbe`，测试类不进入发布 JAR。传入一个可丢弃测试世界的 `level.dat`；脚本只将它复制到 `build/core-confirm-client/saves/CoreConfirmQA`，不打开原世界。
+
+```sh
+./gradlew --no-configuration-cache -I scripts/core-confirm-client-test.init.gradle \
+  -Pae2lt_jar=/path/to/compatible-ae2lt.jar \
+  -Pthunderbolt_maven_notation= -Pthunderbolt_jar=/path/to/compatible-thunderbolt.jar \
+  -PppConfirmSeed=/path/to/disposable-world/level.dat runClient
+```
+
+探针检查真实 Mixin 变换后的 `CraftConfirmMenu` 在任何同步前的默认值和实际界面渲染，再通过 AE2 `DataSynchronization` 在两个菜单实例之间执行全量、增量序列化，检查安装、阻塞和普通合成状态，以及空模式、空说明和按钮文字/位置/宽度/提示恢复。它验证同步编码及客户端行为，不替代完整整合包的多人网络测试。结果写入 `build/core-confirm-client/core-confirm-result.txt`；失败或缺少结果会使 Gradle 任务失败。
+
+根因：旧 `CraftConfirmMenuMixin` 的隐式构造器行号表使 Mixin 0.8.7 的 `Constructor.getRange` / `InsnRange.apply` 将前面的 `coreMode = ""` 排除在待注入初始化指令之外，只提取了 `coreDescription = Component.empty()`。实际客户端导出的目标构造器也缺少模式赋值，新建菜单可直接读到 `null`，服务端同步到达之前调用 `mode.isEmpty()` 即崩溃。修复使用构造器 `RETURN` 注入显式初始化，并让 UI 接受空值。回归必须检查新建菜单，不能只检查同步完成后的界面。
+
 ## 2026-10-07 本地验证结果
 
 环境：Java 21、NeoForge 21.1.230、AE2 19.2.17、AE2LT 2.1.1、Thunderbolt 2.0.0。

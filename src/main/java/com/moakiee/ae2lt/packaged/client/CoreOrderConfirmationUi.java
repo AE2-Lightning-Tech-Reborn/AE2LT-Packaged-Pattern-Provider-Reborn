@@ -19,7 +19,7 @@ public final class CoreOrderConfirmationUi {
         if (!(screen.getMenu() instanceof CoreOrderConfirmation state)) return;
         var start = ((CraftConfirmScreenAccessor) screen).ae2ltpp$startButton();
         String mode = state.ae2ltpp$coreMode();
-        if (mode.isEmpty()) {
+        if (mode == null || mode.isEmpty()) {
             var previous = BUTTONS.remove(start);
             if (previous != null) {
                 start.setMessage(previous.label());
@@ -36,9 +36,11 @@ public final class CoreOrderConfirmationUi {
         int width = Math.max(previous.width(), Minecraft.getInstance().font.width(label) + 12);
         start.setX(start.getX() + start.getWidth() - width);
         start.setWidth(width);
-        if (!state.ae2ltpp$coreDescription().equals(previous.description())) {
-            start.setTooltip(Tooltip.create(state.ae2ltpp$coreDescription()));
-            BUTTONS.put(start, new ButtonState(previous.label(), previous.tooltip(), previous.width(), state.ae2ltpp$coreDescription()));
+        var description = state.ae2ltpp$coreDescription();
+        if (description == null) description = Component.empty();
+        if (!description.equals(previous.description())) {
+            start.setTooltip(Tooltip.create(description));
+            BUTTONS.put(start, new ButtonState(previous.label(), previous.tooltip(), previous.width(), description));
         }
         if (state.ae2ltpp$coreBlocked()) start.active = false;
     }

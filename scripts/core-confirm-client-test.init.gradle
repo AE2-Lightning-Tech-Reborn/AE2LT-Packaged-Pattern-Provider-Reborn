@@ -1,0 +1,47 @@
+// Opt-in real Mixin/GUI regression. Supply -PppConfirmSeed=/path/to/disposable/level.dat.
+// ./gradlew -I scripts/core-confirm-client-test.init.gradle runClient
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group == 'org.appliedenergistics'
+                || dep.group == 'com.moakiee.thunderbolt'
+                || dep.group == 'top.theillusivec4.curios'
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('coreConfirmTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.coreConfirmTest)
+        def root = project.file('build/core-confirm-client')
+        def result = new File(root, 'core-confirm-result.txt')
+        neoForge.runs.client {
+            sourceSet = sourceSets.coreConfirmTest
+            gameDirectory = root
+            systemProperty 'mixin.debug.export', 'true'
+            programArguments.addAll '--quickPlaySingleplayer', 'CoreConfirmQA', '--width', '1000', '--height', '700'
+        }
+        tasks.named('runClient') {
+            doFirst {
+                root.mkdirs()
+                result.delete()
+                new File(root, 'options.txt').text = 'onboardAccessibility:false\nlang:zh_cn\npauseOnLostFocus:false\nrenderDistance:2\nsimulationDistance:2\nmaxFps:60\n'
+                def save = new File(root, 'saves/CoreConfirmQA/level.dat')
+                if (!save.exists()) {
+                    def seed = providers.gradleProperty('ppConfirmSeed').orNull
+                    if (seed == null || !project.file(seed).isFile())
+                        throw new GradleException('Supply ppConfirmSeed with a disposable world level.dat')
+                    save.parentFile.mkdirs()
+                    save.bytes = project.file(seed).bytes
+                }
+            }
+            doLast {
+                if (!result.exists() || !result.text.startsWith('PASS'))
+                    throw new GradleException('Core confirmation probe failed: ' + (result.exists() ? result.text : 'no result'))
+            }
+        }
+    }
+}

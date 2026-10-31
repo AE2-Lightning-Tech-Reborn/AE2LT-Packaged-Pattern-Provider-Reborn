@@ -26,11 +26,20 @@ public abstract class CraftConfirmMenuMixin implements CoreOrderConfirmation {
     @Shadow private ICraftingPlan result;
     @Shadow private IGrid getGrid() { throw new AssertionError(); }
     @Unique @GuiSync(22010)
-    private String ae2ltpp$coreMode = "";
+    private String ae2ltpp$coreMode;
     @Unique @GuiSync(22011)
-    private Component ae2ltpp$coreDescription = Component.empty();
+    private Component ae2ltpp$coreDescription;
     @Unique @GuiSync(22012)
     private boolean ae2ltpp$coreBlocked;
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void ae2ltpp$initializeCoreDestination(CallbackInfo ci) {
+        // Mixin's line-number-based initializer extraction can omit the first of these
+        // annotated field initializers. Initialize explicitly before the first client render
+        // or server GUI sync; the client may render before receiving its first sync packet.
+        ae2ltpp$coreMode = "";
+        ae2ltpp$coreDescription = Component.empty();
+    }
 
     @Override public String ae2ltpp$coreMode() { return ae2ltpp$coreMode; }
     @Override public Component ae2ltpp$coreDescription() { return ae2ltpp$coreDescription; }
