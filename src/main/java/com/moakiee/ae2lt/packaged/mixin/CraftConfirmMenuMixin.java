@@ -41,8 +41,13 @@ public abstract class CraftConfirmMenuMixin implements CoreOrderConfirmation {
         ae2ltpp$coreDescription = Component.empty();
     }
 
-    @Override public String ae2ltpp$coreMode() { return ae2ltpp$coreMode; }
-    @Override public Component ae2ltpp$coreDescription() { return ae2ltpp$coreDescription; }
+    // Rendering must also be safe before the client has usable synchronized state.
+    @Override public String ae2ltpp$coreMode() {
+        return ae2ltpp$coreMode == null ? "" : ae2ltpp$coreMode;
+    }
+    @Override public Component ae2ltpp$coreDescription() {
+        return ae2ltpp$coreDescription == null ? Component.empty() : ae2ltpp$coreDescription;
+    }
     @Override public boolean ae2ltpp$coreBlocked() { return ae2ltpp$coreBlocked; }
 
     @Unique
