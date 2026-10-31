@@ -103,7 +103,7 @@ public final class FAForgeEdgeGameTests {
             var plan = adapter.planWithBinding(h.getLevel(), forge.getBlockPos(), pattern, inputs(list), binding.handle(), SOURCE);
             h.assertTrue(plan != null, name + " plans with native tier and enhancers");
             dispatch(h, plan);
-            h.assertTrue(FAAccess.active(forge), name + " really starts");
+            h.assertTrue(!FAAccess.active(forge) && forge.getPersistentData().contains(FAForgeAdapter.JOB), name + " waits for input sync");
             h.assertTrue(!adapter.canDispatch(h.getLevel(), forge.getBlockPos(), binding.handle()), "active ritual cannot be overwritten");
             h.succeedWhen(() -> {
                 var result = adapter.extractOutputs(h.getLevel(), forge.getBlockPos(), new AllowedOutputFilter(), SOURCE);
@@ -404,7 +404,7 @@ public final class FAForgeEdgeGameTests {
             var binding = adapter.bind(h.getLevel(), forge.getBlockPos(), pattern);
             dispatch(h, adapter.planWithBinding(h.getLevel(), forge.getBlockPos(), pattern, inputs(list), binding.handle(), SOURCE));
             h.succeedWhen(() -> {
-                h.assertTrue(!FAAccess.active(forge), "wait for real ritual finish");
+                h.assertTrue(!FAAccess.active(forge) && FAAccess.stack(forge, 4).is(Items.GOLDEN_APPLE), "wait for real ritual finish");
                 var manual = new ItemStack(Items.GOLDEN_APPLE, 3);
                 manual.set(DataComponents.CUSTOM_NAME, Component.literal("Player-owned replacement"));
                 FAAccess.setStack(forge, 4, manual);

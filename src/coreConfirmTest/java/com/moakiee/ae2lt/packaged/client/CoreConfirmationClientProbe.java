@@ -40,6 +40,8 @@ public final class CoreConfirmationClientProbe {
             if (screen == null) {
                 var menu = newMenu();
                 var state = (CoreOrderConfirmation) menu;
+                check("".equals(get(menu, "coreMode")), "fresh transformed mode field is initialized before sync");
+                check(Component.empty().equals(get(menu, "coreDescription")), "fresh transformed description field is initialized");
                 check("".equals(state.ae2ltpp$coreMode()), "fresh menu mode must be empty before any sync; actual=" + state.ae2ltpp$coreMode());
                 check(Component.empty().equals(state.ae2ltpp$coreDescription()), "fresh menu description");
                 check(!state.ae2ltpp$coreBlocked(), "fresh menu is not blocked");
@@ -83,7 +85,8 @@ public final class CoreConfirmationClientProbe {
             set(sender, "coreBlocked", true);
             set(sender, "coreDescription", null); // Component GUI fields explicitly allow null.
             sync(senderSync, receiverSync, false);
-            check(state.ae2ltpp$coreDescription() == null, "nullable description decoded");
+            check(get(menu, "coreDescription") == null, "nullable description decoded into the synchronized field");
+            check(Component.empty().equals(state.ae2ltpp$coreDescription()), "nullable description has a safe public default");
             CoreOrderConfirmationUi.update(screen);
             check(!button.active, "blocked order disables the start button with a null description");
 
@@ -117,6 +120,12 @@ public final class CoreConfirmationClientProbe {
         var field = CraftConfirmMenu.class.getDeclaredField("ae2ltpp$" + name);
         field.setAccessible(true);
         field.set(menu, value);
+    }
+
+    private static Object get(CraftConfirmMenu menu, String name) throws ReflectiveOperationException {
+        var field = CraftConfirmMenu.class.getDeclaredField("ae2ltpp$" + name);
+        field.setAccessible(true);
+        return field.get(menu);
     }
 
     private static void sync(DataSynchronization sender, DataSynchronization receiver, boolean full) {

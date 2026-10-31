@@ -1,0 +1,60 @@
+// Real client; combine with core-test.init.gradle and native FA jar properties.
+allprojects {
+    afterEvaluate {
+        def withJs = providers.gradleProperty('ppFaJsModsDir').isPresent()
+        def absent = providers.gradleProperty('ppForgeProbeAbsent').getOrElse('false') == 'true'
+        if (absent && withJs) throw new GradleException('Absent probe cannot load the FA JS mods directory')
+        for (def name : (withJs || absent) ? [] : ['ppForbiddenJar', 'ppValhelsiaJar']) {
+            def path = providers.gradleProperty(name).orNull
+            if (path == null || !project.file(path).isFile())
+                throw new GradleException('Set -P' + name + ' to the native jar')
+        }
+        sourceSets.create('forgeClientProbe') {
+            java.srcDirs 'src/forgeClientProbe/java', 'src/forgeProbe/java'
+            java.include '**/FAForgeClientProbe.java', '**/ForgeProbeSupport.java'
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.forgeClientProbe)
+        def runName = providers.gradleProperty('ppForgeProbeRun').getOrElse(withJs ? 'js' : 'native')
+        if (!(runName ==~ /[A-Za-z0-9_-]+/)) throw new GradleException('Invalid ppForgeProbeRun')
+        def root = project.file('build/forge-probe-client-' + runName)
+        neoForge.runs.client {
+            sourceSet = sourceSets.forgeClientProbe
+            gameDirectory = root
+            programArguments.addAll '--quickPlaySingleplayer', 'ForgeProbe', '--width', '1200', '--height', '900'
+            systemProperty 'ae2ltpp.forgeProbeReload', providers.gradleProperty('ppForgeProbeReload').getOrElse('true')
+            systemProperty 'ae2ltpp.forgeProbeManual', providers.gradleProperty('ppForgeProbeManual').getOrElse('false')
+            systemProperty 'ae2ltpp.forgeProbeGui', providers.gradleProperty('ppForgeProbeGui').getOrElse('true')
+            systemProperty 'ae2ltpp.forgeProbeAbsent', absent.toString()
+        }
+        def result = new File(root, 'forge-client-result.txt')
+        if (withJs) {
+            def prepareScripts = tasks.register('prepareForgeProbeClientScripts', Copy) {
+                from 'src/faJsTest/kubejs'
+                from 'src/forgeProbe/kubejs'
+                into new File(root, 'kubejs')
+            }
+            tasks.named('runClient') { dependsOn prepareScripts }
+        }
+        tasks.named('runClient') {
+            doFirst {
+                root.mkdirs()
+                result.delete()
+                new File(root, 'forge-probe.jsonl').delete()
+                new File(root, 'options.txt').text = 'onboardAccessibility:false\nlang:zh_cn\npauseOnLostFocus:false\nrenderDistance:3\nsimulationDistance:3\nmaxFps:60\n'
+                def save = new File(root, 'saves/ForgeProbe/level.dat')
+                if (!save.exists()) {
+                    def seed = project.file('build/forge-native/world/level.dat')
+                    if (!seed.isFile()) throw new GradleException('Run the native forge GameTests first to create the seed level.dat')
+                    save.parentFile.mkdirs()
+                    save.bytes = seed.bytes
+                }
+            }
+            doLast {
+                if (!result.exists() || !result.text.startsWith('PASS'))
+                    throw new GradleException('Forge client probe failed: ' + (result.exists() ? result.text : 'no result; inspect crash-reports and logs'))
+            }
+        }
+    }
+}

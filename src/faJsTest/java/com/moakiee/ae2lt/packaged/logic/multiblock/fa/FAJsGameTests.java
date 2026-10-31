@@ -108,15 +108,18 @@ public final class FAJsGameTests {
             var plan = adapter.planWithBinding(h.getLevel(), forge.getBlockPos(), pattern, inputs(list), binding.handle(), SOURCE);
             h.assertTrue(plan != null, "scripted bee dispatch plans");
             h.assertTrue(DispatchExecutor.execute(plan, SOURCE, s -> h.fail("unexpected retention " + s)).success(), "dispatch commits");
-            h.assertTrue(FAAccess.active(forge), "native ritual actually starts");
-            var saved = forge.saveWithFullMetadata(h.getLevel().registryAccess());
-            forge.loadWithComponents(saved, h.getLevel().registryAccess());
-            h.assertTrue(FAAccess.active(forge), "managed ritual holder survives serialization");
-            h.succeedWhen(() -> {
-                var outputs = adapter.extractOutputs(h.getLevel(), forge.getBlockPos(), new AllowedOutputFilter(), SOURCE);
-                h.assertTrue(outputs.equals(pattern.getOutputs()), "native ticker produces exact bee type and entity data");
-                h.assertTrue(adapter.extractOutputs(h.getLevel(), forge.getBlockPos(), new AllowedOutputFilter(), SOURCE).isEmpty(), "output returned once");
-                for (int i = 0; i < 4; i++) h.assertTrue(FAAccess.amount(forge, FAForgeConversion.name(i)) == 0, "exact essence charge " + i);
+            h.assertTrue(!FAAccess.active(forge), "native ritual waits for the input sync tick");
+            h.runAfterDelay(2, () -> {
+                h.assertTrue(FAAccess.active(forge), "native ritual actually starts on a later tick");
+                var saved = forge.saveWithFullMetadata(h.getLevel().registryAccess());
+                forge.loadWithComponents(saved, h.getLevel().registryAccess());
+                h.assertTrue(FAAccess.active(forge), "managed ritual holder survives serialization");
+                h.succeedWhen(() -> {
+                    var outputs = adapter.extractOutputs(h.getLevel(), forge.getBlockPos(), new AllowedOutputFilter(), SOURCE);
+                    h.assertTrue(outputs.equals(pattern.getOutputs()), "native ticker produces exact bee type and entity data");
+                    h.assertTrue(adapter.extractOutputs(h.getLevel(), forge.getBlockPos(), new AllowedOutputFilter(), SOURCE).isEmpty(), "output returned once");
+                    for (int i = 0; i < 4; i++) h.assertTrue(FAAccess.amount(forge, FAForgeConversion.name(i)) == 0, "exact essence charge " + i);
+                });
             });
         });
     }

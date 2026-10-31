@@ -78,16 +78,19 @@ public final class FAGameTests {
             h.assertTrue(plan!=null,"native ritual plan");
             var dispatch=DispatchExecutor.execute(plan,source,s->h.fail("unexpected retained inputs "+s));
             h.assertTrue(dispatch.success(),"ritual dispatch "+dispatch);
-            h.assertTrue(FAAccess.active(forge),"native ritual started");
-            int[] remaining={5,1,0,0};long[] net={100,100,70,90};
-            for(int i=0;i<4;i++){h.assertTrue(FAAccess.amount(forge,FAForgeConversion.name(i))==remaining[i],"pattern then existing priority "+i);h.assertTrue(reserve.getAvailableStacks().get(ForbiddenEssenceResources.ALL.get(i))==net[i],"ME only deficit "+i);}
-            // Save/load metadata along with FA's own active ritual, without editing native progress.
-            var saved=forge.saveWithFullMetadata(h.getLevel().registryAccess());forge.loadWithComponents(saved,h.getLevel().registryAccess());
-            h.assertTrue(forge.getPersistentData().contains(FAForgeAdapter.JOB),"owned return survives native save/load");
-            h.succeedWhen(()->{
-                var outputs=adapter.extractOutputs(h.getLevel(),forge.getBlockPos(),new AllowedOutputFilter(),source);
-                h.assertTrue(outputs.size()==1&&outputs.getFirst().what().equals(AEItemKey.of(PPItems.FA_FORGE_ADAPTER.get())),"native ritual result collected");
-                h.assertTrue(adapter.extractOutputs(h.getLevel(),forge.getBlockPos(),new AllowedOutputFilter(),source).isEmpty(),"no double collection");
+            h.assertTrue(!FAAccess.active(forge),"dispatch tick only reserves inputs");
+            h.runAfterDelay(2,()->{
+                h.assertTrue(FAAccess.active(forge),"native ritual starts on a later tick");
+                int[] remaining={5,1,0,0};long[] net={100,100,70,90};
+                for(int i=0;i<4;i++){h.assertTrue(FAAccess.amount(forge,FAForgeConversion.name(i))==remaining[i],"pattern then existing priority "+i);h.assertTrue(reserve.getAvailableStacks().get(ForbiddenEssenceResources.ALL.get(i))==net[i],"ME only deficit "+i);}
+                // Save/load metadata along with FA's own active ritual, without editing native progress.
+                var saved=forge.saveWithFullMetadata(h.getLevel().registryAccess());forge.loadWithComponents(saved,h.getLevel().registryAccess());
+                h.assertTrue(forge.getPersistentData().contains(FAForgeAdapter.JOB),"owned return survives native save/load");
+                h.succeedWhen(()->{
+                    var outputs=adapter.extractOutputs(h.getLevel(),forge.getBlockPos(),new AllowedOutputFilter(),source);
+                    h.assertTrue(outputs.size()==1&&outputs.getFirst().what().equals(AEItemKey.of(PPItems.FA_FORGE_ADAPTER.get())),"native ritual result collected");
+                    h.assertTrue(adapter.extractOutputs(h.getLevel(),forge.getBlockPos(),new AllowedOutputFilter(),source).isEmpty(),"no double collection");
+                });
             });
         });
     }
