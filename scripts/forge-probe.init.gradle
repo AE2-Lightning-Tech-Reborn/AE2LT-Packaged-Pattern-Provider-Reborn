@@ -1,0 +1,27 @@
+// Opt-in server fault probes. Combine with core-test.init.gradle and native FA jar properties.
+allprojects {
+    afterEvaluate {
+        def withJs = providers.gradleProperty('ppFaJsModsDir').isPresent()
+        for (def name : withJs ? [] : ['ppForbiddenJar', 'ppValhelsiaJar']) {
+            def path = providers.gradleProperty(name).orNull
+            if (path == null || !project.file(path).isFile())
+                throw new GradleException('Set -P' + name + ' to the native jar')
+        }
+        sourceSets.coreTest.java.srcDir 'src/forgeProbe/java'
+        def root = project.file(withJs ? 'build/forge-probe-js-server' : 'build/forge-probe-server')
+        if (withJs) {
+            def prepareScripts = tasks.register('prepareForgeProbeServerScripts', Copy) {
+                from 'src/faJsTest/kubejs'
+                from 'src/forgeProbe/kubejs'
+                into new File(root, 'kubejs')
+            }
+            tasks.named('runGameTestServer') { dependsOn prepareScripts }
+        }
+        neoForge.runs.gameTestServer {
+            gameDirectory = root
+        }
+        tasks.named('runGameTestServer') {
+            doFirst { new File(root, 'forge-probe.jsonl').delete() }
+        }
+    }
+}

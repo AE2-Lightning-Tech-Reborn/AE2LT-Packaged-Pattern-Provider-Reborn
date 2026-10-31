@@ -18,7 +18,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
 /** Native rituals and native four-slot essence conversion share one forge core. */
 public final class FAForgeAdapter implements MultiblockAdapter {
@@ -70,7 +69,9 @@ public final class FAForgeAdapter implements MultiblockAdapter {
         return ((List<?>)FAAccess.call(FAAccess.field(forge,"dataCache"),"cachedIngredients")).isEmpty();
     }
     @Override public boolean canDispatch(ServerLevel level,BlockPos pos,Object handle){
-        var forge=level.getBlockEntity(pos);return recognizesMain(level,pos,forge)&&idle(forge);
+        try{
+            var forge=level.getBlockEntity(pos);return recognizesMain(level,pos,forge)&&idle(forge);
+        }catch(RuntimeException|LinkageError e){failure("dispatch-gate",e);return false;}
     }
     @Override public DispatchPlan planWithBinding(ServerLevel level,BlockPos pos,IPatternDetails pattern,KeyCounter[] inputs,Object handle,IActionSource source){
         try{
@@ -115,7 +116,8 @@ public final class FAForgeAdapter implements MultiblockAdapter {
                     if(mode==Actionable.MODULATE)escrow.add(key,amount);return stack.amount();
                 }));
             }
-            return new DispatchPlan(targets,()->start(level,forge,ritual,cost,need,provided,storage,source,result(ritual.recipe(),keys.getFirst().toStack())),(accepted,sink)->{
+            return new DispatchPlan(targets,()->prepare(level,forge,ritual,cost,need,provided,storage,source,
+                    result(ritual.recipe(),keys.getFirst().toStack()),keys,pedestals),(accepted,sink)->{
                 if(FAAccess.active(forge))return; // Native start already owns these physical inputs.
                 forge.getPersistentData().remove(JOB);forge.setChanged();
                 for(var receipt:accepted){
@@ -134,7 +136,7 @@ public final class FAForgeAdapter implements MultiblockAdapter {
         var host=source.machine().orElse(null);if(host==null||host.getActionableNode()==null)return null;
         return host.getActionableNode().getGrid().getStorageService().getInventory();
     }
-    private static int[] cost(Object ritual){
+    static int[] cost(Object ritual){
         var definition=FAAccess.call(FAAccess.call(ritual,"requirements"),"essences");var cost=new int[4];
         for(int i=0;i<4;i++)cost[i]=(int)FAAccess.call(definition,"get",FAAccess.essence(FAForgeConversion.name(i)));return cost;
     }
@@ -148,8 +150,8 @@ public final class FAForgeAdapter implements MultiblockAdapter {
         var adjusted=FAAccess.call(FAAccess.call(FAAccess.call(ritual,"requirements"),"essences"),"applyModifiers",modifiers);
         int[] need=cost.clone();for(int i=0;i<4;i++)need[i]=Math.max(cost[i],(int)FAAccess.call(adjusted,"get",FAAccess.essence(FAForgeConversion.name(i))));return need;
     }
-    private static void start(ServerLevel level,BlockEntity forge,FARituals.Entry ritual,int[] cost,int[] need,int[] supplied,MEStorage storage,IActionSource source,ItemStack output){
-        int[] before=new int[4],taken=new int[4];boolean started=false;
+    private static void prepare(ServerLevel level,BlockEntity forge,FARituals.Entry ritual,int[] cost,int[] need,int[] supplied,MEStorage storage,IActionSource source,ItemStack output,List<AEItemKey> keys,List<BlockEntity> pedestals){
+        int[] before=new int[4],taken=new int[4];
         for(int i=0;i<4;i++)before[i]=FAAccess.amount(forge,FAForgeConversion.name(i));
         var state=new CompoundTag();state.putString("mode","ritual");state.put("output",output.save(level.registryAccess()));
         // Hide this forge from its own storage bus while asking ME for the deficit.
@@ -160,19 +162,10 @@ public final class FAForgeAdapter implements MultiblockAdapter {
                 if(missing>0){taken[i]=storage==null?0:(int)storage.extract(ForbiddenEssenceResources.ALL.get(i),missing,Actionable.MODULATE,source);
                     if(taken[i]!=missing)throw new IllegalStateException("Insufficient FA essence after excluding the executing forge");}
             }
-            for(int i=0;i<4;i++)FAAccess.amount(forge,FAForgeConversion.name(i),need[i]);
-            var manager=FAAccess.call(forge,"getRitualManager");
-            var selected=(Optional<?>)FAAccess.call(manager,"getValidRitual");
-            if(selected.isEmpty()||((Holder<?>)selected.get()).value()!=ritual.recipe())throw new IllegalStateException("Native ritual selection changed");
-            started=(boolean)FAAccess.call(manager,"startRitual",FakePlayerFactory.getMinecraft(level),FAAccess.call(FAAccess.call(forge,"getEssenceManager"),"getStorage"));
-            if(!started)throw new IllegalStateException("Native ritual rejected start");
-            for(int i=0;i<4;i++)FAAccess.amount(forge,FAForgeConversion.name(i),(int)((long)before[i]+supplied[i]+taken[i]-cost[i]));
-            forge.setChanged();
+            FAForgeRitualJobs.prepare(level,forge,state,ritual,cost,need,before,supplied,taken,keys,pedestals);
         }catch(RuntimeException|LinkageError e){
-            if(started||FAAccess.active(forge)){failure("native-start-after-commit",e);return;}
-            // Return network reservations before DispatchExecutor refunds CPU inputs.
+            // No ritual has started. Return network reservations before the CPU inputs roll back.
             for(int i=0;i<4;i++){
-                FAAccess.amount(forge,FAForgeConversion.name(i),before[i]);
                 long returned=taken[i]==0?0:storage.insert(ForbiddenEssenceResources.ALL.get(i),taken[i],Actionable.MODULATE,source);
                 if(returned<taken[i])FAAccess.amount(forge,FAForgeConversion.name(i),before[i]+taken[i]-(int)returned);
             }
@@ -189,8 +182,8 @@ public final class FAForgeAdapter implements MultiblockAdapter {
             out.add(be);if(out.size()==count)return out;
         }return null;
     }
-    private static ItemStack physical(BlockEntity be,int index){return index==0?FAAccess.stack(be,4):(ItemStack)FAAccess.call(be,"getStack");}
-    private static void setPhysical(BlockEntity be,int index,ItemStack stack){
+    static ItemStack physical(BlockEntity be,int index){return index==0?FAAccess.stack(be,4):(ItemStack)FAAccess.call(be,"getStack");}
+    static void setPhysical(BlockEntity be,int index,ItemStack stack){
         if(index==0)FAAccess.setStack(be,4,stack);
         else {var trigger=FAAccess.field(FAAccess.type(FAAccess.BASE+"common.block.pedestal.effect.PedestalEffectTrigger"),stack.isEmpty()?"PLAYER_REMOVE_ITEM":"PLAYER_PLACE_ITEM");
             FAAccess.call(be,"setStack",stack,null,trigger);be.setChanged();}
@@ -200,6 +193,8 @@ public final class FAForgeAdapter implements MultiblockAdapter {
             var forge=level.getBlockEntity(pos);if(!recognizesMain(level,pos,forge)||!forge.getPersistentData().contains(JOB))return List.of();
             var state=forge.getPersistentData().getCompound(JOB);
             if(state.getString("mode").equals("conversion"))return FAForgeConversion.collect(level,forge,state);
+            if(FAForgeRitualJobs.pending(state)){FAForgeRitualJobs.track(forge);return List.of();}
+            if(state.getString("mode").equals("refund"))return FAForgeRitualJobs.drainRefund(level,forge,state);
             if(FAAccess.active(forge))return List.of();
             var expected=ItemStack.parseOptional(level.registryAccess(),state.getCompound("output"));var current=FAAccess.stack(forge,4);
             if(!ItemStack.matches(expected,current)){
