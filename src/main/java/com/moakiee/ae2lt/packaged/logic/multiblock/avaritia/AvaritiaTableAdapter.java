@@ -151,7 +151,11 @@ public final class AvaritiaTableAdapter implements UnboundedVirtualCraftingAdapt
                 if (amount <= 0) {
                     continue;
                 }
-                available.merge(itemKey, amount, Long::sum);
+                try {
+                    available.merge(itemKey, amount, Math::addExact);
+                } catch (ArithmeticException ignored) {
+                    return null;
+                }
             }
         }
         if (available.isEmpty()) {
@@ -159,6 +163,7 @@ public final class AvaritiaTableAdapter implements UnboundedVirtualCraftingAdapt
         }
 
         for (var candidate : bind.recipes()) {
+            if (!TableCraftingSupport.isCurrentRecipe(level, candidate)) continue;
             var result = planRecipe(level, pattern, available, spec, candidate);
             if (result != null) return result;
         }
@@ -313,7 +318,7 @@ public final class AvaritiaTableAdapter implements UnboundedVirtualCraftingAdapt
                 continue;
             }
 
-            candidates.add(new BoundRecipe(recipe, (int) k));
+            candidates.add(new BoundRecipe(holder.id(), recipe, (int) k));
         }
         return candidates.isEmpty() ? null : new TableBindHandle(spec, List.copyOf(candidates));
     }

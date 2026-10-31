@@ -14,7 +14,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -105,6 +107,7 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
 
     private final NeighborMainBlockIndex neighborIndex;
     private final PatternBindingTable bindingTable = new PatternBindingTable();
+    private WeakReference<Collection<?>> bindingRecipeSnapshot = new WeakReference<>(null);
     private final Map<IPatternDetails, java.util.Optional<ResonantPatternAccess.Data>> resonantPatterns = new java.util.IdentityHashMap<>();
     private final LaneCooldownTable cooldownTable = new LaneCooldownTable();
     private record MekTarget(ResourceLocation dimension, BlockPos controller) {}
@@ -220,8 +223,9 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     }
 
     /**
-     * Invoked from the mod-level {@code RecipesUpdatedEvent} listener.
      * Wipes every cached binding so the next push re-runs {@code bind()}.
+     * The binding path detects the server RecipeManager's immutable recipe-map replacement,
+     * including script reloads that do not send a client RecipesUpdatedEvent.
      */
     public void onRecipesReloaded() {
         bindingTable.invalidateAll();
@@ -974,6 +978,14 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic
     // ===== Binding =====
 
     private PatternBinding getOrComputeBinding(ServerLevel level, IPatternDetails pattern, long gameTick) {
+        // RecipeManager.getRecipes() is the cached values view of its immutable by-name map.
+        // Vanilla reload and replaceRecipes publish a new view; unchanged pushes cost one identity check.
+        var recipes = level.getRecipeManager().getRecipes();
+        if (bindingRecipeSnapshot.get() != recipes) {
+            onRecipesReloaded();
+            // An idle provider must not keep an entire obsolete recipe map alive after a reload.
+            bindingRecipeSnapshot = new WeakReference<>(recipes);
+        }
         var existing = bindingTable.getFresh(pattern, gameTick);
         if (existing != null) {
             return existing;

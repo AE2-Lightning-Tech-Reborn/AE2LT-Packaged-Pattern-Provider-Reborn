@@ -1,0 +1,35 @@
+// Isolated native Re-Avaritia tests and fault probes. Test code never enters the release JAR.
+// ./gradlew --no-configuration-cache -I scripts/smithing-test.init.gradle test runGameTestServer
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.findAll {
+            it.group == 'maven.modrinth' && it.name in ['extended-crafting', 'cucumber']
+        }.each { dependencies.add('testRuntimeOnly', it.copy()) }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group in ['org.appliedenergistics', 'com.moakiee.thunderbolt', 'top.theillusivec4.curios']
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        sourceSets.create('smithingTest') {
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        def nativeJar = providers.gradleProperty('ppSmithingJar').orNull
+        if (nativeJar != null && !file(nativeJar).isFile()) throw new GradleException('Invalid ppSmithingJar: ' + nativeJar)
+        def avaritia = nativeJar == null ? 'maven.modrinth:re-avaritia:VXmzsQD6' : files(nativeJar)
+        dependencies.add('smithingTestImplementation', avaritia)
+        dependencies.add('runtimeOnly', avaritia)
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.smithingTest)
+        for (runName in ['gameTestServer', 'client', 'server']) {
+            neoForge.runs.getByName(runName) {
+                sourceSet = sourceSets.smithingTest
+                gameDirectory = project.layout.buildDirectory.dir("smithing-${runName}").get().asFile
+            }
+        }
+        tasks.named('runGameTestServer') {
+            doFirst { project.delete(layout.buildDirectory.file('smithing-gameTestServer/smithing-probe.jsonl')) }
+        }
+    }
+}

@@ -1,0 +1,54 @@
+// Full virtual table regressions, isolated from release dependencies and player worlds.
+// Optional -PppVirtualKubeJsDir=/path/to/KubeJS-and-Rhino enables real script/reload checks.
+allprojects {
+    afterEvaluate {
+        configurations.implementation.dependencies.findAll { it.name == 'ae2wtlib_api' }.each { it.transitive = false }
+        configurations.runtimeOnly.dependencies.removeIf { dep ->
+            !(dep.group in ['org.appliedenergistics', 'com.moakiee.thunderbolt', 'top.theillusivec4.curios']
+                || (dep.group == 'de.mari_023' && dep.name == 'ae2wtlib')
+                || (dep.group == 'maven.modrinth' && dep.name in ['extended-crafting', 'cucumber', 're-avaritia'])
+                || (dep instanceof org.gradle.api.artifacts.FileCollectionDependency
+                    && dep.files.files.any { it.name.startsWith('thunderbolt-') }))
+        }
+        def jsDir = providers.gradleProperty('ppVirtualKubeJsDir').orNull
+        def profile = jsDir == null ? 'native' : 'js'
+        sourceSets.create('virtualTableTest') {
+            for (suite in ['workbenchTest', 'smithingTest']) {
+                java.srcDir "src/${suite}/java"
+                resources.srcDir "src/${suite}/resources"
+            }
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + sourceSets.main.runtimeClasspath
+        }
+        dependencies.add('virtualTableTestImplementation', 'maven.modrinth:re-avaritia:VXmzsQD6')
+        dependencies.add('virtualTableTestImplementation', 'maven.modrinth:extended-crafting:Pb2OHQ8E')
+        dependencies.add('virtualTableTestImplementation', 'maven.modrinth:cucumber:8421rqFF')
+        if (jsDir != null) {
+            if (!project.file(jsDir).isDirectory()) throw new GradleException('Invalid ppVirtualKubeJsDir: ' + jsDir)
+            def jars = project.fileTree(jsDir) { include '*kubejs*.jar', '*rhino*.jar' }
+            for (name in ['kubejs', 'rhino']) {
+                if (!jars.files.any { it.name.toLowerCase().contains(name) })
+                    throw new GradleException('ppVirtualKubeJsDir must contain a real ' + name + ' JAR')
+            }
+            dependencies.add('runtimeOnly', files(jars))
+            sourceSets.virtualTableTest.java.srcDir 'src/virtualTableJsTest/java'
+            sourceSets.virtualTableTest.resources.srcDir 'src/virtualTableJsTest/resources'
+            def prepare = tasks.register('prepareVirtualTableScripts', Copy) {
+                from 'src/virtualTableJsTest/kubejs'
+                into layout.buildDirectory.dir("virtual-tables-${profile}/kubejs")
+            }
+            tasks.named('runGameTestServer') { dependsOn prepare }
+        }
+        neoForge.mods.ae2ltpp.sourceSet(sourceSets.virtualTableTest)
+        neoForge.runs.gameTestServer {
+            sourceSet = sourceSets.virtualTableTest
+            gameDirectory = project.layout.buildDirectory.dir("virtual-tables-${profile}").get().asFile
+        }
+        tasks.named('runGameTestServer') {
+            doFirst {
+                project.delete(layout.buildDirectory.file("virtual-tables-${profile}/virtual-table-probe.jsonl"))
+                project.delete(layout.buildDirectory.file("virtual-tables-${profile}/smithing-probe.jsonl"))
+            }
+        }
+    }
+}

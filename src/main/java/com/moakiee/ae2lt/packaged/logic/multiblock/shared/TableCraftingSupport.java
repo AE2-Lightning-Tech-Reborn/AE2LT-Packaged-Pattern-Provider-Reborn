@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import net.minecraft.core.NonNullList;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -111,7 +112,13 @@ public final class TableCraftingSupport {
     private record DeclaredInput(AEItemKey key, boolean idOnly) {}
 
     /** A recipe candidate retained until the concrete input components are known. */
-    public record BoundRecipe(Object recipe, int craftRatio) {}
+    public record BoundRecipe(ResourceLocation id, Object recipe, int craftRatio) {}
+
+    /** Recipe objects can outlive their manager entry after script removal or replacement. */
+    public static boolean isCurrentRecipe(ServerLevel level, BoundRecipe candidate) {
+        return level.getRecipeManager().byKey(candidate.id())
+                .map(holder -> holder.value() == candidate.recipe()).orElse(false);
+    }
 
     @Nullable
     public static List<ItemStack> assignIngredientsStrict(NonNullList<Ingredient> ingredients,
