@@ -12,6 +12,8 @@
 
 - [JEI 19.x 版本兼容与验证](JEI_COMPATIBILITY.zh-CN.md)
 - [农夫乐事与无尽乐事烹饪锅](DELIGHT_COMPATIBILITY.zh-CN.md)
+- [终焉锻造台边界测试与探针](AVARITIA_SMITHING_TESTS.zh-CN.md)
+- [Re-Avaritia / Extended Crafting 虚拟合成与脚本兼容](VIRTUAL_TABLES_COMPATIBILITY.zh-CN.md)
 
 - [星辉魔法](ASTRAL_SORCERY_COMPATIBILITY.zh-CN.md)
 - [凿子转换与无线连接](CHISELING_COMPATIBILITY.zh-CN.md)

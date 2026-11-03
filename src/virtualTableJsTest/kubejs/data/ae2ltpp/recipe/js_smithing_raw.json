@@ -1,0 +1,24 @@
+{
+  "type": "avaritia:extreme_smithing",
+  "template": {
+    "item": "minecraft:paper"
+  },
+  "base": {
+    "item": "minecraft:wooden_sword"
+  },
+  "addition": [
+    {
+      "item": "minecraft:iron_ingot"
+    },
+    {
+      "item": "minecraft:gold_ingot"
+    },
+    {
+      "item": "minecraft:copper_ingot"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "minecraft:stone_sword"
+  }
+}

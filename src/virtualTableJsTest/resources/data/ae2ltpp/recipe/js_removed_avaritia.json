@@ -1,0 +1,13 @@
+{
+  "type": "avaritia:shapeless_table",
+  "tier": 1,
+  "ingredients": [
+    {
+      "item": "minecraft:dirt"
+    }
+  ],
+  "result": {
+    "id": "minecraft:flint",
+    "count": 1
+  }
+}

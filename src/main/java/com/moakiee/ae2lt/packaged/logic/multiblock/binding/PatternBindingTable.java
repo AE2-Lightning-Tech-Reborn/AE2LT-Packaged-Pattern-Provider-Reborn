@@ -17,7 +17,7 @@ import appeng.api.crafting.IPatternDetails;
  *   <li>pattern slot edited &mdash; {@link #invalidateAll()} from {@code updatePatterns}</li>
  *   <li>neighbor block changed &mdash; {@link #invalidateAll()} from {@code onNeighborChanged}</li>
  *   <li>wireless connection list changed &mdash; {@link #invalidateAll()} from {@code onHostStateChanged}</li>
- *   <li>recipe table reloaded &mdash; {@link #invalidateAll()} from {@code RecipesUpdatedEvent}</li>
+ *   <li>server recipe map replaced &mdash; {@link #invalidateAll()} before the next binding lookup</li>
  * </ul>
  *
  * <p>The cache stores {@code PatternBinding} objects (which may be empty

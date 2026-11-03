@@ -2,6 +2,8 @@
 
 测试在真实 Minecraft 1.21.1 / NeoForge 服务端运行，加载目标模组的方块、配方序列化器、库存、能量 capability 和原生 ticker。可以自动运行 GameTestServer，也可以启动测试客户端后用 `/test` 查看结构和执行测试。
 
+Re-Avaritia / Extended Crafting 的 [统一虚拟合成专项](VIRTUAL_TABLES_COMPATIBILITY.zh-CN.md) 使用 `scripts/virtual-tables-test.init.gradle`，包含 58 项原生测试，加入真实 KubeJS 后为 62 项，并验证实际资源重载及旧版锻台 schema。终焉锻造台也可通过 [16 项独立专项与 JSONL 探针](AVARITIA_SMITHING_TESTS.zh-CN.md) 单独运行，入口为 `scripts/smithing-test.init.gradle`。
+
 ## 合成确认界面初始化回归
 
 `scripts/core-confirm-client-test.init.gradle` 在独立客户端目录运行 `CoreConfirmationClientProbe`，测试类不进入发布 JAR。传入一个可丢弃测试世界的 `level.dat`；脚本只将它复制到 `build/core-confirm-client/saves/CoreConfirmQA`，不打开原世界。

@@ -6,6 +6,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
+import com.moakiee.ae2lt.packaged.logic.multiblock.CompatibilityDiagnostics;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.UnboundedVirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
@@ -91,6 +92,10 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
         if (!(handle instanceof SmithingBindHandle bind)) {
             return null;
         }
+        if (level.getRecipeManager().byKey(bind.holder().id())
+                .map(holder -> holder.value() != bind.recipe()).orElse(true)) {
+            return null;
+        }
         if (!recognizesMain(level, mainPos, level.getBlockEntity(mainPos))) {
             return null;
         }
@@ -105,7 +110,11 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
                 if (amount <= 0) {
                     continue;
                 }
-                available.merge(itemKey, amount, Long::sum);
+                try {
+                    available.merge(itemKey, amount, Math::addExact);
+                } catch (ArithmeticException ignored) {
+                    return null;
+                }
             }
         }
         if (available.isEmpty()) {
@@ -167,7 +176,11 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
             } catch (ArithmeticException ignored) {
                 return null;
             }
-            provided.merge(itemKey, amount, Long::sum);
+            try {
+                provided.merge(itemKey, amount, Math::addExact);
+            } catch (ArithmeticException ignored) {
+                return null;
+            }
         }
         if (provided.isEmpty()) {
             return null;
@@ -219,7 +232,7 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
                 continue;
             }
 
-            return new SmithingBindHandle(recipe, (int) k);
+            return new SmithingBindHandle(holder, (int) k);
         }
         return null;
     }
@@ -326,6 +339,7 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
         try {
             return recipe instanceof Recipe<?> r && ((Recipe) r).matches(input, level);
         } catch (RuntimeException | LinkageError ignored) {
+            CompatibilityDiagnostics.failure(AvaritiaExtremeSmithingAdapter.class, "recipeMatches", ignored);
             return false;
         }
     }
@@ -338,6 +352,7 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
                     ? ((Recipe) r).assemble(input, level.registryAccess())
                     : null;
         } catch (RuntimeException | LinkageError ignored) {
+            CompatibilityDiagnostics.failure(AvaritiaExtremeSmithingAdapter.class, "assemble", ignored);
             return null;
         }
     }
@@ -350,6 +365,7 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
         try {
             return r.getResultItem(level.registryAccess());
         } catch (RuntimeException | LinkageError ignored) {
+            CompatibilityDiagnostics.failure(AvaritiaExtremeSmithingAdapter.class, "resultItem", ignored);
             return null;
         }
     }
@@ -370,7 +386,8 @@ public final class AvaritiaExtremeSmithingAdapter implements UnboundedVirtualCra
         return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
     }
 
-    private record SmithingBindHandle(Object recipe, int craftRatio) {
+    private record SmithingBindHandle(RecipeHolder<?> holder, int craftRatio) {
+        Object recipe() { return holder.value(); }
     }
 
     private record SmithingMatch(ItemStack template, ItemStack base, List<ItemStack> additions) {

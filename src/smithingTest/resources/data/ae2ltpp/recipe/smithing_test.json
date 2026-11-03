@@ -1,0 +1,7 @@
+{
+  "type": "avaritia:extreme_smithing",
+  "template": {"item": "minecraft:paper"},
+  "base": {"item": "minecraft:iron_sword"},
+  "addition": [{"item": "minecraft:iron_ingot"}, {"item": "minecraft:gold_ingot"}, {"item": "minecraft:copper_ingot"}],
+  "result": {"id": "minecraft:diamond_sword", "count": 1}
+}
