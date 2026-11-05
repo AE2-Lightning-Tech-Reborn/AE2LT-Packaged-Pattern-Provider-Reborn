@@ -1,5 +1,14 @@
 # AE2LT Packaged Pattern Provider 变更日志
 
+## 1.2.4-beta
+
+对比版本：1.2.4
+
+- 修复 Re-Avaritia、Extended Crafting 工作台和终焉锻造台配方重载后的过期绑定，新增、删除和同 ID 替换配方均会重新校验并刷新缓存。
+- 拒绝过期配方句柄和输入数量相加溢出，避免按旧配方加工或错误转移输入。
+- 补充原生工作台、锻台、真实 KubeJS 重载回归及脚本兼容说明；旧版 Re-Avaritia KubeJS 锻台 schema 限制仍由上游处理。
+- 依赖 AE2 Lightning Tech 2.1.4-beta 与 Thunderbolt Core 2.0.3。完整双语发布说明见 docs/releases/1.2.4-beta.md。
+
 ## 1.2.4
 
 对比版本：1.2.3
