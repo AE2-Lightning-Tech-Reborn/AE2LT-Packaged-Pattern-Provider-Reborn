@@ -5,13 +5,20 @@ import java.util.List;
 import java.util.Set;
 
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.ICompositeWidget;
+import appeng.client.gui.WidgetContainer;
+import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.ToolboxPanel;
+import appeng.client.gui.widgets.UpgradesPanel;
 import appeng.core.definitions.AEBlocks;
+import appeng.core.definitions.AEItems;
 import appeng.menu.SlotSemantics;
 import appeng.menu.locator.MenuLocators;
 import com.moakiee.ae2lt.api.client.PageNavigationButton;
 import com.moakiee.ae2lt.api.client.TextureToolbarButton;
 import com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.menu.OverloadedPatternProviderMenu;
+import com.moakiee.ae2lt.mixin.client.UpgradesPanelAccessor;
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
 import com.moakiee.ae2lt.packaged.registry.PPBlocks;
@@ -19,13 +26,17 @@ import com.moakiee.ae2lt.registry.ModBlocks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.fml.ModList;
 
 /** Opt-in client and packet-path regression in a disposable world. */
 @EventBusSubscriber(modid = "ae2ltpp", value = Dist.CLIENT)
@@ -34,7 +45,9 @@ public final class ProviderUiClientProbe {
     private static final BlockPos NORMAL = EXTENDED.east(2);
     private static final BlockPos WIRELESS = EXTENDED.east(4);
     private static final BlockPos LT_EXTENDED = EXTENDED.east(6);
+    private static final BlockPos LT_NORMAL = EXTENDED.east(8);
     private static int phase, ticks;
+    private static int duplicateFixtures;
     private static boolean done;
     private static volatile Throwable serverFailure;
 
@@ -56,14 +69,16 @@ public final class ProviderUiClientProbe {
                         var p = player();
                         var level = p.serverLevel();
                         // A repeat run must not inherit the previous run's persisted wireless mode/page.
-                        for (var pos : List.of(EXTENDED, NORMAL, WIRELESS, LT_EXTENDED))
+                        for (var pos : List.of(EXTENDED, NORMAL, WIRELESS, LT_EXTENDED, LT_NORMAL))
                             level.removeBlock(pos, false);
                         level.setBlockAndUpdate(EXTENDED, PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
                         level.setBlockAndUpdate(NORMAL, PPBlocks.PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
                         level.setBlockAndUpdate(WIRELESS, PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get().defaultBlockState());
                         level.setBlockAndUpdate(LT_EXTENDED, ModBlocks.EXTENDED_OVERLOADED_PATTERN_PROVIDER.get().defaultBlockState());
-                        for (var pos : List.of(EXTENDED, NORMAL, WIRELESS, LT_EXTENDED))
+                        level.setBlockAndUpdate(LT_NORMAL, ModBlocks.OVERLOADED_PATTERN_PROVIDER.get().defaultBlockState());
+                        for (var pos : List.of(EXTENDED, NORMAL, WIRELESS, LT_EXTENDED, LT_NORMAL))
                             level.setBlockAndUpdate(pos.below(), AEBlocks.CREATIVE_ENERGY_CELL.block().defaultBlockState());
+                        p.getInventory().setItem(0, AEItems.NETWORK_TOOL.stack());
                         p.setGameMode(GameType.CREATIVE);
                         p.teleportTo(level, 2.5, 101, 3.5, Set.of(), 180, 25);
                     });
@@ -124,8 +139,17 @@ public final class ProviderUiClientProbe {
                 case 17 -> {
                     expectPage(1, 4);
                     capture("lt-shared-components.png");
+                    open(LT_NORMAL);
+                }
+                case 18 -> {
+                    expectPage(0, 1);
+                    capture("lt-normal-shared-components.png");
+                    if (Boolean.getBoolean("ae2ltpp.providerPanelDuplicateFixture") && ModList.get().isLoaded("appflux"))
+                        check(duplicateFixtures >= 5, "duplicate upgrade/toolbox registration exercised across provider screens");
                     finish("PASS: LTPP and LT shared widgets; native left/right clicks and wheel packets; page boundaries; "
-                            + "all 144 slot positions and active states; resize; mode sync; single-page hiding; texture state and tooltips.");
+                            + "all 144 slot positions and active states; resize; mode sync; single-page hiding; texture state and tooltips; "
+                            + "five provider variants; appflux=" + ModList.get().isLoaded("appflux")
+                            + "; duplicateFixtures=" + duplicateFixtures + "; induction-card admission and core-slot separation.");
                 }
                 default -> throw new AssertionError("phase " + phase);
             }
@@ -134,6 +158,43 @@ public final class ProviderUiClientProbe {
             failure.printStackTrace();
             finish("FAIL phase=" + phase + ": " + failure);
         }
+    }
+
+    /** Reproduce repeated third-party panel registration before AE2 lays out the screen. */
+    @SubscribeEvent
+    public static void duplicatePanels(ScreenEvent.Init.Pre event) {
+        if (!Boolean.getBoolean("ae2ltpp.providerPanelDuplicateFixture") || !ModList.get().isLoaded("appflux")) return;
+        if (!(event.getScreen() instanceof AEBaseScreen<?> screen)) return;
+        if (!(screen.getMenu() instanceof PackagedPatternProviderMenu)
+                && !(screen.getMenu() instanceof OverloadedPatternProviderMenu)) return;
+        try {
+            var widgets = widgets(screen);
+            var panels = panels(widgets);
+            check(panels.get("upgrades") instanceof UpgradesPanel, "AppliedFlux created its upgrade panel");
+            widgets.add("upgrades", new UpgradesPanel(screen.getMenu().getSlots(SlotSemantics.UPGRADE),
+                    () -> List.of(Component.literal("duplicate registration fixture"))));
+            var styleField = AEBaseScreen.class.getDeclaredField("style");
+            styleField.setAccessible(true);
+            check(panels.get("toolbox") instanceof ToolboxPanel, "network tool created the toolbox");
+            widgets.add("toolbox", new ToolboxPanel((ScreenStyle) styleField.get(screen), Component.literal("Fixture Toolbox")));
+            duplicateFixtures++;
+        } catch (Throwable failure) {
+            failure.printStackTrace();
+            finish("FAIL duplicate panel fixture: " + failure);
+        }
+    }
+
+    private static WidgetContainer widgets(AEBaseScreen<?> screen) throws ReflectiveOperationException {
+        var field = AEBaseScreen.class.getDeclaredField("widgets");
+        field.setAccessible(true);
+        return (WidgetContainer) field.get(screen);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.Map<String, ICompositeWidget> panels(WidgetContainer widgets) throws ReflectiveOperationException {
+        var field = WidgetContainer.class.getDeclaredField("compositeWidgets");
+        field.setAccessible(true);
+        return (java.util.Map<String, ICompositeWidget>) field.get(widgets);
     }
 
     private static void checkToolbarState() {
@@ -153,6 +214,7 @@ public final class ProviderUiClientProbe {
         var menu = Minecraft.getInstance().player.containerMenu;
         check(page(menu) == expected, "client page at phase " + phase);
         var providerMenu = (appeng.menu.implementations.PatternProviderMenu) menu;
+        checkSharedPanels(providerMenu);
         var slots = providerMenu.getSlots(SlotSemantics.ENCODED_PATTERN);
         check(slots.size() == total * 36, "physical slot capacity");
         for (int i = 0; i < slots.size(); i++) {
@@ -160,6 +222,32 @@ public final class ProviderUiClientProbe {
             check(slots.get(i).x == slots.get(i % 36).x && slots.get(i).y == slots.get(i % 36).y, "slot alignment " + i);
         }
         server(() -> check(page(player().containerMenu) == expected, "server page at phase " + phase));
+    }
+
+    private static void checkSharedPanels(appeng.menu.implementations.PatternProviderMenu menu) {
+        try {
+            var screen = (AEBaseScreen<?>) Minecraft.getInstance().screen;
+            var panels = panels(widgets(screen));
+            var slots = menu.getSlots(SlotSemantics.UPGRADE);
+            if (ModList.get().isLoaded("appflux")) {
+                check(slots.size() == 1, "one real induction-card slot");
+                check(panels.get("upgrades") instanceof UpgradesPanel, "upgrade panel retained");
+                var panelSlots = ((UpgradesPanelAccessor) panels.get("upgrades")).ae2lt$getSlots();
+                check(panelSlots.equals(slots), "panel preserves every real upgrade slot exactly once");
+                check(panels.get("toolbox") instanceof ToolboxPanel, "toolbox retained");
+                var card = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("appflux", "induction_card"));
+                check(slots.getFirst().mayPlace(new net.minecraft.world.item.ItemStack(card)), "induction card accepted");
+                if (menu instanceof PackagedPatternProviderMenu packaged) {
+                    check(panels.get("adapterCard") instanceof UpgradesPanel, "packaged core panel retained");
+                    check(!panelSlots.contains(packaged.getAdapterSlot()), "packaged core stays outside the upgrade panel");
+                    check(!packaged.getAdapterSlot().mayPlace(new net.minecraft.world.item.ItemStack(card)), "core slot rejects induction cards");
+                }
+            } else {
+                check(slots.isEmpty(), "no synthetic upgrade slots without AppliedFlux");
+            }
+        } catch (ReflectiveOperationException failure) {
+            throw new AssertionError("shared provider panel checks", failure);
+        }
     }
 
     private static int page(Object menu) {

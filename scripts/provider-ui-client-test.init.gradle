@@ -13,7 +13,11 @@ allprojects {
             programArguments.addAll '--quickPlaySingleplayer', 'ProviderUI', '--width', '1200', '--height', '900'
         }
         def root = project.file('build/provider-ui-client')
-        def seed = project.file('build/resonant-absent-native/world/level.dat')
+        def seed = project.file(providers.gradleProperty('providerUiSeedLevel')
+                .getOrElse('build/resonant-absent-native/world/level.dat'))
+        if (providers.gradleProperty('providerPanelDuplicateFixture').getOrElse('false').toBoolean()) {
+            neoForge.runs.client.systemProperty 'ae2ltpp.providerPanelDuplicateFixture', 'true'
+        }
         def result = new File(root, 'provider-ui-result.txt')
         tasks.named('runClient') {
             doFirst {

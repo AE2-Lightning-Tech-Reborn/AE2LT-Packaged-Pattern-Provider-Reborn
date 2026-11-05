@@ -1,5 +1,14 @@
 # AE2LT Packaged Pattern Provider 变更日志
 
+## 1.2.4-beta2
+
+对比版本：1.2.4-beta
+
+- 配套 AE2 Lightning Tech 2.1.4-beta2 的共享升级栏修复，处理与 AppliedFlux 同装时打开封包供应器界面可能断开连接的问题。
+- 为普通、无线和扩展封包供应器补充 AppliedFlux 感应卡兼容注册，每台允许安装一张感应卡；封包核心仍使用独立的核心槽。
+- 扩展供应器界面回归场景，覆盖三种封包与两种超载供应器、重复面板注册、分页、缩放和升级卡准入。
+- 最低 AE2 Lightning Tech 版本提高到 2.1.4-beta2，Thunderbolt Core 继续为 2.0.3。完整双语发布说明见 docs/releases/1.2.4-beta2.md。
+
 ## 1.2.4-beta
 
 对比版本：1.2.4

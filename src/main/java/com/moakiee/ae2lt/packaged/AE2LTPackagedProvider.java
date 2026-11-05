@@ -12,6 +12,7 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import appeng.api.AECapabilities;
 import appeng.api.networking.IInWorldGridNodeHost;
+import appeng.api.upgrades.Upgrades;
 import appeng.blockentity.AEBaseBlockEntity;
 
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
@@ -87,6 +88,7 @@ public class AE2LTPackagedProvider {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
+            registerAppliedFluxInductionCards();
             com.moakiee.ae2lt.packaged.resource.PackagedResourceStorage.registerBehaviors();
             if (ModList.get().isLoaded("apothic_enchanting")) {
                 MultiblockAdapterRegistry.register(new com.moakiee.ae2lt.packaged.logic.multiblock.apothic.RavenInfusionAdapter());
@@ -203,6 +205,18 @@ public class AE2LTPackagedProvider {
                 PPBlocks.PACKAGED_PATTERN_PROVIDER.get(),
                 PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get(),
                 PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get());
+    }
+
+    private static void registerAppliedFluxInductionCards() {
+        // Resolve by registry id so AppliedFlux remains optional on clients and servers.
+        var inductionCard = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("appflux", "induction_card"));
+        if (inductionCard == net.minecraft.world.item.Items.AIR) {
+            return;
+        }
+        Upgrades.add(inductionCard, PPBlocks.PACKAGED_PATTERN_PROVIDER.get(), 1, "group.pattern_provider.name");
+        Upgrades.add(inductionCard, PPBlocks.WIRELESS_PACKAGED_PATTERN_PROVIDER.get(), 1, "group.pattern_provider.name");
+        Upgrades.add(inductionCard, PPBlocks.EXTENDED_PACKAGED_PATTERN_PROVIDER.get(), 1, "group.pattern_provider.name");
     }
 
     private static void registerGridNodeHost(
