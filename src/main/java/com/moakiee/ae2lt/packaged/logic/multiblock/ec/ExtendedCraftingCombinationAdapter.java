@@ -1,6 +1,5 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.ec;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -21,7 +20,6 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.fml.ModList;
-import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.config.Actionable;
@@ -46,7 +44,6 @@ import com.moakiee.ae2lt.packaged.logic.multiblock.SlotHarvestOwnership;
 import com.moakiee.ae2lt.packaged.logic.multiblock.TargetSlot;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode;
 import com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingResult;
-import com.moakiee.ae2lt.packaged.logic.multiblock.ReflectionBootstrap;
 
 /**
  * Real dispatch to a crafting core and up to 48 pedestals in its 7x7 horizontal area.
@@ -108,12 +105,12 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         var be = level.getBlockEntity(mainPos);
         if (be == null || !recognizesMain(level, mainPos, be)) return false;
 
-        var inv = EcReflection.getInventory(be);
+        var inv = ExtendedCraftingCombinationAccess.getInventory(be);
         if (inv == null || inv.getSlots() <= CORE_SLOT) return false;
         if (!inv.getStackInSlot(CORE_SLOT).isEmpty()) return false;
-        if (EcReflection.getProgress(be) != 0) return false;
+        if (ExtendedCraftingCombinationAccess.getProgress(be) != 0) return false;
 
-        var ingredients = EcReflection.getRecipeIngredients(bind.recipe());
+        var ingredients = ExtendedCraftingCombinationAccess.getRecipeIngredients(bind.recipe());
         if (ingredients == null) return false;
         int needed = ingredients.size();
         if (needed <= 0 || needed > MAX_INGREDIENTS) return false;
@@ -145,9 +142,9 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
                 || !canDispatch(level, mainPos, handle, scope)) return null;
         var be = level.getBlockEntity(mainPos);
         if (be == null) return null;
-        var catalyst = EcReflection.getCatalyst(bind.recipe());
-        var ingredients = EcReflection.getRecipeIngredients(bind.recipe());
-        var expectedOutput = EcReflection.getResultItem(bind.recipe(), level);
+        var catalyst = ExtendedCraftingCombinationAccess.getCatalyst(bind.recipe());
+        var ingredients = ExtendedCraftingCombinationAccess.getRecipeIngredients(bind.recipe());
+        var expectedOutput = ExtendedCraftingCombinationAccess.getResultItem(bind.recipe(), level);
         if (catalyst == null || ingredients == null || expectedOutput == null || expectedOutput.isEmpty()) return null;
         var match = matchInputs(catalyst, ingredients, inputs);
         if (match == null) return null;
@@ -175,7 +172,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
                     scope.clearFlag(mainPos, runObservedFlagKey(level));
                     SlotHarvestOwnership.store(level, mainPos, scope, HARVEST_STATE,
                             expectedOutput, recipeId(bind.recipe()));
-                    EcReflection.refreshRecipe(be);
+                    ExtendedCraftingCombinationAccess.refreshRecipe(be);
                 },
                 (accepted, recovered) -> recoverPartialDispatch(
                         level, mainPos, targets, accepted, recovered));
@@ -199,7 +196,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         }
         var ownership = SlotHarvestOwnership.load(level, mainPos, scope, HARVEST_STATE);
         if (ownership == null || SlotHarvestOwnership.expired(level, ownership)) return List.of();
-        var inv = EcReflection.getInventory(be);
+        var inv = ExtendedCraftingCombinationAccess.getInventory(be);
         if (inv == null || inv.getSlots() <= CORE_SLOT) return List.of();
         var stack = inv.getStackInSlot(CORE_SLOT);
         if (stack.isEmpty()) return List.of();
@@ -212,7 +209,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
         }
         // The center slot also holds inputs. Zero progress may mean a valid
         // recipe is waiting for power, or a completed craft between polls.
-        if (!EcReflection.isIdleWithoutRecipe(be)) return List.of();
+        if (!ExtendedCraftingCombinationAccess.isIdleWithoutRecipe(be)) return List.of();
         var extracted = stack.copy();
         extracted.setCount(expectedCount);
         if (stack.getCount() == expectedCount) {
@@ -233,7 +230,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
     @Nullable
     private static Object findCandidateRecipe(ServerLevel level, IPatternDetails pattern) {
         for (var recipe : recipes(level)) {
-            var result = EcReflection.getResultItem(recipe, level);
+            var result = ExtendedCraftingCombinationAccess.getResultItem(recipe, level);
             if (result == null || result.isEmpty()) continue;
             if (!outputMatches(pattern, result)) continue;
             return recipe;
@@ -270,8 +267,8 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
             if (stack.amount() != 1 || !unit.key().equals(stack.what())) return 0L;
             var be = level.getBlockEntity(pos);
             if (be == null || !blockId(be.getBlockState()).equals(CORE_BLOCK)) return 0L;
-            if (EcReflection.getProgress(be) != 0) return 0L;
-            var inv = EcReflection.getInventory(be);
+            if (ExtendedCraftingCombinationAccess.getProgress(be) != 0) return 0L;
+            var inv = ExtendedCraftingCombinationAccess.getInventory(be);
             if (!(inv instanceof IItemHandlerModifiable modifiable)) return 0L;
             if (modifiable.getSlots() <= CORE_SLOT) return 0L;
             if (!modifiable.getStackInSlot(CORE_SLOT).isEmpty()) return 0L;
@@ -289,7 +286,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
             if (stack.amount() != 1 || !unit.key().equals(stack.what())) return 0L;
             var be = level.getBlockEntity(pos);
             if (be == null || !blockId(be.getBlockState()).equals(PEDESTAL_BLOCK)) return 0L;
-            var inv = EcReflection.getInventory(be);
+            var inv = ExtendedCraftingCombinationAccess.getInventory(be);
             if (!(inv instanceof IItemHandlerModifiable modifiable)) return 0L;
             if (modifiable.getSlots() <= PEDESTAL_SLOT) return 0L;
             if (!modifiable.getStackInSlot(PEDESTAL_SLOT).isEmpty()) return 0L;
@@ -307,7 +304,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
                                                Consumer<GenericStack> recovered) {
         var core = level.getBlockEntity(mainPos);
         if (core == null || !blockId(core.getBlockState()).equals(CORE_BLOCK)
-                || EcReflection.getProgress(core) != 0) return;
+                || ExtendedCraftingCombinationAccess.getProgress(core) != 0) return;
         for (var insertion : accepted) {
             int targetIndex = targets.indexOf(insertion.target());
             if (targetIndex < 0 || !(insertion.stack().what() instanceof AEItemKey key)
@@ -316,7 +313,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
             if (targetBe == null) continue;
             ResourceLocation expectedBlock = targetIndex == 0 ? CORE_BLOCK : PEDESTAL_BLOCK;
             if (!blockId(targetBe.getBlockState()).equals(expectedBlock)) continue;
-            var inv = EcReflection.getInventory(targetBe);
+            var inv = ExtendedCraftingCombinationAccess.getInventory(targetBe);
             if (inv == null || inv.getSlots() <= 0) continue;
             var expected = key.toStack(1);
             var current = inv.getStackInSlot(0);
@@ -353,7 +350,7 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
                 if (!blockId(level.getBlockState(cursor)).equals(PEDESTAL_BLOCK)) continue;
                 var be = level.getBlockEntity(cursor);
                 if (be == null) return null;
-                var inv = EcReflection.getInventory(be);
+                var inv = ExtendedCraftingCombinationAccess.getInventory(be);
                 if (inv == null || inv.getSlots() <= PEDESTAL_SLOT) return null;
                 if (!inv.getStackInSlot(PEDESTAL_SLOT).isEmpty()) return null;
                 result.add(cursor.immutable());
@@ -455,148 +452,4 @@ public final class ExtendedCraftingCombinationAdapter implements MultiblockAdapt
 
     // ===== Reflection =====
 
-    private static final class EcReflection {
-        private static final String BASE_INVENTORY_CLASS =
-                "com.blakebr0.cucumber.tileentity.BaseInventoryTileEntity";
-        private static final String CORE_TILE_CLASS =
-                "com.blakebr0.extendedcrafting.tileentity.CraftingCoreTileEntity";
-        private static final ReflectionBootstrap LOOKUP = new ReflectionBootstrap("ec-combination");
-        private static volatile @Nullable Method getInventoryMethod;
-        private static volatile @Nullable Method getProgressMethod;
-        private static volatile @Nullable Method getActiveRecipeMethod;
-        private static volatile boolean inventoryInvokeDiagnosticLogged;
-        private static volatile boolean progressInvokeDiagnosticLogged;
-        private static volatile boolean recipeInvokeDiagnosticLogged;
-
-        /** Refresh the recipe cache without advancing native FE or progress. */
-        static void refreshRecipe(BlockEntity be) {
-            ensureLookup();
-            if (getActiveRecipeMethod == null) return;
-            try {
-                getActiveRecipeMethod.invoke(be);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
-                reportRecipeFailure(be, failure);
-            }
-        }
-
-        static boolean isIdleWithoutRecipe(BlockEntity be) {
-            ensureLookup();
-            if (getActiveRecipeMethod == null || getProgress(be) != 0) return false;
-            try {
-                return getActiveRecipeMethod.invoke(be) == null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
-                reportRecipeFailure(be, failure);
-                return false;
-            }
-        }
-
-        private static void reportRecipeFailure(BlockEntity be, Throwable failure) {
-            if (!recipeInvokeDiagnosticLogged) {
-                recipeInvokeDiagnosticLogged = true;
-                LOG.warn("Combination reflection: getActiveRecipe invocation failed for {}: {}",
-                        be.getClass().getName(), failure.toString());
-            }
-        }
-
-        @Nullable
-        static IItemHandler getInventory(BlockEntity be) {
-            ensureLookup();
-            if (getInventoryMethod == null) return null;
-            try {
-                var value = getInventoryMethod.invoke(be);
-                return value instanceof IItemHandler h ? h : null;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                if (!inventoryInvokeDiagnosticLogged) {
-                    inventoryInvokeDiagnosticLogged = true;
-                    LOG.warn("Combination reflection: getInventory invocation failed for {}: {}",
-                            be.getClass().getName(), e.toString());
-                }
-                return null;
-            }
-        }
-
-        static int getProgress(BlockEntity be) {
-            ensureLookup();
-            if (getProgressMethod == null) return -1;
-            try {
-                var value = getProgressMethod.invoke(be);
-                return value instanceof Number number ? number.intValue() : -1;
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                if (!progressInvokeDiagnosticLogged) {
-                    progressInvokeDiagnosticLogged = true;
-                    LOG.warn("Combination reflection: getProgress invocation failed for {}: {}",
-                            be.getClass().getName(), e.toString());
-                }
-                return -1;
-            }
-        }
-
-        @Nullable
-        static ItemStack getResultItem(Object recipe, ServerLevel level) {
-            if (!(recipe instanceof Recipe<?> r)) return null;
-            try {
-                return r.getResultItem(level.registryAccess());
-            } catch (RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        @Nullable
-        static Ingredient getCatalyst(Object recipe) {
-            // 1.20.x CombinationRecipe stores the core input at index 0 of its
-            // single ingredient list (no getInput(); that split only exists on
-            // 1.21).
-            var all = allIngredients(recipe);
-            if (all == null || all.isEmpty()) return null;
-            var first = all.get(0);
-            return first.isEmpty() ? null : first;
-        }
-
-        @Nullable
-        static List<Ingredient> getRecipeIngredients(Object recipe) {
-            // Pedestal ingredients are everything after the index-0 core input.
-            var all = allIngredients(recipe);
-            if (all == null || all.size() < 1) return null;
-            return new ArrayList<>(all.subList(1, all.size()));
-        }
-
-        @Nullable
-        private static List<Ingredient> allIngredients(Object recipe) {
-            if (!(recipe instanceof Recipe<?> r)) return null;
-            try {
-                return r.getIngredients();
-            } catch (RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        private static void ensureLookup() {
-            LOOKUP.run(() -> {
-                try {
-                    var baseInventoryClass = Class.forName(BASE_INVENTORY_CLASS);
-                    getInventoryMethod = baseInventoryClass.getMethod("getInventory");
-                } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                    LOG.warn("Combination reflection: BaseInventoryTileEntity#getInventory lookup failed: {}",
-                            e.toString());
-                }
-                try {
-                    var coreClass = Class.forName(CORE_TILE_CLASS);
-                    getProgressMethod = coreClass.getMethod("getProgress");
-                    getActiveRecipeMethod = coreClass.getMethod("getActiveRecipe");
-                } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
-                    LOG.warn("Combination reflection: CraftingCoreTileEntity#getProgress lookup failed: {}",
-                            e.toString());
-                }
-                LOG.info("Extended Crafting Combination reflection ready: inventory={} progress={} "
-                                + "catalyst=recipe.getIngredients()[0]",
-                        methodName(getInventoryMethod), methodName(getProgressMethod));
-            });
-        }
-
-        private static String methodName(@Nullable Method method) {
-            return method == null
-                    ? "unresolved"
-                    : method.getDeclaringClass().getName() + "#" + method.getName();
-        }
-    }
 }

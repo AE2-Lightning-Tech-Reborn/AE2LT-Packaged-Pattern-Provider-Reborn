@@ -66,4 +66,16 @@ class MekItemInsertionTest {
         assertEquals(0, MekItemInsertion.insertIntoAnySlot(0, false, new SlotAccess(slots)));
         assertEquals(List.of(0), slots);
     }
+    @Test
+    void invalidRemaindersAreUnknownRatherThanSuccessfulOrRetryable() {
+        for (Integer remainder : java.util.Arrays.asList(null, -1, 11)) {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                    () -> MekItemInsertion.insertIntoAnySlot(10, false, new MekItemInsertion.SlotAccess<Integer>() {
+                        public int slots() { return 1; }
+                        public Integer insert(int slot, Integer stack, boolean simulate) { return remainder; }
+                        public int amount(Integer stack) { return stack; }
+                    }));
+        }
+    }
+
 }

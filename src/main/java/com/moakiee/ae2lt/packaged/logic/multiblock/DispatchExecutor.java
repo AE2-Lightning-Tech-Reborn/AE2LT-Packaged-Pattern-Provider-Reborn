@@ -83,9 +83,10 @@ public final class DispatchExecutor {
                 var stack = target.stacks().get(stackIndex);
                 long accepted;
                 try {
-                    accepted = Math.max(0L, Math.min(
-                            stack.amount(),
-                            insertOne(target, stack, Actionable.MODULATE, resolved)));
+                    accepted = insertOne(target, stack, Actionable.MODULATE, resolved);
+                    if (accepted < 0 || accepted > stack.amount()) {
+                        throw new IllegalStateException("Invalid insertion receipt: " + accepted);
+                    }
                 } catch (RuntimeException | LinkageError e) {
                     modulationFailed = true;
                     partial = true;

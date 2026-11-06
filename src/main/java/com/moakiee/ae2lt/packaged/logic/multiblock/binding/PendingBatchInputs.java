@@ -28,6 +28,7 @@ import net.minecraft.resources.ResourceLocation;
 public final class PendingBatchInputs {
     private static final Logger LOG = LoggerFactory.getLogger(PendingBatchInputs.class);
     private static final String TAG_PENDING = "ae2ltpp_pending_batch_inputs";
+    private static final String TAG_LEGACY_BATCH = "batch_inputs";
     private static final String TAG_UNCERTAIN = TAG_PENDING + "_uncertain";
     private static final String TAG_OWNER = TAG_PENDING + "_owner";
 
@@ -137,6 +138,7 @@ public final class PendingBatchInputs {
     }
 
     public void writeToNBT(CompoundTag parent) {
+        parent.remove(TAG_LEGACY_BATCH);
         parent.remove(TAG_PENDING);
         parent.remove(TAG_UNCERTAIN);
         parent.remove(TAG_OWNER);
@@ -169,14 +171,19 @@ public final class PendingBatchInputs {
 
     public void readFromNBT(CompoundTag parent) {
         clear();
-        readDeliveries(parent.getList(TAG_PENDING, Tag.TAG_COMPOUND), pending);
-        readDeliveries(parent.getList(TAG_UNCERTAIN, Tag.TAG_COMPOUND), uncertain);
-        if (parent.contains(TAG_OWNER, Tag.TAG_COMPOUND) && hasPending()) {
-            var owner = parent.getCompound(TAG_OWNER);
-            var adapter = ResourceLocation.tryParse(owner.getString("adapter"));
+        boolean currentFormat = parent.contains(TAG_PENDING) || parent.contains(TAG_UNCERTAIN) || parent.contains(TAG_OWNER);
+        boolean legacy = !currentFormat && parent.contains(TAG_LEGACY_BATCH, Tag.TAG_COMPOUND);
+        var data = legacy ? parent.getCompound(TAG_LEGACY_BATCH) : parent;
+        readDeliveries(data.getList(legacy ? "ports" : TAG_PENDING, Tag.TAG_COMPOUND), pending, legacy);
+        readDeliveries(data.getList(legacy ? "uncertain" : TAG_UNCERTAIN, Tag.TAG_COMPOUND), uncertain, legacy);
+        String ownerKey = legacy ? "owner" : TAG_OWNER;
+        boolean hasOwner = data.contains(ownerKey, Tag.TAG_COMPOUND);
+        if ((hasOwner || legacy) && hasPending()) {
+            var owner = data.getCompound(ownerKey);
+            var adapter = readAdapterId(owner, legacy);
             var dimension = ResourceLocation.tryParse(owner.getString("dimension"));
             var block = ResourceLocation.tryParse(owner.getString("block"));
-            if (adapter != null && dimension != null && block != null) {
+            if (hasOwner && adapter != null && dimension != null && block != null) {
                 ownership = new Ownership(adapter, dimension, BlockPos.of(owner.getLong("pos")), block);
             } else {
                 // An unreadable controller cannot authorize future insertions.
@@ -186,12 +193,12 @@ public final class PendingBatchInputs {
         }
     }
 
-    private static void readDeliveries(ListTag list, List<Delivery> deliveries) {
+    private static void readDeliveries(ListTag list, List<Delivery> deliveries, boolean legacy) {
         for (int i = 0; i < list.size(); i++) {
             try {
                 var tag = list.getCompound(i);
                 var stack = readStack(tag.getCompound("stack"));
-                var adapter = ResourceLocation.tryParse(tag.getString("adapter"));
+                var adapter = readAdapterId(tag, legacy);
                 var dimension = ResourceLocation.tryParse(tag.getString("dimension"));
                 var block = ResourceLocation.tryParse(tag.getString("block"));
                 var face = Direction.from3DDataValue(tag.getInt("face"));
@@ -203,6 +210,14 @@ public final class PendingBatchInputs {
                 LOG.warn("Ignoring malformed pending batch input at index {}", i, malformed);
             }
         }
+    }
+
+    private static ResourceLocation readAdapterId(CompoundTag tag, boolean legacy) {
+        var adapter = ResourceLocation.tryParse(tag.getString("adapter"));
+        if (legacy && adapter != null && adapter.toString().equals("ae2ltpp:mekmm")) {
+            return com.moakiee.ae2lt.packaged.item.AdapterIds.MEKMM;
+        }
+        return adapter;
     }
 
     public List<Delivery> snapshot() { return List.copyOf(pending); }
@@ -228,6 +243,7 @@ public final class PendingBatchInputs {
     }
 
     private static GenericStack readStack(CompoundTag tag) {
+        if (!tag.contains("kind", Tag.TAG_STRING)) return GenericStack.readTag(tag);
         var value = tag.getCompound("value");
         long amount = tag.getLong("amount");
         return switch (tag.getString("kind")) {

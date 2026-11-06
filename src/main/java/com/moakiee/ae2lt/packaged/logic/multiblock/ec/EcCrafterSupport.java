@@ -32,13 +32,7 @@ final class EcCrafterSupport {
     static IItemHandler getInventory(BlockEntity be) {
         LOOKUP.run(() -> getInventoryMethod = Class.forName(
                 "com.blakebr0.cucumber.tileentity.BaseInventoryTileEntity").getMethod("getInventory"));
-        if (getInventoryMethod == null) return null;
-        try {
-            var value = getInventoryMethod.invoke(be);
-            return value instanceof IItemHandler handler ? handler : null;
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
-            return null;
-        }
+        return com.moakiee.ae2lt.packaged.logic.multiblock.shared.CucumberInventoryAccess.get(be, getInventoryMethod);
     }
 
     @Nullable

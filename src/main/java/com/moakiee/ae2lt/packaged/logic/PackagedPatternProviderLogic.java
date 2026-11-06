@@ -259,6 +259,14 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
         pendingBatchInputs.clear();
     }
 
+    /** Transfers only confirmed undelivered inputs; ambiguous transfers are never refunded. */
+    public List<GenericStack> drainPendingBatchInputs() {
+        var drained = pendingBatchInputs.snapshot().stream().map(PendingBatchInputs.Delivery::stack).toList();
+        clearDroppedBatchInputs();
+        getProviderHost().saveChanges();
+        return drained;
+    }
+
     public List<GenericStack> drainVirtualBatch() {
         var drained = virtualBatch.drainAll();
         if (!drained.isEmpty()) {
@@ -430,59 +438,78 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
         double cost = PatternProviderPowerCost.totalCost(template);
         long tick = level.getGameTime();
         var binding = getOrComputeBinding(level, pattern, tick);
+        boolean preparationFailed = false;
         for (var candidate : binding.candidates()) {
-            if (candidate.mode() == BindingMode.VIRTUAL
-                    && candidate.adapter() instanceof LinearVirtualCraftingAdapter adapter) {
-                var env = resolveLaneEnv(level, candidate);
-                if (env == null) continue;
-                var result = adapter.planVirtualWithBinding(env.level(), env.pos(), pattern,
-                        BatchCopies.copy(template), candidate.handle(), getActionSource());
-                if (result == null || result.outputs().isEmpty()) continue;
-                boolean unbounded = adapter instanceof UnboundedVirtualCraftingAdapter;
-                long laneMaximum = unbounded ? maxCraft
-                        : Math.min(maxCraft, virtualPushLimiter.remaining(candidate.lane(), tick));
-                long maximum = Math.min(laneMaximum, virtualBatch.maxCopies(result.outputs()));
-                long copies = BatchCopies.fittingLong(maximum,
-                        n -> Double.isFinite(cost * n) && PatternProviderPowerCost.canAfford(grid, cost * n));
-                if (copies <= 0) continue;
-                var outputs = BatchCopies.scale(result.outputs(), copies);
-                if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
-                if (!result.commit()) continue;
-                pendingFlushSoundId = adapter.flushSoundId();
-                pendingFlushEffect = new PendingVirtualFlushEffect(adapter, env.level(), env.pos(), candidate.handle());
-                enqueueVirtualOutputs(outputs);
-                PatternProviderPowerCost.consumeRaw(grid, cost * copies);
-                recordSuccessfulPush(pattern);
-                alertGridTick();
-                return maxCraft - copies;
-            }
-            if (candidate.mode() != BindingMode.REAL
-                    || !(candidate.adapter() instanceof InputBatchCraftingAdapter adapter)) continue;
-            var env = resolveLaneEnv(level, candidate);
-            if (env == null || !dispatchReady(candidate, pattern, env, tick)
-                    || !candidate.adapter().canDispatch(env.level(), env.pos(), candidate.handle(), adapterScope())) continue;
-            var plan = adapter.planBatchWithBinding(env.level(), env.pos(), pattern,
-                    BatchCopies.copy(template), candidate.handle(), getActionSource(), adapterScope());
-            var ports = PendingBatchInputs.prepare(plan, adapter);
-            if (!PendingBatchInputs.matchesInputs(ports, template)) continue;
-            long maximum = Math.min(maxCraft, inputBatchLimiter.remaining(candidate.lane(), tick));
-            long copies = BatchCopies.fittingLong(maximum, n -> {
-                if (!Double.isFinite(cost * n) || !PatternProviderPowerCost.canAfford(grid, cost * n)) return false;
-                try {
-                    for (var delivery : PendingBatchInputs.scale(ports, n)) {
-                        if (insertBatchDelivery(level, delivery, Actionable.SIMULATE) < delivery.stack().amount()) return false;
+            try {
+                if (candidate.mode() == BindingMode.VIRTUAL
+                        && candidate.adapter() instanceof LinearVirtualCraftingAdapter adapter) {
+                    var env = resolveLaneEnv(level, candidate);
+                    if (env == null) continue;
+                    var result = adapter.planVirtualWithBinding(env.level(), env.pos(), pattern,
+                            BatchCopies.copy(template), candidate.handle(), getActionSource());
+                    if (result == null || !result.isPure() || result.outputs().isEmpty()) continue;
+                    boolean unbounded = adapter instanceof UnboundedVirtualCraftingAdapter;
+                    long laneMaximum = unbounded ? maxCraft
+                            : Math.min(maxCraft, virtualPushLimiter.remaining(candidate.lane(), tick));
+                    long maximum = Math.min(laneMaximum, virtualBatch.maxCopies(result.outputs()));
+                    long copies = BatchCopies.fittingLong(maximum,
+                            n -> Double.isFinite(cost * n) && PatternProviderPowerCost.canAfford(grid, cost * n));
+                    if (copies <= 0) continue;
+                    var outputs = BatchCopies.scale(result.outputs(), copies);
+                    if (!unbounded && !virtualPushLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
+                    if (!result.commit()) continue;
+                    pendingFlushSoundId = adapter.flushSoundId();
+                    pendingFlushEffect = new PendingVirtualFlushEffect(adapter, env.level(), env.pos(), candidate.handle());
+                    // Queued products own these copies before callbacks can fail.
+                    virtualBatch.enqueue(outputs);
+                    try {
+                        getProviderHost().saveChanges();
+                        PatternProviderPowerCost.consumeRaw(grid, cost * copies);
+                        recordSuccessfulPush(pattern);
+                        alertGridTick();
+                    } catch (RuntimeException | LinkageError failure) {
+                        LOG.error("Virtual batch committed; retaining pending output ownership", failure);
+                        try {
+                            getProviderHost().saveChanges();
+                        } catch (RuntimeException | LinkageError saveFailure) {
+                            LOG.warn("Could not persist committed virtual output ownership", saveFailure);
+                        }
                     }
-                    return true;
-                } catch (ArithmeticException overflow) {
-                    return false;
+                    return maxCraft - copies;
                 }
-            });
-            if (copies <= 0 || !inputBatchLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
-            var scaled = PendingBatchInputs.scale(ports, copies);
-            if (acceptBatch(level, env, candidate, pattern, copies, cost, grid, tick, scaled)) {
-                return maxCraft - copies;
+                if (candidate.mode() != BindingMode.REAL
+                        || !(candidate.adapter() instanceof InputBatchCraftingAdapter adapter)) continue;
+                var env = resolveLaneEnv(level, candidate);
+                if (env == null || !dispatchReady(candidate, pattern, env, tick)
+                        || !candidate.adapter().canDispatch(env.level(), env.pos(), candidate.handle(), adapterScope())) continue;
+                var plan = adapter.planBatchWithBinding(env.level(), env.pos(), pattern,
+                        BatchCopies.copy(template), candidate.handle(), getActionSource(), adapterScope());
+                var ports = PendingBatchInputs.prepare(plan, adapter);
+                if (!PendingBatchInputs.matchesInputs(ports, template)) continue;
+                long maximum = Math.min(maxCraft, inputBatchLimiter.remaining(candidate.lane(), tick));
+                long copies = BatchCopies.fittingLong(maximum, n -> {
+                    if (!Double.isFinite(cost * n) || !PatternProviderPowerCost.canAfford(grid, cost * n)) return false;
+                    try {
+                        for (var delivery : PendingBatchInputs.scale(ports, n)) {
+                            if (insertBatchDelivery(level, delivery, Actionable.SIMULATE) < delivery.stack().amount()) return false;
+                        }
+                        return true;
+                    } catch (ArithmeticException overflow) {
+                        return false;
+                    }
+                });
+                if (copies <= 0 || !inputBatchLimiter.tryAcquire(candidate.lane(), tick, (int) copies)) continue;
+                var scaled = PendingBatchInputs.scale(ports, copies);
+                if (acceptBatch(level, env, candidate, pattern, copies, cost, grid, tick, scaled)) {
+                    return maxCraft - copies;
+                }
+
+            } catch (RuntimeException | LinkageError failure) {
+                preparationFailed = true;
+                LOG.warn("Batch preparation failed before ownership transfer; retaining CPU inputs", failure);
             }
         }
+        if (preparationFailed) return maxCraft;
         return pushPattern(pattern, BatchCopies.copy(template)) ? maxCraft - 1 : maxCraft;
     }
 
@@ -943,14 +970,11 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
         // batch or retaining a residual cannot be lost across a crash.
         boolean hadPendingVirtualOutputs = virtualBatch.hasPending();
         long previousFlushTick = virtualBatch.getLastFlushTick();
-        boolean flushed = virtualBatch.tickFlush(gameTick, stacks -> {
-            var residual = insertOutputsToReturnInv(stacks);
-            if (residual.isEmpty()) {
-                runPendingFlushEffectSafely();
-                playFlushSoundSafely(sl);
-            }
-            return residual;
-        });
+        boolean flushed = virtualBatch.tickFlushReceipts(gameTick, this::insertOneOutputToReturnInv);
+        if (flushed && !virtualBatch.hasPending()) {
+            runPendingFlushEffectSafely();
+            playFlushSoundSafely(sl);
+        }
         if (hadPendingVirtualOutputs && (flushed || previousFlushTick != virtualBatch.getLastFlushTick())) {
             getProviderHost().saveChanges();
         }
@@ -1296,49 +1320,12 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
         if (outputs.isEmpty()) {
             return List.of();
         }
-        var grid = getGridNode().getGrid();
-        var returnInv = getInternalReturnInv();
         var retained = new PendingAmounts<AEKey>();
 
         for (var stack : outputs) {
-            if (stack == null || stack.what() == null || stack.amount() <= 0) {
-                continue;
-            }
-            long total = stack.amount();
-            long actuallyInserted = 0;
-            long affordable;
-            try {
-                affordable = PatternProviderPowerCost.maxAffordable(grid, stack.what(), total);
-            } catch (RuntimeException | LinkageError e) {
-                LOG.warn("Virtual output affordability check failed for {} x{}", stack.what(), total, e);
-                affordable = 0;
-            }
-            if (affordable > 0) {
-                long inserted;
-                try {
-                    inserted = Math.max(0L, Math.min(affordable,
-                            returnInv.insert(0, stack.what(), affordable, Actionable.MODULATE)));
-                } catch (RuntimeException | LinkageError e) {
-                    LOG.warn("Virtual output insertion failed for {} x{}", stack.what(), affordable, e);
-                    inserted = 0;
-                }
-                if (inserted > 0) {
-                    // The item is already in AE2's return inventory. If charging
-                    // unexpectedly fails, retain the delivered amount rather than
-                    // requeueing it and duplicating the product.
-                    try {
-                        PatternProviderPowerCost.consume(grid, stack.what(), inserted);
-                    } catch (RuntimeException | LinkageError e) {
-                        LOG.warn("Virtual output energy charge failed after delivery for {} x{}",
-                                stack.what(), inserted, e);
-                    }
-                    actuallyInserted = inserted;
-                }
-            }
-            long undelivered = total - actuallyInserted;
-            if (undelivered > 0) {
-                retained.add(stack.what(), undelivered);
-            }
+            if (stack == null || stack.what() == null || stack.amount() <= 0) continue;
+            long undelivered = stack.amount() - insertOneOutputToReturnInv(stack);
+            if (undelivered > 0) retained.add(stack.what(), undelivered);
         }
 
         if (!retained.isEmpty()) {
@@ -1355,6 +1342,34 @@ public class PackagedPatternProviderLogic extends StablePatternProviderLogic imp
             residuals.add(new GenericStack(entry.key(), entry.amount()));
         }
         return List.copyOf(residuals);
+    }
+
+    private long insertOneOutputToReturnInv(GenericStack stack) {
+        var grid = getGridNode().getGrid();
+        long affordable;
+        try {
+            affordable = PatternProviderPowerCost.maxAffordable(grid, stack.what(), stack.amount());
+        } catch (RuntimeException | LinkageError e) {
+            LOG.warn("Virtual output affordability check failed for {} x{}", stack.what(), stack.amount(), e);
+            return 0;
+        }
+        if (affordable <= 0) return 0;
+        long inserted;
+        try {
+            inserted = Math.max(0L, Math.min(affordable,
+                    getInternalReturnInv().insert(0, stack.what(), affordable, Actionable.MODULATE)));
+        } catch (RuntimeException | LinkageError e) {
+            LOG.warn("Virtual output insertion failed for {} x{}", stack.what(), affordable, e);
+            return 0;
+        }
+        if (inserted > 0) {
+            try {
+                PatternProviderPowerCost.consume(grid, stack.what(), inserted);
+            } catch (RuntimeException | LinkageError e) {
+                LOG.warn("Virtual output energy charge failed after delivery for {} x{}", stack.what(), inserted, e);
+            }
+        }
+        return inserted;
     }
 
     /**
