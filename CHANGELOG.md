@@ -1,12 +1,16 @@
 # Changelog
 
-## Unreleased — Forge 1.20.1
+## 1.2.2-beta3 — Forge 1.20.1
 
-- Route core orders through the native terminal confirmation and status screens, with first-core installation, spare-core batches and single-core in-place upgrades. Reject invalid or busy-provider submissions on the server and preserve intermediate crafting outputs.
-- Add a configurable 32-block resonant input range, validate dimensions and coordinates before routing, and preserve legacy output layouts. Return buffered resources to ME storage before removal and retain virtual-batch remainders after partial insertion.
-- Match Botania petal recipes using the actual component variants and available inventory capacity, preserving quantities during partial insertion and recovery.
-- Fix a Forge/Netty protocol-switch race that could leave automatic reads enabled without a read subscription and stall multiplayer login until the default 30-second timeout. Restore the subscription after protocol changes while respecting deliberate read pauses.
-- Keep long provider and core-order confirmation titles inside their panels, clear of title-bar buttons; hover over a shortened title to read it in full. Handle the confirmation menu's initial empty destination state safely.
+对比版本：`1.20.1-1.2.2-beta2`
+
+- 核心制作与安装接入 AE2 原生终端确认页和合成状态页，支持首核自动安装、批量备用核心及单枚原位升级；服务端校验前置核心、数量和供应器忙碌状态。
+- 共振输入新增默认 32 格的可配置距离限制，校验维度和坐标并兼容旧输出布局；拆除前按实际回执优先将缓冲资源退回 ME。
+- 完善实体批量投料与虚拟产物逐笔交付回执，保留部分插入余量，修复后续通道异常、重载恢复和旧 Alpha 存档迁移时的材料归属与回收边界。
+- 完善 Botania 花药台组件与容量匹配、EC 实时配方检查、MekMM 原生配方重载选择，并共享多个可选机器联动的现有访问实现。
+- 修复 Forge/Netty 协议切换后多人登录可能等待约 30 秒超时的问题；修复长标题越界和确认页初始空目标状态。
+
+依赖 AE2 Lightning Tech 2.1.4 和 Thunderbolt Core 2.0.5，均为 Forge 1.20.1 版本。
 
 ## 1.2.2-beta2 — Forge 1.20.1
 
