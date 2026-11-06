@@ -14,13 +14,17 @@ import appeng.api.stacks.GenericStack;
  */
 public record VirtualCraftingResult(List<GenericStack> outputs, BooleanSupplier commitAction) {
 
+    private static final BooleanSupplier PURE = () -> true;
+
+    public boolean isPure() { return commitAction == PURE; }
+
     public VirtualCraftingResult {
         outputs = List.copyOf(outputs);
-        commitAction = commitAction == null ? () -> true : commitAction;
+        commitAction = commitAction == null ? PURE : commitAction;
     }
 
     public VirtualCraftingResult(List<GenericStack> outputs) {
-        this(outputs, () -> true);
+        this(outputs, PURE);
     }
 
     public boolean commit() {

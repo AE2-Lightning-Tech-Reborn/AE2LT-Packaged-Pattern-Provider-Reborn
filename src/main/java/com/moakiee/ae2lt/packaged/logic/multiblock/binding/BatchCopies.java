@@ -37,7 +37,7 @@ public final class BatchCopies {
         if (copies <= 0) throw new IllegalArgumentException("copies must be positive");
         var result = new ArrayList<GenericStack>(stacks.size());
         for (var stack : stacks) {
-            if (stack.amount() <= 0) throw new IllegalArgumentException("nonpositive input/output");
+            if (stack == null || stack.what() == null || stack.amount() <= 0) throw new IllegalArgumentException("nonpositive input/output");
             result.add(new GenericStack(stack.what(), Math.multiplyExact(stack.amount(), copies)));
         }
         return List.copyOf(result);

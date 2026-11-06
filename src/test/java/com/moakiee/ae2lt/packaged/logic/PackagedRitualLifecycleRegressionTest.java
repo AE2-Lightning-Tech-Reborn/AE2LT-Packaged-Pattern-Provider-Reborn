@@ -109,7 +109,7 @@ public class PackagedRitualLifecycleRegressionTest {
     @Test
     void outputResidualsMergeWithoutQuadraticSearchOrDeliveryReplay() throws Exception {
         String provider = Files.readString(BASE.resolve("PackagedPatternProviderLogic.java"));
-        String methods = extract(provider, Set.of("insertOutputsToReturnInv"), -1);
+        String methods = extract(provider, Set.of("insertOutputsToReturnInv", "insertOneOutputToReturnInv"), -1);
         String quantities = Files.readString(BASE.resolve("PendingAmounts.java"));
         quantities = quantities.substring(quantities.indexOf("public final class PendingAmounts"))
                 .replace("public final class PendingAmounts", "static final class PendingAmounts");
@@ -650,7 +650,7 @@ public class PackagedRitualLifecycleRegressionTest {
                     return level.adapters.get(pos);
                 }
             }
-            static class OccultismReflection {
+            static class OccultismRitualAccess {
                 static boolean isIdle(Bowl bowl) { return bowl.idle; }
                 static boolean isSacrificialBowl(Bowl bowl) { return true; }
                 static Handler itemHandler(Bowl bowl) { return null; }

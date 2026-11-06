@@ -68,26 +68,7 @@ public final class VirtualBatchAccumulator {
      * @return true when a flush actually happened on this call
      */
     public boolean tickFlush(long gameTick, Function<List<GenericStack>, List<GenericStack>> sink) {
-        if (lastFlushTick == Long.MIN_VALUE) {
-            lastFlushTick = gameTick;
-            return false;
-        }
-        long elapsed;
-        try {
-            elapsed = Math.subtractExact(gameTick, lastFlushTick);
-            if (elapsed < 0) {
-                // A restored world can move the clock backwards; do not keep
-                // pending outputs asleep until it catches up to an old save.
-                elapsed = Long.MAX_VALUE;
-            }
-        } catch (ArithmeticException overflow) {
-            // A wrapped game clock must not suppress flushing forever.
-            elapsed = Long.MAX_VALUE;
-        }
-        if (elapsed < FLUSH_INTERVAL_TICKS) {
-            return false;
-        }
-        lastFlushTick = gameTick;
+        if (!advanceFlushClock(gameTick)) return false;
         if (pending.isEmpty()) {
             return true;
         }
@@ -117,6 +98,42 @@ public final class VirtualBatchAccumulator {
     public void deliver(ToLongFunction<GenericStack> sink) {
         pending.deliver(entry -> sink.applyAsLong(new GenericStack(entry.key(), entry.amount())));
     }
+
+    /** Deduct each acknowledged output before attempting the next transfer. */
+    public boolean tickFlushReceipts(long gameTick, ToLongFunction<GenericStack> sink) {
+        if (!advanceFlushClock(gameTick) || pending.isEmpty()) return false;
+        try {
+            deliver(sink);
+        } catch (RuntimeException | LinkageError e) {
+            LOG.warn("Virtual batch flush failed; retaining unacknowledged outputs", e);
+        }
+        return true;
+    }
+
+    private boolean advanceFlushClock(long gameTick) {
+        if (lastFlushTick == Long.MIN_VALUE) {
+            lastFlushTick = gameTick;
+            return false;
+        }
+        long elapsed;
+        try {
+            elapsed = Math.subtractExact(gameTick, lastFlushTick);
+            if (elapsed < 0) {
+                // A restored world can move the clock backwards; do not keep
+                // pending outputs asleep until it catches up to an old save.
+                elapsed = Long.MAX_VALUE;
+            }
+        } catch (ArithmeticException overflow) {
+            // A wrapped game clock must not suppress flushing forever.
+            elapsed = Long.MAX_VALUE;
+        }
+        if (elapsed < FLUSH_INTERVAL_TICKS) {
+            return false;
+        }
+        lastFlushTick = gameTick;
+        return true;
+    }
+
 
     /** Drain remaining outputs after removal-time delivery. */
     public List<GenericStack> drainAll() {

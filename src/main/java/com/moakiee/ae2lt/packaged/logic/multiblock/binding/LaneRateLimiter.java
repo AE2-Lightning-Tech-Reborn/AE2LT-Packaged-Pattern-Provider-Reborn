@@ -32,16 +32,7 @@ public final class LaneRateLimiter {
     }
 
     public boolean tryAcquire(LaneKey lane, long gameTick) {
-        var use = uses.get(lane);
-        if (use == null || use.gameTick != gameTick) {
-            uses.put(lane, new Use(gameTick, 1));
-            return true;
-        }
-        if (use.count >= capacityPerTick) {
-            return false;
-        }
-        uses.put(lane, new Use(gameTick, use.count + 1));
-        return true;
+        return tryAcquire(lane, gameTick, 1);
     }
 
     public boolean tryAcquire(LaneKey lane, long gameTick, int amount) {

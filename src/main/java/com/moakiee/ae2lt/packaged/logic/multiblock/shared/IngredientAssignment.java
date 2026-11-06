@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiPredicate;
+
 import org.jetbrains.annotations.Nullable;
 
 public final class IngredientAssignment {
@@ -44,19 +45,42 @@ public final class IngredientAssignment {
             return null;
         }
 
-        // Augmenting paths also bound failed 81-slot upgrades. Backtracking can
-        // explore factorially many permutations when overlapping tags are short.
+        var candidates = new boolean[ingredients.size()][units.size()];
+        var candidateCounts = new int[ingredients.size()];
+        for (int ingredientIndex = 0; ingredientIndex < ingredients.size(); ingredientIndex++) {
+            for (int unitIndex = 0; unitIndex < units.size(); unitIndex++) {
+                if (matcher.test(ingredients.get(ingredientIndex), units.get(unitIndex))) {
+                    candidates[ingredientIndex][unitIndex] = true;
+                    candidateCounts[ingredientIndex]++;
+                }
+            }
+        }
+
+        var orderedIngredientIndexes = new ArrayList<Integer>(ingredients.size());
+        for (int i = 0; i < ingredients.size(); i++) {
+            orderedIngredientIndexes.add(i);
+        }
+        orderedIngredientIndexes.sort(java.util.Comparator
+                .comparingInt((Integer index) -> candidateCounts[index])
+                .thenComparingInt(Integer::intValue));
+
+        // Stable Kuhn augmenting paths give a maximum matching without factorial search.
         var ingredientByUnit = new int[units.size()];
         Arrays.fill(ingredientByUnit, -1);
-        for (int ingredient = 0; ingredient < ingredients.size(); ingredient++) {
-            if (!assignOne(ingredient, ingredients, units, matcher, ingredientByUnit, new boolean[units.size()])) {
+        for (int ingredientIndex : orderedIngredientIndexes) {
+            if (!augment(ingredientIndex, candidates, ingredientByUnit,
+                    new boolean[units.size()])) {
                 return null;
             }
         }
+
         var chosenUnitByIngredient = new int[ingredients.size()];
         Arrays.fill(chosenUnitByIngredient, -1);
-        for (int unit = 0; unit < ingredientByUnit.length; unit++) {
-            if (ingredientByUnit[unit] >= 0) chosenUnitByIngredient[ingredientByUnit[unit]] = unit;
+        for (int unitIndex = 0; unitIndex < ingredientByUnit.length; unitIndex++) {
+            int ingredientIndex = ingredientByUnit[unitIndex];
+            if (ingredientIndex >= 0) {
+                chosenUnitByIngredient[ingredientIndex] = unitIndex;
+            }
         }
 
         var assigned = new ArrayList<K>(ingredients.size());
@@ -70,20 +94,18 @@ public final class IngredientAssignment {
         return List.copyOf(assigned);
     }
 
-    private static <I, K> boolean assignOne(int ingredientIndex,
-                                            List<I> ingredients,
-                                            List<K> units,
-                                            BiPredicate<I, K> matcher,
-                                            int[] ingredientByUnit,
-                                            boolean[] visited) {
-        var ingredient = ingredients.get(ingredientIndex);
-        for (int unitIndex = 0; unitIndex < units.size(); unitIndex++) {
-            if (visited[unitIndex] || !matcher.test(ingredient, units.get(unitIndex))) {
+    private static boolean augment(int ingredientIndex,
+                                   boolean[][] candidates,
+                                   int[] ingredientByUnit,
+                                   boolean[] visitedUnits) {
+        for (int unitIndex = 0; unitIndex < ingredientByUnit.length; unitIndex++) {
+            if (!candidates[ingredientIndex][unitIndex] || visitedUnits[unitIndex]) {
                 continue;
             }
-            visited[unitIndex] = true;
-            if (ingredientByUnit[unitIndex] < 0 || assignOne(ingredientByUnit[unitIndex], ingredients, units, matcher,
-                    ingredientByUnit, visited)) {
+            visitedUnits[unitIndex] = true;
+            int displacedIngredient = ingredientByUnit[unitIndex];
+            if (displacedIngredient < 0
+                    || augment(displacedIngredient, candidates, ingredientByUnit, visitedUnits)) {
                 ingredientByUnit[unitIndex] = ingredientIndex;
                 return true;
             }

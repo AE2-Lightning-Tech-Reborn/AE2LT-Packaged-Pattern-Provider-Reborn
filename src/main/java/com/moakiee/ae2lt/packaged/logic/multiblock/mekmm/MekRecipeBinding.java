@@ -1,13 +1,9 @@
 package com.moakiee.ae2lt.packaged.logic.multiblock.mekmm;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -32,8 +28,6 @@ import net.minecraftforge.fluids.FluidStack;
 
 /** Binds a packaged pattern to the native MekMM recipe and port order. */
 record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<Recipe<?>>> recipes) {
-    private static final Map<MethodKey, Optional<Method>> METHODS = new ConcurrentHashMap<>();
-    private record MethodKey(Class<?> type, String name, List<Class<?>> arguments) {}
 
     @Nullable
     static MekRecipeBinding find(ServerLevel level, BlockEntity machine, MekmmMachineSpec spec,
@@ -258,23 +252,7 @@ record MekRecipeBinding(MekmmMachineSpec spec, Map<PortGroup, List<Recipe<?>>> r
             if (args[i] == null) return null;
             types[i] = args[i].getClass();
         }
-        var key = new MethodKey(target.getClass(), name, List.copyOf(Arrays.asList(types)));
-        var method = METHODS.computeIfAbsent(key, lookup -> {
-            var exact = ReflectionSupport.findMethodCached(lookup.type(), name, types);
-            if (exact.isPresent()) return exact;
-            // Mekanism's generic recipe methods accept ChemicalStack, not the concrete GasStack.
-            for (var candidate : lookup.type().getMethods()) {
-                if (!candidate.getName().equals(name) || candidate.isBridge()
-                        || candidate.getParameterCount() != types.length) continue;
-                var parameters = candidate.getParameterTypes();
-                boolean compatible = true;
-                for (int i = 0; i < types.length; i++) {
-                    if (!parameters[i].isAssignableFrom(types[i])) { compatible = false; break; }
-                }
-                if (compatible) return ReflectionSupport.findMethodCached(lookup.type(), name, parameters);
-            }
-            return Optional.empty();
-        }).orElse(null);
+        var method = RecipeMethodAccess.find(target.getClass(), name, types).orElse(null);
         return method == null ? null : ReflectionSupport.invoke(method, target, args).orElse(null);
     }
 }
