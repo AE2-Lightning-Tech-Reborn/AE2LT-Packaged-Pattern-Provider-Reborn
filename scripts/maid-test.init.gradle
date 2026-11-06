@@ -19,7 +19,7 @@ gradle.projectsEvaluated {
             property 'forge.logging.console.level', 'info'
             jvmArgs '-Xmx2G', '-XX:ActiveProcessorCount=4'
         }
-        p.tasks.named('syncGameTestStructures').configure { into new File(directory, 'gameteststructures') }
+        p.tasks.named('syncGameTestServerStructures').configure { into new File(directory, 'gameteststructures') }
         if ((p.findProperty('ppNoExperienceFixture') ?: 'false').toBoolean()) {
             p.tasks.named('processMaidTestResources').configure { exclude 'data/ae2ltpp/tags/fluids/experience.json' }
         }

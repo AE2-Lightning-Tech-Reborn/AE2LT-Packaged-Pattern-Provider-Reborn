@@ -76,12 +76,14 @@ public final class ResonantDispatch {
                     var marked = absolute.get();
                     // A relative layout has one source dimension; never reinterpret a cross-dimension mark.
                     if (!marked.pos().dimension().equals(layout.source().dimension())) return null;
+                    if (!ResonantRange.contains(layout.source().pos(), marked.pos().pos())) return null;
                     target = new ResonantLayout.Target(marked.pos().pos().subtract(layout.source().pos()),
                             marked.face(), Optional.empty());
                 } else {
                     target = layout.target(index).orElse(new ResonantLayout.Target(BlockPos.ZERO,
                             layout.anchorFace(), Optional.of(layout.anchorBlock())));
                 }
+                if (!ResonantRange.contains(BlockPos.ZERO, target.offset())) return null;
                 target = target.rotated(layout.forward(), orientation);
                 var pos = anchor.pos().offset(target.offset());
                 if (pos.equals(providerPos) || !validTarget(level, pos, target)) return null;
@@ -137,12 +139,17 @@ public final class ResonantDispatch {
                 .orElse(true);
     }
 
-    /** Only explicitly bound output ports are polled. Hand off each receipt before extracting the next one. */
+    /** New layouts pull only from the main machine; pre-existing output layouts keep their routes. */
     public static void extractOutputs(ResonantLayout layout, Anchor anchor, BlockPos providerPos,
                                       AllowedOutputFilter filter, IActionSource source, Consumer<GenericStack> retain) {
         if (!validAnchor(layout, anchor) || filter.isEmpty()) return;
         var level = anchor.level();
         var orientation = ResonantLayout.forward(level.getBlockState(anchor.pos()), anchor.face());
+        boolean legacyOutputs = layout.bindings().stream().anyMatch(b -> b.slot() >= ResonantLayout.INPUTS);
+        if (!legacyOutputs) {
+            if (!anchor.pos().equals(providerPos)) extractAt(level, anchor.pos(), anchor.face(), filter, source, retain);
+            return;
+        }
         var seen = new HashSet<List<Object>>();
         for (var binding : layout.bindings()) {
             if (binding.slot() < ResonantLayout.INPUTS) continue;
@@ -150,13 +157,18 @@ public final class ResonantDispatch {
             var pos = anchor.pos().offset(target.offset());
             if (pos.equals(providerPos) || !validTarget(level, pos, target)
                     || !seen.add(List.of(pos, target.face()))) continue;
-            var storage = capability(level, pos, Capabilities.STORAGE, target.face());
-            if (storage != null) extract(storage, filter, source, retain);
-            else {
-                for (var strategy : StackWorldBehaviors.createExternalStorageStrategies(level, pos, target.face()).values()) {
-                    var wrapper = strategy.createWrapper(false, () -> {});
-                    if (wrapper != null) extract(wrapper, filter, source, retain);
-                }
+            extractAt(level, pos, target.face(), filter, source, retain);
+        }
+    }
+
+    private static void extractAt(ServerLevel level, BlockPos pos, Direction face,
+                                  AllowedOutputFilter filter, IActionSource source, Consumer<GenericStack> retain) {
+        var storage = capability(level, pos, Capabilities.STORAGE, face);
+        if (storage != null) extract(storage, filter, source, retain);
+        else {
+            for (var strategy : StackWorldBehaviors.createExternalStorageStrategies(level, pos, face).values()) {
+                var wrapper = strategy.createWrapper(false, () -> {});
+                if (wrapper != null) extract(wrapper, filter, source, retain);
             }
         }
     }

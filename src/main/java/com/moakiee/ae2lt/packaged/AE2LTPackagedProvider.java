@@ -59,6 +59,8 @@ public class AE2LTPackagedProvider {
         IEventBus modEventBus = ((FMLJavaModLoadingContext) ModLoadingContext.get().extension())
                 .getModEventBus();
 
+        ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.SERVER, PPConfig.SPEC);
+
         PPItems.ITEMS.register(modEventBus);
         com.moakiee.ae2lt.packaged.recipe.CoreUpgradeRecipes.register(modEventBus);
         com.moakiee.ae2lt.packaged.recipe.FARecipes.register(modEventBus);

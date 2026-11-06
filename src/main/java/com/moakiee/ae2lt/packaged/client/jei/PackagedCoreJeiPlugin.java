@@ -2,11 +2,7 @@ package com.moakiee.ae2lt.packaged.client.jei;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import appeng.api.stacks.AEItemKey;
-import com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem;
 import com.moakiee.ae2lt.packaged.item.PackagedCoreDefinition;
-import com.moakiee.ae2lt.packaged.menu.PackagedPatternProviderMenu;
 import com.moakiee.ae2lt.packaged.registry.PPItems;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
@@ -19,16 +15,12 @@ import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
-import mezz.jei.api.recipe.transfer.IRecipeTransferError;
-import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.api.registration.*;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import com.mojang.blaze3d.platform.InputConstants;
 
@@ -41,7 +33,11 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
     private static int ingredientRows = 1;
     public record Slot(RecipeIngredientRole role, List<ITypedIngredient<?>> ingredients) {}
     public record CoreRecipe(ItemStack result, IRecipeCategory<Object> category, Object nativeRecipe,
-                             List<Slot> slots) {}
+                             List<Slot> slots) {
+        public boolean installedUpgrade() {
+            return category == null && slots.stream().anyMatch(slot -> slot.role() == RecipeIngredientRole.CATALYST);
+        }
+    }
     @Override public ResourceLocation getPluginUid() { return new ResourceLocation("ae2ltpp:cores"); }
     @Override public void registerCategories(IRecipeCategoryRegistration registration) {
         MaidAltarJeiRecipes.categories(registration);
@@ -50,11 +46,6 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
                 .createDrawableItemStack(new ItemStack(PPItems.BASIC_PACKAGED_CORE.get()))));
     }
     @Override public void registerIngredients(IModIngredientRegistration registration) {
-    }
-    public static boolean open() {
-        if (runtime == null) return false;
-        runtime.getRecipesGui().showTypes(List.of(TYPE));
-        return true;
     }
     @Override public void onRuntimeUnavailable() { runtime = null; }
     @Override public void onRuntimeAvailable(IJeiRuntime available) {
@@ -95,6 +86,9 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
             available.getIngredientManager().createTypedIngredient(VanillaTypes.ITEM_STACK, upgrade.result())
                     .ifPresent(item -> slots.add(new Slot(RecipeIngredientRole.OUTPUT, List.of(item))));
             recipes.add(new CoreRecipe(upgrade.result().copy(), null, holder, slots));
+            var supplied = slots.stream().map(slot -> slot.role() == RecipeIngredientRole.CATALYST
+                    ? new Slot(RecipeIngredientRole.INPUT, slot.ingredients()) : slot).toList();
+            recipes.add(new CoreRecipe(upgrade.result().copy(), null, holder, supplied));
         }
         ingredientRows = recipes.stream().mapToInt(recipe -> (int) recipe.slots().stream()
                 .filter(slot -> slot.role() != RecipeIngredientRole.OUTPUT).count())
@@ -116,30 +110,12 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
                     });
         });
     }
-    @Override public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
-        registration.addRecipeTransferHandler(new IRecipeTransferHandler<PackagedPatternProviderMenu, CoreRecipe>() {
-            @Override public Class<? extends PackagedPatternProviderMenu> getContainerClass() { return PackagedPatternProviderMenu.class; }
-            @Override public Optional<MenuType<PackagedPatternProviderMenu>> getMenuType() { return Optional.of(PackagedPatternProviderMenu.TYPE); }
-            @Override public RecipeType<CoreRecipe> getRecipeType() { return TYPE; }
-            @Override public IRecipeTransferError transferRecipe(PackagedPatternProviderMenu menu, CoreRecipe recipe,
-                    IRecipeSlotsView slots, Player player, boolean maxTransfer, boolean doTransfer) {
-                if (!(recipe.result().getItem() instanceof MultiblockAdapterItem)) {
-                    return registration.getTransferHelper().createUserErrorWithTooltip(Component.translatable("ae2ltpp.core_order.base_material"));
-                }
-                if (menu.coreOrderStatus.equals("crafting") || menu.coreOrderStatus.equals("calculating")) {
-                    return registration.getTransferHelper().createUserErrorWithTooltip(Component.translatable("ae2ltpp.core_order.crafting"));
-                }
-                if (doTransfer) menu.clientOrderCore(AEItemKey.of(recipe.result()).getId());
-                return null;
-            }
-        }, TYPE);
-    }
     private record Category(IDrawable icon) implements IRecipeCategory<CoreRecipe> {
         @Override public RecipeType<CoreRecipe> getRecipeType() { return TYPE; }
         @Override public Component getTitle() { return Component.translatable("ae2ltpp.jei.core_title"); }
         @Override public IDrawable getIcon() { return icon; }
         @Override public int getWidth() { return 248; }
-        @Override public int getHeight() { return Math.max(104, 66 + ingredientRows * 18); }
+        @Override public int getHeight() { return Math.max(120, 84 + ingredientRows * 18); }
         @Override public void setRecipe(IRecipeLayoutBuilder builder, CoreRecipe recipe, IFocusGroup focuses) {
             int input = 0, output = 0;
             for (var slot : recipe.slots()) {
@@ -155,19 +131,19 @@ public final class PackagedCoreJeiPlugin implements IModPlugin {
         }
         @Override public void draw(CoreRecipe recipe, IRecipeSlotsView slots, GuiGraphics graphics, double mx, double my) {
             var font = Minecraft.getInstance().font;
-            graphics.drawString(font, font.plainSubstrByWidth((recipe.category() == null ? Component.translatable("ae2ltpp.jei.upgrade") : recipe.category().getTitle()).getString(), 244), 2, 2, 0x404040, false);
-            graphics.drawString(font, Component.translatable(recipe.category() == null ? "ae2ltpp.jei.installed_core_short" : "ae2ltpp.jei.native_recipe"), 2, getHeight() - 32, 0x305F9C, false);
-            graphics.drawString(font, Component.translatable("ae2ltpp.jei.order_hint"), 2, getHeight() - 19, 0x404040, false);
+            graphics.drawString(font, font.plainSubstrByWidth((recipe.category() == null ? Component.translatable(recipe.installedUpgrade() ? "ae2ltpp.jei.upgrade" : "ae2ltpp.jei.spare") : recipe.category().getTitle()).getString(), 244), 2, 2, 0x404040, false);
+            graphics.drawWordWrap(font, Component.translatable(recipe.category() == null ? recipe.installedUpgrade() ? "ae2ltpp.jei.installed_core_short" : "ae2ltpp.jei.supplied_core_short" : "ae2ltpp.jei.native_recipe"), 2, getHeight() - 45, 244, 0x305F9C);
+            graphics.drawWordWrap(font, Component.translatable("ae2ltpp.jei.order_hint"), 2, getHeight() - 24, 244, 0x404040);
         }
         @Override public boolean handleInput(CoreRecipe recipe, double mx, double my, InputConstants.Key input) {
-            if (recipe.category() != null && input.getType() == InputConstants.Type.MOUSE && input.getValue() == 0 && my >= getHeight() - 36 && my < getHeight() - 20) {
+            if (recipe.category() != null && input.getType() == InputConstants.Type.MOUSE && input.getValue() == 0 && my >= getHeight() - 49 && my < getHeight() - 26) {
                 runtime.getRecipesGui().showRecipes(recipe.category(), List.of(recipe.nativeRecipe()), List.of());
                 return true;
             }
             return false;
         }
         @Override public List<Component> getTooltipStrings(CoreRecipe recipe, IRecipeSlotsView slots, double mx, double my) {
-            return my >= getHeight() - 20 ? List.of(Component.translatable("ae2ltpp.core_order.help")) : List.of();
+            return my >= getHeight() - 25 ? List.of(Component.translatable("ae2ltpp.core_order.help")) : List.of();
         }
     }
 }

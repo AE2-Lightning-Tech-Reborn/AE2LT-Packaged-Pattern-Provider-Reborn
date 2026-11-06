@@ -5,6 +5,8 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.moakiee.ae2lt.packaged.blockentity.PackagedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.packaged.PPConfig;
+import com.moakiee.ae2lt.packaged.logic.resonant.ResonantRange;
 import com.moakiee.ae2lt.packaged.logic.resonant.ResonantLayout;
 import com.moakiee.ae2lt.packaged.logic.resonant.ResonantLayoutData;
 import net.minecraft.ChatFormatting;
@@ -68,6 +70,12 @@ public final class ResonantPackagedCoreItem extends MultiblockAdapterItem {
             message(player, "same_dimension");
             return InteractionResult.CONSUME;
         }
+        if (!ResonantRange.contains(old.source().pos(), pos)) {
+            message(player, "out_of_range", PPConfig.RESONANT_INPUT_RANGE.get());
+            return InteractionResult.CONSUME;
+        }
+        // Keep legacy output routes intact; all new edits address inputs.
+        if (old.selected() >= ResonantLayout.INPUTS) old = old.select(0);
         var target = new ResonantLayout.Target(pos.subtract(old.source().pos()), context.getClickedFace(),
                 Optional.of(BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock())));
         var changed = old.withTarget(old.selected(), old.target(old.selected()).filter(target::equals).isPresent()
@@ -84,7 +92,7 @@ public final class ResonantPackagedCoreItem extends MultiblockAdapterItem {
             var current = layout(stack);
             if (current == null) message(player, "unbound");
             else {
-                var next = current.select(current.selected() < ResonantLayout.INPUTS ? ResonantLayout.INPUTS : 0);
+                var next = current.selected() < ResonantLayout.INPUTS ? current : current.select(0);
                 ResonantLayoutData.set(stack, next);
                 showSelection(player, next);
             }
@@ -102,14 +110,12 @@ public final class ResonantPackagedCoreItem extends MultiblockAdapterItem {
     }
 
     private static Component selection(ResonantLayout layout) {
-        boolean input = layout.selected() < ResonantLayout.INPUTS;
-        return Component.translatable("ae2ltpp.resonant." + (input ? "input" : "output"),
-                layout.selected() - (input ? 0 : ResonantLayout.INPUTS) + 1,
-                input ? ResonantLayout.INPUTS : ResonantLayout.OUTPUTS);
+        return Component.translatable("ae2ltpp.resonant.input",
+                layout.selected() < ResonantLayout.INPUTS ? layout.selected() + 1 : 1, ResonantLayout.INPUTS);
     }
 
     private static void showSelection(Player player, ResonantLayout layout) {
-        var target = layout.target(layout.selected());
+        var target = layout.target(layout.selected() < ResonantLayout.INPUTS ? layout.selected() : 0);
         if (target.isEmpty()) message(player, "selected_empty", selection(layout));
         else {
             var t = target.get();

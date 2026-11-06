@@ -10,7 +10,6 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
@@ -28,7 +27,6 @@ import appeng.api.stacks.KeyCounter;
 
 import com.moakiee.ae2lt.packaged.patternprovider.AllowedOutputFilter;
 import com.moakiee.ae2lt.packaged.item.AdapterIds;
-import com.moakiee.ae2lt.packaged.logic.multiblock.BoundedConstraintMatcher;
 import com.moakiee.ae2lt.packaged.logic.multiblock.DispatchPlan;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter;
 import com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult;
@@ -99,23 +97,22 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
             allIngredients.add(reagent);
         }
         return coverWithAlternatives(patternInputs, 0, allIngredients, craftRatio,
-                new LinkedHashMap<>(), new HashMap<>(), budget);
+                new LinkedHashMap<>(), budget);
     }
 
     private static boolean coverWithAlternatives(IPatternDetails.IInput[] inputs, int index,
                                                  List<Ingredient> ingredients, long craftRatio,
-                                                 LinkedHashMap<Item, Long> available,
-                                                 HashMap<Item, AEItemKey> keys, SearchBudget budget) {
+                                                 LinkedHashMap<AEItemKey, Long> available, SearchBudget budget) {
         if (budget.exhausted()) {
             return false;
         }
         if (index == inputs.length) {
-            return consumeIngredientsStrict(ingredients, craftRatio, available, keys);
+            return consumeIngredientsStrict(ingredients, craftRatio, available);
         }
         var input = inputs[index];
         var possible = input == null ? null : input.getPossibleInputs();
         if (possible == null || possible.length == 0) {
-            return coverWithAlternatives(inputs, index + 1, ingredients, craftRatio, available, keys, budget);
+            return coverWithAlternatives(inputs, index + 1, ingredients, craftRatio, available, budget);
         }
         for (var stack : possible) {
             // Charge every attempted alternative before allocating, including invalid ones.
@@ -123,25 +120,19 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
                 return false;
             }
             var nextAvailable = new LinkedHashMap<>(available);
-            var nextKeys = new HashMap<>(keys);
             if (stack != null && stack.what() instanceof AEItemKey key) {
                 long multiplier = input.getMultiplier();
                 if (stack.amount() <= 0 || multiplier <= 0) {
                     continue;
                 }
-                var previousKey = nextKeys.putIfAbsent(key.getItem(), key);
-                if (previousKey != null && !previousKey.equals(key)) {
-                    continue;
-                }
                 try {
                     long amount = Math.multiplyExact(stack.amount(), multiplier);
-                    nextAvailable.put(key.getItem(), Math.addExact(
-                            nextAvailable.getOrDefault(key.getItem(), 0L), amount));
+                    nextAvailable.put(key, Math.addExact(nextAvailable.getOrDefault(key, 0L), amount));
                 } catch (ArithmeticException overflow) {
                     continue;
                 }
             }
-            if (coverWithAlternatives(inputs, index + 1, ingredients, craftRatio, nextAvailable, nextKeys, budget)) {
+            if (coverWithAlternatives(inputs, index + 1, ingredients, craftRatio, nextAvailable, budget)) {
                 return true;
             }
         }
@@ -212,8 +203,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
         // Materialize the KeyCounter into two mutable maps (items +
         // fluids). Every consumed key is debited from these maps; at
         // the end both maps must be exactly zero (no swallowing).
-        var itemAvailable = new LinkedHashMap<Item, Long>();
-        var itemKeys = new HashMap<Item, AEItemKey>();
+        var itemAvailable = new LinkedHashMap<AEItemKey, Long>();
         var fluidAvailable = new LinkedHashMap<Fluid, Long>();
         var fluidKeys = new HashMap<Fluid, AEFluidKey>();
         for (var counter : inputs) {
@@ -223,16 +213,9 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
                     continue;
                 }
                 if (entry.getKey() instanceof AEItemKey itemKey) {
-                    var item = itemKey.getItem();
-                    var previousKey = itemKeys.putIfAbsent(item, itemKey);
-                    if (previousKey != null && !previousKey.equals(itemKey)) {
-                        // The recipe matcher is NBT-sensitive; merging distinct AE
-                        // keys by raw Item would consume or return the wrong variant.
-                        return null;
-                    }
-                    long previousItemAmount = itemAvailable.getOrDefault(item, 0L);
+                    long previousItemAmount = itemAvailable.getOrDefault(itemKey, 0L);
                     try {
-                        itemAvailable.put(item, Math.addExact(previousItemAmount, amt));
+                        itemAvailable.put(itemKey, Math.addExact(previousItemAmount, amt));
                     } catch (ArithmeticException overflow) {
                         return null;
                     }
@@ -269,7 +252,7 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
         if (reagent != null && !reagent.isEmpty()) {
             ingredients.add(reagent);
         }
-        if (!consumeIngredientsStrict(ingredients, craftRatio, itemAvailable, itemKeys)) {
+        if (!consumeIngredientsStrict(ingredients, craftRatio, itemAvailable)) {
             return null;
         }
 
@@ -323,17 +306,26 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
 
     /** Selects and debits water from the availability maps, or returns {@code null}. */
     @Nullable
-    private static WaterSource chooseWaterSource(LinkedHashMap<Item, Long> itemAvailable,
+    private static WaterSource chooseWaterSource(LinkedHashMap<AEItemKey, Long> itemAvailable,
                                                  LinkedHashMap<Fluid, Long> fluidAvailable,
                                                  long craftRatio,
                                                  BlockEntity be) {
-        long bucketsAvail = itemAvailable.getOrDefault(Items.WATER_BUCKET, 0L);
-        if (bucketsAvail >= craftRatio) {
-            long remaining = bucketsAvail - craftRatio;
-            if (remaining == 0) {
-                itemAvailable.remove(Items.WATER_BUCKET);
-            } else {
-                itemAvailable.put(Items.WATER_BUCKET, remaining);
+        long bucketsNeeded = craftRatio;
+        for (var entry : itemAvailable.entrySet()) {
+            if (entry.getKey().getItem() == Items.WATER_BUCKET) {
+                bucketsNeeded -= Math.min(bucketsNeeded, entry.getValue());
+            }
+        }
+        if (bucketsNeeded == 0) {
+            long remaining = craftRatio;
+            var entries = itemAvailable.entrySet().iterator();
+            while (entries.hasNext() && remaining > 0) {
+                var entry = entries.next();
+                if (entry.getKey().getItem() != Items.WATER_BUCKET) continue;
+                long used = Math.min(remaining, entry.getValue());
+                remaining -= used;
+                if (used == entry.getValue()) entries.remove();
+                else entry.setValue(entry.getValue() - used);
             }
             return WaterSource.BUCKET;
         }
@@ -387,64 +379,65 @@ public final class PetalApothecaryAdapter implements VirtualCraftingAdapter {
      * The caller must reject any leftover inputs.
      */
     private static boolean consumeIngredientsStrict(List<Ingredient> ingredients, long k,
-                                                    LinkedHashMap<Item, Long> available,
-                                                    HashMap<Item, AEItemKey> keysByItem) {
+                                                    LinkedHashMap<AEItemKey, Long> available) {
         if (k <= 0) {
             return false;
         }
 
-        var required = new ArrayList<Ingredient>();
-        for (var ingredient : ingredients) {
-            if (!ingredient.isEmpty()) {
-                required.add(ingredient);
+        var required = ingredients.stream().filter(ingredient -> !ingredient.isEmpty()).toList();
+        if (required.isEmpty()) return true;
+        // Capacities represent item counts, so a batch never allocates one node per item.
+        // Residual paths can move a broad match aside for a later NBT-specific ingredient.
+        if (required.size() > 64 || available.size() > 64) return false;
+        var keys = new ArrayList<>(available.keySet());
+        int firstIngredient = 1 + keys.size();
+        int sink = firstIngredient + required.size();
+        long[][] capacity = new long[sink + 1][sink + 1];
+        for (int i = 0; i < keys.size(); i++) {
+            long amount = available.get(keys.get(i));
+            if (amount < 0) return false;
+            capacity[0][i + 1] = amount;
+            for (int j = 0; j < required.size(); j++) {
+                if (required.get(j).test(keys.get(i).toStack(1))) {
+                    capacity[i + 1][firstIngredient + j] = Math.min(amount, k);
+                }
             }
         }
-        if (required.isEmpty()) {
-            return true;
-        }
-
-        // Materialize one bounded token for each complete k-sized portion. A
-        // token represents capacity, not a single item, so large stack counts
-        // cannot cause an unbounded allocation. Matching chooses the narrowest
-        // ingredient first and backtracks when a broad ingredient overlaps a
-        // later narrow one.
-        var tokens = new ArrayList<Item>();
-        for (var entry : available.entrySet()) {
-            if (entry.getValue() < k || keysByItem.get(entry.getKey()) == null) {
-                continue;
+        for (int j = 0; j < required.size(); j++) capacity[firstIngredient + j][sink] = k;
+        int[] parent = new int[sink + 1];
+        int[] queue = new int[sink + 1];
+        while (true) {
+            java.util.Arrays.fill(parent, -1);
+            parent[0] = 0;
+            queue[0] = 0;
+            int head = 0, tail = 1;
+            while (head < tail && parent[sink] < 0) {
+                int from = queue[head++];
+                for (int to = 1; to <= sink; to++) {
+                    if (parent[to] < 0 && capacity[from][to] > 0) {
+                        parent[to] = from;
+                        queue[tail++] = to;
+                    }
+                }
             }
-            long portions = entry.getValue() / k;
-            int tokenCount = (int) Math.min((long) required.size(), portions);
-            for (int i = 0; i < tokenCount; i++) {
-                tokens.add(entry.getKey());
+            if (parent[sink] < 0) break;
+            long moved = Long.MAX_VALUE;
+            for (int to = sink; to != 0; to = parent[to]) {
+                moved = Math.min(moved, capacity[parent[to]][to]);
+            }
+            for (int to = sink; to != 0; to = parent[to]) {
+                capacity[parent[to]][to] -= moved;
+                capacity[to][parent[to]] += moved;
             }
         }
-        if (tokens.size() < required.size()) {
-            return false;
+        for (int j = 0; j < required.size(); j++) {
+            if (capacity[firstIngredient + j][sink] != 0) return false;
         }
-
-        var constraints = required.stream()
-                .<java.util.function.Predicate<Item>>map(ingredient -> item -> {
-                    var key = keysByItem.get(item);
-                    return key != null && ingredient.test(key.toStack(1));
-                })
-                .toList();
-        // matchWithin, not matchExactly: tokens model available capacity, and
-        // inputs the pattern carries beyond the recipe (water, filler items)
-        // must stay available for the planning stage instead of invalidating
-        // bind-time selection.
-        var assigned = BoundedConstraintMatcher.matchWithin(tokens, constraints);
-        if (assigned == null) {
-            return false;
-        }
-
-        for (var item : assigned) {
-            long remaining = available.getOrDefault(item, 0L) - k;
-            if (remaining <= 0) {
-                available.remove(item);
-            } else {
-                available.put(item, remaining);
-            }
+        // Publish deductions only after every ingredient has a complete assignment.
+        for (int i = 0; i < keys.size(); i++) {
+            long remaining = capacity[0][i + 1];
+            if (remaining == 0) available.remove(keys.get(i));
+            else available.put(keys.get(i), remaining);
         }
         return true;
     }

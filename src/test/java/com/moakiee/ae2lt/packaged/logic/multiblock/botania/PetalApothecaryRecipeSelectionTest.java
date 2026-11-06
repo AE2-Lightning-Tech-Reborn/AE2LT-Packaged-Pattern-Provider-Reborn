@@ -227,6 +227,26 @@ class PetalApothecaryRecipeSelectionTest {
         assertSame(recipe, select(pattern(1, white, red), recipe));
     }
 
+    @Test
+    void sameItemWithDistinctNbtCanSatisfySeparatePatternInputs() {
+        var named = new ItemStack(Items.IRON_INGOT);
+        named.getOrCreateTag().putString("variant", "special");
+        var ingredients = NonNullList.of(Ingredient.EMPTY,
+                Ingredient.of(Items.IRON_INGOT), net.minecraftforge.common.crafting.StrictNBTIngredient.of(named));
+        var recipe = (Recipe<?>) Proxy.newProxyInstance(Recipe.class.getClassLoader(),
+                new Class<?>[] {Recipe.class, WithReagent.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "getIngredients" -> ingredients;
+                    case "getReagent" -> Ingredient.EMPTY;
+                    case "getResultItem" -> new ItemStack(Items.DANDELION);
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        var special = input(1, new GenericStack(AEItemKey.of(named), 1));
+        var plain = input(1, stack(Items.IRON_INGOT, 1));
+        assertSame(recipe, select(pattern(1, special, plain), recipe));
+        assertSame(recipe, select(pattern(1, plain, special), recipe));
+        assertNull(select(pattern(1, plain, plain), recipe));
+    }
+
     private static IPatternDetails.IInput countedInput(AtomicInteger attempts, GenericStack... possible) {
         return (IPatternDetails.IInput) Proxy.newProxyInstance(IPatternDetails.IInput.class.getClassLoader(),
                 new Class<?>[] {IPatternDetails.IInput.class}, (proxy, method, args) -> switch (method.getName()) {

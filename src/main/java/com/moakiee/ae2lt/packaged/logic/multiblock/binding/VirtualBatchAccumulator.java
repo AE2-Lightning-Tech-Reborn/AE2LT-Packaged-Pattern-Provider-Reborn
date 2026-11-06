@@ -94,11 +94,16 @@ public final class VirtualBatchAccumulator {
         return true;
     }
 
+    /** Deliver owned outputs by exact receipt without changing the regular flush schedule. */
+    public void deliver(ToLongFunction<GenericStack> sink) {
+        pending.deliver(entry -> sink.applyAsLong(new GenericStack(entry.key(), entry.amount())));
+    }
+
     /** Deduct each acknowledged output before attempting the next transfer. */
     public boolean tickFlushReceipts(long gameTick, ToLongFunction<GenericStack> sink) {
         if (!advanceFlushClock(gameTick) || pending.isEmpty()) return false;
         try {
-            pending.deliver(entry -> sink.applyAsLong(new GenericStack(entry.key(), entry.amount())));
+            deliver(sink);
         } catch (RuntimeException | LinkageError e) {
             LOG.warn("Virtual batch flush failed; retaining unacknowledged outputs", e);
         }
@@ -130,7 +135,7 @@ public final class VirtualBatchAccumulator {
     }
 
 
-    /** Force flush regardless of interval; used on host removal / clearContent. */
+    /** Drain remaining outputs after removal-time delivery. */
     public List<GenericStack> drainAll() {
         if (pending.isEmpty()) {
             return List.of();
