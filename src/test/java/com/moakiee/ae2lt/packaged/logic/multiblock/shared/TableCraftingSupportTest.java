@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import appeng.api.stacks.AEItemKey;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import net.minecraft.SharedConstants;
@@ -73,6 +75,38 @@ class TableCraftingSupportTest {
         assertEquals(original, available);
         assertNull(TableCraftingSupport.assignIngredientsStrict(ingredients, available, 64));
         assertEquals(original, available);
+    }
+
+    @Test
+    void eightyOneSlotComponentShortageAndExactSupplyPreserveInventoryAndGridOrder() {
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+            var named = new ItemStack(Items.IRON_INGOT);
+            named.set(DataComponents.CUSTOM_NAME, Component.literal("precise"));
+            var namedKey = AEItemKey.of(named);
+            var plainKey = AEItemKey.of(Items.IRON_INGOT);
+            var precise = net.neoforged.neoforge.common.crafting.DataComponentIngredient.of(false, named);
+            var ingredients = NonNullList.<Ingredient>create();
+            ingredients.addAll(Collections.nCopies(41, precise));
+            ingredients.addAll(Collections.nCopies(40, Ingredient.of(Items.IRON_INGOT)));
+            var available = new LinkedHashMap<AEItemKey, Long>();
+            available.put(namedKey, 40L * 65);
+            available.put(plainKey, 41L * 65);
+            var shortage = new LinkedHashMap<>(available);
+            assertNull(TableCraftingSupport.assignIngredientsStrict(ingredients, available, 65));
+            assertEquals(shortage, available);
+
+            available.put(namedKey, 41L * 65);
+            available.put(plainKey, 40L * 65);
+            var supplied = new LinkedHashMap<>(available);
+            var assigned = TableCraftingSupport.assignIngredientsStrict(ingredients, available, 65);
+            assertNotNull(assigned);
+            assertEquals(81, assigned.size());
+            for (int i = 0; i < assigned.size(); i++) {
+                assertEquals(i < 41 ? namedKey : plainKey, AEItemKey.of(assigned.get(i)));
+                assertEquals(1, assigned.get(i).getCount());
+            }
+            assertEquals(supplied, available);
+        });
     }
 
     @Test
